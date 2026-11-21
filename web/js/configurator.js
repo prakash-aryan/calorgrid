@@ -1624,6 +1624,10 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
       const frag = document.createDocumentFragment();
       for (const m of catalog.server_models) {
         const waterKw = (m.electrical_kw * m.recovery_fraction).toFixed(2);
+        const capTag = domEl("span", {
+          className: "cfg-model-cap",
+          text: m.gpu_count > 0 ? `${m.gpu_count} GPUs/rack · ${waterKw} kW heat` : `${waterKw} kW hot water`,
+        });
         const btn = domEl(
           "button",
           {
@@ -1641,14 +1645,15 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
               text: `${m.vendor_ref} · ${m.cooling_type}`,
             }),
             domEl("div", { className: "cfg-model-tags" }, [
-              domEl("span", { text: `${waterKw} kW hot water` }),
+              capTag,
               domEl("span", { text: m.workload_profile }),
             ]),
           ]
         );
         btn.addEventListener("click", async () => {
           state.serverModelId = m.id;
-          if (state.serverCount > m.max_units) state.serverCount = m.max_units;
+          const maxU = getSiteMaxUnits(state.deploymentId, m.id);
+          if (state.serverCount > maxU) state.serverCount = maxU;
           setCfgViewMode("basement");
           await refreshQuote();
         });
@@ -1799,6 +1804,15 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     ];
   }
 
+  function getSiteMaxUnits(depId, modelId) {
+    const dep = catalog?.deployments?.find((d) => d.id === depId);
+    if (dep?.max_units_by_model && dep.max_units_by_model[modelId]) {
+      return Number(dep.max_units_by_model[modelId]);
+    }
+    const mdl = catalog?.server_models?.find((m) => m.id === modelId);
+    return mdl ? Number(mdl.max_units) : 8;
+  }
+
   function renderConfigurator() {
     if (!latestQuote) return;
     const dep = latestQuote.deployment;
@@ -1838,12 +1852,25 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     if (cfgExtBadge) {
       cfgExtBadge.textContent = `${dep.label}`;
     }
+    const siteMaxU = Number(sz.site_max_units || getSiteMaxUnits(dep.id, mdl.id));
     if (cfg3dBadge) {
-      cfg3dBadge.textContent = `${state.serverCount} x ${mdl.name} · ${sz.peak_water_kw.toFixed(1)} kW heat (${mdl.supply_temp_c} C)`;
+      const gpuPart = sz.installed_gpus > 0 ? ` (${sz.installed_gpus} GPUs)` : "";
+      cfg3dBadge.textContent = `${latestQuote.server_count} x ${mdl.name}${gpuPart} · ${sz.peak_water_kw.toFixed(1)} kW heat (${mdl.supply_temp_c} C)`;
     }
 
     document.querySelectorAll("#cfg-server-models [data-model-id]").forEach((btn) => {
-      btn.classList.toggle("is-selected", btn.dataset.modelId === mdl.id);
+      const mid = btn.dataset.modelId;
+      btn.classList.toggle("is-selected", mid === mdl.id);
+      const capEl = btn.querySelector(".cfg-model-cap");
+      const mSpec = catalog?.server_models?.find((x) => x.id === mid);
+      if (capEl && mSpec) {
+        const mMax = getSiteMaxUnits(dep.id, mid);
+        const wKw = (mSpec.electrical_kw * mSpec.recovery_fraction).toFixed(2);
+        capEl.textContent =
+          mSpec.gpu_count > 0
+            ? `Up to ${mMax} racks (${mMax * mSpec.gpu_count} GPUs) · ${wKw} kW heat`
+            : `Up to ${mMax} units · ${wKw} kW hot water`;
+      }
     });
 
     const countVal = document.getElementById("cfg-count-val");
@@ -1851,10 +1878,13 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const minusBtn = document.getElementById("cfg-count-minus");
     const plusBtn = document.getElementById("cfg-count-plus");
     if (minusBtn) minusBtn.disabled = latestQuote.server_count <= 1;
-    if (plusBtn) plusBtn.disabled = latestQuote.server_count >= mdl.max_units;
+    if (plusBtn) plusBtn.disabled = latestQuote.server_count >= siteMaxU;
     const countSub = document.getElementById("cfg-count-sub");
     if (countSub) {
-      countSub.textContent = `Up to ${mdl.max_units} units · ${sz.peak_water_kw.toFixed(1)} kW hot water`;
+      countSub.textContent =
+        sz.installed_gpus > 0
+          ? `${sz.installed_gpus} GPUs (up to ${siteMaxU} racks / ${sz.site_max_gpus} GPUs) · ${sz.peak_water_kw.toFixed(1)} kW heat`
+          : `Up to ${siteMaxU} units for this building · ${sz.peak_water_kw.toFixed(1)} kW hot water`;
     }
 
     const fitEl = document.getElementById("cfg-fit-banner");
@@ -2045,8 +2075,9 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     }
     const hlRemBtn = document.getElementById("hl-rem-server-btn");
     const hlAddBtn = document.getElementById("hl-add-server-btn");
+    const siteMaxU = Number(latestQuote.sizing?.site_max_units || getSiteMaxUnits(dep.id, mdl.id));
     if (hlRemBtn) hlRemBtn.disabled = hl.installed_servers <= 1;
-    if (hlAddBtn) hlAddBtn.disabled = hl.installed_servers >= mdl.max_units;
+    if (hlAddBtn) hlAddBtn.disabled = hl.installed_servers >= siteMaxU;
 
     if (hl3dBadge) {
       hl3dBadge.textContent = `${hl.active_servers} of ${hl.installed_servers} Heating · ${hl.live_water_kw} kW (${hl.supply_temp_c} C) · Tank ${hl.tank_soc_pct}%`;
@@ -2299,8 +2330,7 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     }
   });
   document.getElementById("cfg-count-plus")?.addEventListener("click", async () => {
-    const mdl = catalog?.server_models.find((m) => m.id === state.serverModelId);
-    const maxU = mdl ? mdl.max_units : 8;
+    const maxU = getSiteMaxUnits(state.deploymentId, state.serverModelId);
     if (state.serverCount < maxU) {
       state.serverCount += 1;
       setCfgViewMode("basement");
@@ -2399,8 +2429,7 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
   });
 
   document.getElementById("hl-add-server-btn")?.addEventListener("click", async () => {
-    const mdl = catalog?.server_models.find((m) => m.id === state.serverModelId);
-    const maxU = mdl ? mdl.max_units : 8;
+    const maxU = getSiteMaxUnits(state.deploymentId, state.serverModelId);
     if (state.serverCount < maxU) {
       state.serverCount += 1;
       await refreshQuote();

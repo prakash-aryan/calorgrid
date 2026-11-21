@@ -463,6 +463,8 @@ class FleetJobScheduler:
                 ("hydronode_1kw", None),
             ],
             "stgallen_hospital": [
+                (None, "b200_sxm_180gb"),
+                (None, "b200_sxm_180gb"),
                 (None, "a100_sxm_80gb"),
                 ("ocp_winterfell_3kw", None),
                 ("ocp_winterfell_3kw", None),

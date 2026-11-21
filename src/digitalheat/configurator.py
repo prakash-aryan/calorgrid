@@ -606,9 +606,41 @@ def _resolve_heater_spec(
     raise ValueError(f"Unknown heater_type '{heater_type}'")
 
 
+def max_units_for_deployment(dep: DeploymentArchetype, mdl: ServerModelSpec) -> int:
+    """Return physical max units of `mdl` that fit inside `dep`'s thermal & electrical plant room.
+
+    Small residential basements (`house_basel`, 6 kW recommended) stay at the baseline
+    `mdl.max_units` ceiling, while larger commercial/civic/aquatic/hospital plant rooms
+    scale proportionally with their thermal & electrical service envelope (`max_recommended_kw`).
+    """
+    if dep.max_recommended_kw <= 6.5:
+        return mdl.max_units
+    if mdl.id == "b200_ai_10kw":
+        # ~10.4 kW (8x B200) per rack: scale from 3 racks (small sites) up to 8 racks (64 GPUs) in hospitals
+        scaled = max(mdl.max_units, int(round(dep.max_recommended_kw / 4.0)))
+        return min(8, scaled)
+    if mdl.id == "ocp_winterfell_3kw":
+        scaled = max(mdl.max_units, int(round(dep.max_recommended_kw * 0.58)))
+        return min(20, scaled)
+    if mdl.id == "hydronode_1kw":
+        scaled = max(mdl.max_units, int(round(dep.max_recommended_kw * 1.25)))
+        return min(40, scaled)
+    # edge_micro_250w
+    scaled = max(mdl.max_units, int(round(dep.max_recommended_kw * 0.75)))
+    return min(24, scaled)
+
+
 def get_configurator_catalog() -> dict:
+    deployments_out = []
+    for d in DEPLOYMENT_ARCHETYPES:
+        dd = asdict(d)
+        dd["max_units_by_model"] = {m.id: max_units_for_deployment(d, m) for m in SERVER_MODELS}
+        dd["max_gpus_by_model"] = {
+            m.id: max_units_for_deployment(d, m) * m.gpu_count for m in SERVER_MODELS
+        }
+        deployments_out.append(dd)
     return {
-        "deployments": [asdict(d) for d in DEPLOYMENT_ARCHETYPES],
+        "deployments": deployments_out,
         "server_models": [asdict(m) for m in SERVER_MODELS],
     }
 
@@ -1107,9 +1139,10 @@ def compute_configuration_quote(
     dep = resolve_deployment_id(deployment_id)
     mdl = resolve_server_model(server_model_id)
 
-    if server_count < 1 or server_count > mdl.max_units:
+    site_max_units = max_units_for_deployment(dep, mdl)
+    if server_count < 1 or server_count > site_max_units:
         raise ValueError(
-            f"server_count ({server_count}) out of range [1, {mdl.max_units}] for {mdl.id}"
+            f"server_count ({server_count}) out of range [1, {site_max_units}] for {mdl.id} at {dep.id}"
         )
     count = int(server_count)
 
@@ -1463,6 +1496,11 @@ def compute_configuration_quote(
         "server_model": asdict(mdl),
         "server_count": count,
         "sizing": {
+            "site_max_units": site_max_units,
+            "installed_gpus": count * mdl.gpu_count,
+            "site_max_gpus": site_max_units * mdl.gpu_count,
+            "installed_vram_gb": count * mdl.vram_gb_total,
+            "building_recommended_kw": dep.max_recommended_kw,
             "peak_elec_kw": round(peak_elec_kw, 2),
             "peak_water_kw": round(peak_water_kw, 2),
             "peak_room_kw": round(peak_room_kw, 2),

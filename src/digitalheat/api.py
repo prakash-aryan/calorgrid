@@ -1499,7 +1499,7 @@ def api_configurator_catalog() -> dict:
 def api_configurator_quote(
     deployment_id: str = Query("house_basel"),
     server_model_id: str = Query("hydronode_1kw"),
-    server_count: int = Query(4, ge=1, le=8),
+    server_count: int = Query(4, ge=1, le=48),
     heat_target_pct: int = Query(100, ge=20, le=140),
     outdoor_temp_c: float | None = Query(None, ge=-25.0, le=42.0),
     indoor_target_c: float = Query(21.0, ge=18.0, le=24.0),
