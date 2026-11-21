@@ -582,10 +582,13 @@ class CloudPricingService:
             else (Path(env_cache) if env_cache else DEFAULT_PRICING_CACHE_PATH)
         )
         resolved_cache = resolved_cache.expanduser().resolve()
-        if resolved_cache.is_relative_to(self._data_dir):
+        config_data_dir = CONFIG_DATA_DIR.resolve()
+        if resolved_cache.is_relative_to(self._data_dir) or resolved_cache.is_relative_to(
+            config_data_dir
+        ):
             raise ValueError(
                 f"Cloud pricing cache_path ({resolved_cache}) must NEVER reside inside "
-                f"DATA_DIR ({self._data_dir})"
+                f"DATA_DIR ({self._data_dir} / {config_data_dir})"
             )
 
         self._cache_path = resolved_cache
@@ -702,7 +705,11 @@ class CloudPricingService:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            if item.get("unitOfMeasure") != "1 Hour" or item.get("currencyCode") != "USD":
+            if (
+                item.get("type") != "Consumption"
+                or item.get("unitOfMeasure") != "1 Hour"
+                or item.get("currencyCode") != "USD"
+            ):
                 continue
             prod_name = str(item.get("productName", ""))
             meter_name = str(item.get("meterName", ""))
@@ -1055,6 +1062,9 @@ class CloudPricingService:
                 spot_usd = round(spot_chf / fx, 4)
 
                 if sid == "b200_ai_10kw" and b200_gpu_cmp is not None:
+                    azure_b200_od_gpu = b200_gpu_cmp["providers"]["azure"][
+                        "on_demand_usd_per_gpu_hr"
+                    ]
                     cloud_equiv = {
                         "cloud_equivalent_type": "gpu_8x_node",
                         "aws_instance": "p6-b200.48xlarge (8x B200)",
@@ -1062,10 +1072,10 @@ class CloudPricingService:
                             "native_instance_on_demand_usd_per_hr"
                         ],
                         "azure_instance": "ND128isr_NDR_GB200_v6 (4x GB200 proxy scaled 2x)",
-                        "azure_on_demand_usd_per_hr": round(
-                            (b200_gpu_cmp["providers"]["azure"]["on_demand_usd_per_gpu_hr"] or 0.0)
-                            * 8.0,
-                            2,
+                        "azure_on_demand_usd_per_hr": (
+                            round(azure_b200_od_gpu * 8.0, 2)
+                            if azure_b200_od_gpu is not None
+                            else None
                         ),
                     }
                     ref_srv_usd = cloud_equiv["aws_on_demand_usd_per_hr"]

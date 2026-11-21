@@ -92,6 +92,7 @@ def test_azure_live_parse_filters_windows_and_low_priority(
                 {
                     "Items": [
                         {
+                            "type": "Consumption",
                             "unitOfMeasure": "1 Hour",
                             "currencyCode": "USD",
                             "productName": "NCads A100 v4 Series Windows",
@@ -100,6 +101,7 @@ def test_azure_live_parse_filters_windows_and_low_priority(
                             "retailPrice": 9.99,
                         },
                         {
+                            "type": "Consumption",
                             "unitOfMeasure": "1 Hour",
                             "currencyCode": "USD",
                             "productName": "NCads A100 v4 Series Linux",
@@ -108,6 +110,16 @@ def test_azure_live_parse_filters_windows_and_low_priority(
                             "retailPrice": 0.50,
                         },
                         {
+                            "type": "Reservation",
+                            "unitOfMeasure": "1 Hour",
+                            "currencyCode": "USD",
+                            "productName": "NCads A100 v4 Series Linux",
+                            "meterName": "NC24ads A100 v4",
+                            "skuName": "NC24ads A100 v4",
+                            "retailPrice": 0.40,
+                        },
+                        {
+                            "type": "Consumption",
                             "unitOfMeasure": "1 Hour",
                             "currencyCode": "USD",
                             "productName": "NCads A100 v4 Series Linux",
@@ -116,6 +128,7 @@ def test_azure_live_parse_filters_windows_and_low_priority(
                             "retailPrice": 4.95,
                         },
                         {
+                            "type": "Consumption",
                             "unitOfMeasure": "1 Hour",
                             "currencyCode": "USD",
                             "productName": "NCads A100 v4 Series Linux",
@@ -194,3 +207,33 @@ def test_summer_sink_cost_model_accounting() -> None:
     assert sinks["sole_uno"]["dry_cooler_required"] is False
     assert sinks["davos_alpine"]["seasonality"] == "winter_dominant"
     assert "snowmaking is a cooling load" in sinks["davos_alpine"]["notes"].lower()
+
+
+def test_cloud_pricing_guardrail_blocks_config_data_dir_with_custom_data_dir(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="NEVER reside inside DATA_DIR"):
+        CloudPricingService(data_dir=tmp_path, cache_path=DATA_DIR / "bad_cache.json")
+
+
+def test_b200_server_baseline_keeps_azure_none_when_gpu_price_is_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import digitalheat.cloud_pricing as cp
+
+    patched_pinned = {k: dict(v) for k, v in cp._PINNED_GPU_OFFERS.items()}
+    b200_entry = dict(patched_pinned["b200_sxm_180gb"])
+    b200_entry["azure"] = dict(b200_entry["azure"], on_demand_usd=None)
+    patched_pinned["b200_sxm_180gb"] = b200_entry
+    monkeypatch.setattr(cp, "_PINNED_GPU_OFFERS", patched_pinned)
+
+    svc = CloudPricingService(
+        data_dir=DATA_DIR,
+        cache_path=tmp_path / "b200_none.json",
+        enable_live_fetch=False,
+    )
+    snap = svc.get_public_pricing_payload(trigger_refresh=False)
+    b200_srv = next(
+        s for s in snap["server_sku_comparisons"] if s["server_model_id"] == "b200_ai_10kw"
+    )
+    assert b200_srv["cloud_baseline"]["azure_on_demand_usd_per_hr"] is None

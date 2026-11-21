@@ -569,3 +569,51 @@ def test_m2_configurator_strict_bounds_and_csp_headers() -> None:
             assert "'wasm-unsafe-eval'" in csp
             assert "'sha256-" in csp
             assert "worker-src 'self' blob:" in csp
+
+
+def test_cold_fleet_20_thread_burst_and_pricing_refresh_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from digitalheat.fleet import _compute_annual_fleet_cache
+
+    with TestClient(api_module.app) as client:
+        # 1. Warmed by lifespan
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            warm_codes = list(
+                pool.map(
+                    lambda _: client.get(
+                        "/api/v1/fleet?day_of_year=196&hour=14&strategy=smart"
+                    ).status_code,
+                    range(20),
+                )
+            )
+        assert warm_codes == [200] * 20
+
+        # 2. Forced cold 20-thread concurrent burst after cache_clear()
+        _compute_annual_fleet_cache.cache_clear()
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            cold_codes = list(
+                pool.map(
+                    lambda _: client.get(
+                        "/api/v1/fleet?day_of_year=196&hour=14&strategy=smart"
+                    ).status_code,
+                    range(20),
+                )
+            )
+        assert cold_codes == [200] * 20
+        info = _compute_annual_fleet_cache.cache_info()
+        assert info.misses == 2
+
+        # 3. /api/v1/compute/pricing honors ?refresh=false vs ?refresh=true
+        seen_flags: list[bool] = []
+        svc = api_module.app.state.pricing_service
+        orig_get_payload = svc.get_public_pricing_payload
+
+        def _spy_get_payload(*, trigger_refresh: bool = True) -> dict:
+            seen_flags.append(trigger_refresh)
+            return orig_get_payload(trigger_refresh=False)
+
+        monkeypatch.setattr(svc, "get_public_pricing_payload", _spy_get_payload)
+        assert client.get("/api/v1/compute/pricing?refresh=false").status_code == 200
+        assert client.get("/api/v1/compute/pricing?refresh=true").status_code == 200
+        assert seen_flags == [False, True]

@@ -8,7 +8,7 @@ import math
 import time
 import urllib.request
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
@@ -1180,7 +1180,7 @@ def compute_configuration_quote(
     w_sum = max(sum(raw_w), 1e-6)
     dhw_tom = [base_dhw_kwh * (w / w_sum) for w in raw_w]
 
-    tom_month = datetime.now(ZURICH_TZ).month
+    tom_month = date.fromisoformat(str(forecast["date"])[:10]).month
     if dep.seasonal_months is not None:
         in_season = tom_month in dep.seasonal_months
         space_tom = [
@@ -1308,9 +1308,42 @@ def compute_configuration_quote(
             if worker_running:
                 status = "RUNNING"
                 cpu_pct = round(float(getattr(worker_status, "cpu_percent", 88.0)), 1)
+                if elec_kw <= 0.0:
+                    scaled = getattr(worker_status, "scaled_1kw", None)
+                    live_ref_kw = float(
+                        getattr(scaled, "reference_server_power_kw", 0.0) or 0.0
+                    )
+                    live_rec_kw = float(
+                        getattr(scaled, "heat_recovered_kw", 0.0) or 0.0
+                    )
+                    est_w = float(
+                        getattr(worker_status, "estimated_cpu_power_w", 0.0) or 0.0
+                    )
+                    if live_ref_kw > 0.0:
+                        elec_kw = round(live_ref_kw, 3)
+                        heat_kw = round(
+                            live_rec_kw
+                            if live_rec_kw > 0.0
+                            else live_ref_kw * mdl.recovery_fraction,
+                            3,
+                        )
+                    elif live_rec_kw > 0.0:
+                        heat_kw = round(live_rec_kw, 3)
+                        elec_kw = round(
+                            live_rec_kw / max(mdl.recovery_fraction, 1e-6), 3
+                        )
+                    elif est_w > 0.0:
+                        est_kw = est_w / 1000.0
+                        elec_kw = round(est_kw, 4)
+                        heat_kw = round(est_kw * mdl.recovery_fraction, 4)
+                    else:
+                        elec_kw = round(mdl.electrical_kw, 3)
+                        heat_kw = round(mdl.electrical_kw * mdl.recovery_fraction, 3)
             else:
                 status = "SIGSTOP_STANDBY"
                 cpu_pct = 0.0
+                elec_kw = round(mdl.idle_kw, 3)
+                heat_kw = round(mdl.idle_kw * mdl.recovery_fraction, 3)
 
         gpu_slots_out: list[dict[str, Any]] = []
         if mdl.gpu_count > 0:

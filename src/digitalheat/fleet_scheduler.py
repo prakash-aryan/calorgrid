@@ -103,7 +103,7 @@ class ServerInstance:
     status: Literal["running", "standby", "offline"] = "standby"
     gpu_slots: list[GpuSlot] = field(default_factory=list)
     active_job_ids: list[str] = field(default_factory=list)
-    # Hour offset -> set of busy slot indices (or {-1} when whole CPU-only server is reserved)
+    # Absolute sim hour -> set of busy slot indices (or {-1} for whole CPU-only server)
     schedule_bitmap: dict[int, set[int]] = field(default_factory=dict)
 
 
@@ -123,6 +123,7 @@ class SiteThermalState:
     building_cap_kwh_per_k: float
     dump_allowed: bool = False
     offline_until_hour: float | None = None
+    cumulative_dumped_kwh: float = 0.0
 
 
 @dataclass
@@ -186,6 +187,10 @@ class ComputeQuote:
     sink_type: str
     preheat_only: bool
     warnings: list[str]
+    quoted_sim_hour: float = 0.0
+    consumed: bool = False
+    booked_job_id: str | None = None
+    booked_idempotency_key: str | None = None
 
 
 def _utc_now_iso() -> str:
@@ -197,6 +202,19 @@ def _parse_clock_utc(ts: str) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _abs_hour_range(start_hour: float, duration_hours: float) -> range:
+    """Return absolute integer hour buckets overlapping [start_hour, start_hour + duration)."""
+    s = round(float(start_hour), 6)
+    e = round(s + max(0.0, float(duration_hours)), 6)
+    if e <= s + 1e-6:
+        return range(0, 0)
+    start_bucket = int(math.floor(s))
+    end_bucket = int(math.ceil(e))
+    if end_bucket <= start_bucket:
+        end_bucket = start_bucket + 1
+    return range(start_bucket, end_bucket)
 
 
 def _site_ambient_and_demand(
@@ -599,31 +617,123 @@ class FleetJobScheduler:
         for job in self._jobs.values():
             if job.site_id != site_id:
                 continue
-            if job.status == "running" and hour_offset == 0:
-                total += job.kw_th
-            elif job.status in ("running", "queued"):
-                end_h = job.start_hour + job.duration_hours
-                if job.start_hour <= target_h < end_h:
+            if job.status == "running":
+                if hour_offset == 0:
+                    total += job.kw_th
+                else:
+                    end_h = self._sim_hours_elapsed + max(0.0, job.remaining_hours)
+                    if self._sim_hours_elapsed - 1e-6 <= target_h < end_h - 1e-6:
+                        total += job.kw_th
+            elif job.status == "queued":
+                end_h = job.start_hour + max(0.0, job.remaining_hours)
+                if job.start_hour - 1e-6 <= target_h < end_h - 1e-6:
                     total += job.kw_th
         return total
+
+    def _site_committed_energy_kwh_locked(
+        self, site_id: str, step_start_h: float, step_end_h: float
+    ) -> float:
+        """Return committed thermal energy (kWh) at site_id across [step_start_h, step_end_h)."""
+        if step_end_h <= step_start_h:
+            return 0.0
+        total = 0.0
+        for job in self._jobs.values():
+            if job.site_id != site_id:
+                continue
+            if job.status == "running":
+                j_start = self._sim_hours_elapsed
+                j_end = self._sim_hours_elapsed + max(0.0, job.remaining_hours)
+            elif job.status == "queued":
+                j_start = job.start_hour
+                j_end = job.start_hour + max(0.0, job.remaining_hours)
+            else:
+                continue
+            overlap = min(step_end_h, j_end) - max(step_start_h, j_start)
+            if overlap > 0.0:
+                total += job.kw_th * overlap
+        return total
+
+    def _effective_site_demand_kw_locked(self, site_id: str, hour_offset: int) -> float:
+        site = self._sites[site_id]
+        spec = CANONICAL_SITES[site_id]
+        dt_h = self._sim_dt_utc + timedelta(hours=hour_offset)
+        _, space_dhw_kw, proc_kw, _ = _site_ambient_and_demand(
+            spec, dt_h, site.target_temp_c
+        )
+        if hour_offset == 0:
+            effective_demand = site.heat_demand_kw
+            if site.indoor_temp_c >= site.comfort_band_max_c:
+                # Building already warm: space heating headroom drops to zero
+                if proc_kw <= 0.0:
+                    effective_demand = min(effective_demand, spec.dhw_daily_kwh / 24.0)
+                else:
+                    effective_demand = min(
+                        effective_demand, proc_kw + spec.dhw_daily_kwh / 24.0
+                    )
+            return effective_demand
+        return space_dhw_kw + proc_kw
 
     def _instant_headroom_kw_locked(self, site_id: str) -> float:
         site = self._sites[site_id]
         if self._site_is_offline_locked(site):
             return 0.0
-        spec = CANONICAL_SITES[site_id]
-        _, space_dhw_kw, proc_kw, _ = _site_ambient_and_demand(
-            spec, self._sim_dt_utc, site.target_temp_c
-        )
-        effective_demand = site.heat_demand_kw
-        if site.indoor_temp_c >= site.comfort_band_max_c and proc_kw <= 0.0:
-            # Building already warm: space heating headroom drops to zero; DHW only remains
-            effective_demand = min(site.heat_demand_kw, spec.dhw_daily_kwh / 24.0)
-            if space_dhw_kw > 0.0 and proc_kw <= 0.0:
-                effective_demand = min(effective_demand, spec.dhw_daily_kwh / 24.0)
-        tank_free = max(0.0, site.tank_capacity_kwh - site.tank_soc_kwh)
+        effective_demand = self._effective_site_demand_kw_locked(site_id, 0)
+        tank_free_1h_kw = max(0.0, site.tank_capacity_kwh - site.tank_soc_kwh)
         committed_now = self._site_committed_heat_kw_locked(site_id, hour_offset=0)
-        return max(0.0, effective_demand + tank_free - committed_now)
+        return max(0.0, effective_demand + tank_free_1h_kw - committed_now)
+
+    def _can_absorb_trajectory_locked(
+        self,
+        site_id: str,
+        start_offset_h: int,
+        duration_hours: float,
+        candidate_kw_th: float,
+        *,
+        cand_end_override_h: int | None = None,
+    ) -> bool:
+        """Simulate conserved hourly tank SOC across [0, start_offset_h + duration_hours)."""
+        site = self._sites[site_id]
+        if self._site_is_offline_locked(site):
+            return False
+        if site.dump_allowed:
+            return True
+
+        dur = max(1e-6, float(duration_hours))
+        n_steps = max(1, int(math.ceil(dur)))
+        cand_start_step = max(0, int(start_offset_h))
+        cand_end_step = cand_start_step + n_steps
+        soc = site.tank_soc_kwh
+
+        for h_off in range(cand_end_step):
+            is_cand_window = cand_start_step <= h_off < cand_end_step
+            if is_cand_window and h_off == cand_end_step - 1:
+                rem = dur - (n_steps - 1)
+                step_frac = rem if 0.0 < rem <= 1.0 else 1.0
+            else:
+                step_frac = 1.0
+
+            step_start_h = self._sim_hours_elapsed + h_off
+            step_end_h = step_start_h + step_frac
+            committed_kwh = self._site_committed_energy_kwh_locked(
+                site_id, step_start_h, step_end_h
+            )
+            dem_kw = self._effective_site_demand_kw_locked(site_id, h_off)
+            trust = 1.0 if h_off == 0 else FORECAST_TRUST
+            sink_kwh = dem_kw * trust * step_frac
+
+            if is_cand_window and (cand_end_override_h is None or h_off < cand_end_override_h):
+                cand_kwh = candidate_kw_th * step_frac
+            else:
+                cand_kwh = 0.0
+
+            soc_next = soc + committed_kwh + cand_kwh - sink_kwh
+            if is_cand_window:
+                if soc_next > site.tank_capacity_kwh + 1e-6:
+                    return False
+                soc = max(0.0, soc_next)
+            else:
+                soc = max(0.0, min(site.tank_capacity_kwh, soc_next))
+        return True
 
     def _forecast_headroom_kwh_locked(
         self,
@@ -631,29 +741,65 @@ class FleetJobScheduler:
         start_offset_h: int,
         duration_hours: float,
     ) -> float:
+        """Return conserved absorbable heat (kWh) over the candidate horizon."""
         site = self._sites[site_id]
         if self._site_is_offline_locked(site):
             return 0.0
-        spec = CANONICAL_SITES[site_id]
-        n_steps = max(1, int(math.ceil(duration_hours)))
-        tank_free = max(0.0, site.tank_capacity_kwh - site.tank_soc_kwh)
-        total_budget = tank_free
-        for step in range(n_steps):
-            h_off = start_offset_h + step
-            dt_h = self._sim_dt_utc + timedelta(hours=h_off)
-            _, space_dhw_kw, proc_kw, _ = _site_ambient_and_demand(
-                spec, dt_h, site.target_temp_c
+
+        dur = max(1e-6, float(duration_hours))
+        n_steps = max(1, int(math.ceil(dur)))
+        cand_start_step = max(0, int(start_offset_h))
+        cand_end_step = cand_start_step + n_steps
+
+        soc = site.tank_soc_kwh
+        sum_sink = 0.0
+        sum_committed = 0.0
+        for h_off in range(cand_end_step):
+            is_cand_window = cand_start_step <= h_off < cand_end_step
+            if is_cand_window and h_off == cand_end_step - 1:
+                rem = dur - (n_steps - 1)
+                step_frac = rem if 0.0 < rem <= 1.0 else 1.0
+            else:
+                step_frac = 1.0
+
+            step_start_h = self._sim_hours_elapsed + h_off
+            step_end_h = step_start_h + step_frac
+            committed_kwh = self._site_committed_energy_kwh_locked(
+                site_id, step_start_h, step_end_h
             )
-            dem_h = space_dhw_kw + proc_kw
-            if h_off == 0:
-                dem_h = site.heat_demand_kw
-                if site.indoor_temp_c >= site.comfort_band_max_c and proc_kw <= 0.0:
-                    dem_h = spec.dhw_daily_kwh / 24.0
+            dem_kw = self._effective_site_demand_kw_locked(site_id, h_off)
             trust = 1.0 if h_off == 0 else FORECAST_TRUST
-            frac = min(1.0, duration_hours - step) if step == n_steps - 1 else 1.0
-            committed = self._site_committed_heat_kw_locked(site_id, hour_offset=h_off)
-            total_budget += max(0.0, dem_h * trust - committed) * frac
-        return max(0.0, total_budget)
+            sink_kwh = dem_kw * trust * step_frac
+
+            if not is_cand_window:
+                soc = max(0.0, min(site.tank_capacity_kwh, soc + committed_kwh - sink_kwh))
+            else:
+                sum_sink += sink_kwh
+                sum_committed += committed_kwh
+
+        if site.dump_allowed:
+            return round(max(0.0, site.tank_capacity_kwh - soc + sum_sink), 4)
+
+        if not self._can_absorb_trajectory_locked(site_id, cand_start_step, dur, 0.0):
+            return 0.0
+
+        raw_upper_kwh = max(0.0, (site.tank_capacity_kwh - soc) + sum_sink - sum_committed)
+        if raw_upper_kwh <= 1e-9:
+            return 0.0
+
+        upper_kw = raw_upper_kwh / dur
+        if self._can_absorb_trajectory_locked(site_id, cand_start_step, dur, upper_kw):
+            return round(raw_upper_kwh, 4)
+
+        lo_kw = 0.0
+        hi_kw = upper_kw
+        for _ in range(28):
+            mid_kw = 0.5 * (lo_kw + hi_kw)
+            if self._can_absorb_trajectory_locked(site_id, cand_start_step, dur, mid_kw):
+                lo_kw = mid_kw
+            else:
+                hi_kw = mid_kw
+        return round(max(0.0, lo_kw * dur), 4)
 
     def _available_slots_on_server_locked(
         self,
@@ -665,8 +811,7 @@ class FleetJobScheduler:
     ) -> list[int]:
         if srv.status == "offline":
             return []
-        n_steps = max(1, int(math.ceil(duration_hours)))
-        hours_range = range(start_offset_h, start_offset_h + n_steps)
+        hours_range = _abs_hour_range(self._sim_hours_elapsed + start_offset_h, duration_hours)
 
         if unit_mode == "gpu":
             if srv.gpu_model_id != gpu_or_sku or not srv.gpu_slots:
@@ -676,8 +821,8 @@ class FleetJobScheduler:
                 if slot.status == "offline":
                     continue
                 is_free = True
-                for h_off in hours_range:
-                    busy_set = srv.schedule_bitmap.get(h_off)
+                for abs_h in hours_range:
+                    busy_set = srv.schedule_bitmap.get(abs_h)
                     if busy_set and (-1 in busy_set or slot.slot_index in busy_set):
                         is_free = False
                         break
@@ -688,8 +833,8 @@ class FleetJobScheduler:
         # unit_mode == "server"
         if srv.server_model_id != gpu_or_sku:
             return []
-        for h_off in hours_range:
-            if srv.schedule_bitmap.get(h_off):
+        for abs_h in hours_range:
+            if srv.schedule_bitmap.get(abs_h):
                 return []
         if srv.gpu_slots:
             return [slot.slot_index for slot in srv.gpu_slots]
@@ -705,6 +850,8 @@ class FleetJobScheduler:
         duration_hours: float,
         preferred_site_id: str | None,
     ) -> dict[str, Any] | None:
+        zurich_month = self._sim_dt_utc.astimezone(ZURICH_TZ).month
+        is_summer_may_sep = 5 <= zurich_month <= 9
         if preferred_site_id is not None:
             candidate_site_ids = [resolve_site_id(preferred_site_id)]
         else:
@@ -734,17 +881,39 @@ class FleetJobScheduler:
                 if self._site_is_offline_locked(site):
                     continue
 
-                # Thermal admission check
+                eval_dt = self._sim_dt_utc + timedelta(hours=wait_h)
+                _, _, proc_kw_now, sink_active_now = _site_ambient_and_demand(
+                    spec, eval_dt, site.target_temp_c
+                )
+                if is_summer_may_sep and tier == "on_demand" and preferred_site_id is None:
+                    is_eligible_summer_sink = (spec.is_summer_sink and sink_active_now) or (
+                        spec.is_year_round_sink and proc_kw_now > 1.0
+                    )
+                    if not is_eligible_summer_sink:
+                        continue
+
+                # Thermal admission check (conserved tank-SOC trajectory)
                 if tier == "on_demand":
                     instant_room = self._instant_headroom_kw_locked(sid)
                     horizon_room = self._forecast_headroom_kwh_locked(sid, 0, duration_hours)
                     if not site.dump_allowed:
-                        if kw_th > instant_room + 1e-6 or total_heat_kwh > horizon_room + 1e-6:
+                        if (
+                            kw_th > instant_room + 1e-6
+                            or total_heat_kwh > horizon_room + 1e-6
+                            or not self._can_absorb_trajectory_locked(
+                                sid, 0, duration_hours, kw_th
+                            )
+                        ):
                             continue
                 else:
                     horizon_room = self._forecast_headroom_kwh_locked(sid, wait_h, duration_hours)
                     margin = ADMISSION_MARGIN if wait_h == 0 else 1.15
-                    if not site.dump_allowed and total_heat_kwh * margin > horizon_room + 1e-6:
+                    if not site.dump_allowed and (
+                        total_heat_kwh * margin > horizon_room + 1e-6
+                        or not self._can_absorb_trajectory_locked(
+                            sid, wait_h, duration_hours, kw_th * margin
+                        )
+                    ):
                         continue
 
                 # Slot matching across site's servers
@@ -786,9 +955,6 @@ class FleetJobScheduler:
                 )
                 norm_tariff = spec.tariff_chf_per_kwh / 0.35
 
-                _, _, _, sink_active_now = _site_ambient_and_demand(
-                    spec, self._sim_dt_utc + timedelta(hours=wait_h), site.target_temp_c
-                )
                 sink_bonus = (
                     0.25
                     if (spec.is_year_round_sink or (spec.is_summer_sink and sink_active_now))
@@ -975,7 +1141,7 @@ class FleetJobScheduler:
                     "absorbs indoor changing-room base only."
                 )
             zurich_month = self._sim_dt_utc.astimezone(ZURICH_TZ).month
-            if resolved_pref == "davos_alpine" and zurich_month in (5, 6, 7, 8, 9):
+            if placement["site_id"] == "davos_alpine" and zurich_month in (5, 6, 7, 8, 9):
                 warnings.append(
                     "Davos summer window limited to 4.8-6.8 kW indoor spa baseload "
                     "(snowmaking is a cooling load)."
@@ -1027,6 +1193,7 @@ class FleetJobScheduler:
                 sink_type=placement["sink_type"],
                 preheat_only=preheat_only,
                 warnings=warnings,
+                quoted_sim_hour=self._sim_hours_elapsed,
             )
 
             # Evict expired or oldest quotes if over cap
@@ -1104,13 +1271,52 @@ class FleetJobScheduler:
             "warnings": list(q.warnings),
         }
 
+    def _job_abs_hours_locked(self, job: ScheduledJob) -> range:
+        if job.remaining_hours <= 1e-6:
+            return range(0, 0)
+        if job.status == "running":
+            return _abs_hour_range(self._sim_hours_elapsed, job.remaining_hours)
+        if job.status == "queued":
+            return _abs_hour_range(
+                max(self._sim_hours_elapsed, job.start_hour), job.remaining_hours
+            )
+        return range(0, 0)
+
+    def _rebuild_schedule_bitmaps_locked(
+        self,
+        server_ids: set[str] | list[str] | None = None,
+        exclude_job_id: str | None = None,
+    ) -> None:
+        target_ids = list(server_ids) if server_ids is not None else list(self._servers.keys())
+        target_set = set(target_ids)
+        for srv_id in target_ids:
+            srv = self._servers.get(srv_id)
+            if srv is not None:
+                srv.schedule_bitmap.clear()
+
+        for job in self._jobs.values():
+            if exclude_job_id is not None and job.job_id == exclude_job_id:
+                continue
+            if job.status not in ("running", "queued"):
+                continue
+            hours_range = self._job_abs_hours_locked(job)
+            if not hours_range:
+                continue
+            for srv_id, s_idx in job.gpu_slot_refs:
+                if srv_id not in target_set:
+                    continue
+                srv = self._servers.get(srv_id)
+                if srv is None:
+                    continue
+                for abs_h in hours_range:
+                    srv.schedule_bitmap.setdefault(abs_h, set()).add(s_idx)
+
     def _reserve_job_slots_locked(self, job: ScheduledJob) -> None:
-        start_off = max(0, int(round(job.start_hour - self._sim_hours_elapsed)))
-        n_steps = max(1, int(math.ceil(job.remaining_hours)))
-        for h_off in range(start_off, start_off + n_steps):
+        hours_range = self._job_abs_hours_locked(job)
+        for abs_h in hours_range:
             for srv_id, s_idx in job.gpu_slot_refs:
                 srv = self._servers[srv_id]
-                srv.schedule_bitmap.setdefault(h_off, set()).add(s_idx)
+                srv.schedule_bitmap.setdefault(abs_h, set()).add(s_idx)
 
         if job.status == "running":
             for srv_id, s_idx in job.gpu_slot_refs:
@@ -1118,7 +1324,7 @@ class FleetJobScheduler:
                 if job.job_id not in srv.active_job_ids:
                     srv.active_job_ids.append(job.job_id)
                 srv.status = "running"
-                if s_idx >= 0 and s_idx < len(srv.gpu_slots):
+                if 0 <= s_idx < len(srv.gpu_slots):
                     slot = srv.gpu_slots[s_idx]
                     slot.status = "busy"
                     slot.utilization_pct = 92.0 if job.tier == "on_demand" else 84.0
@@ -1128,15 +1334,15 @@ class FleetJobScheduler:
                     slot.job_name = job.job_name
 
     def _release_job_slots_locked(self, job: ScheduledJob) -> None:
+        affected_servers: set[str] = set()
         for srv_id, s_idx in job.gpu_slot_refs:
             srv = self._servers.get(srv_id)
             if srv is None:
                 continue
-            for busy_set in srv.schedule_bitmap.values():
-                busy_set.discard(s_idx)
+            affected_servers.add(srv_id)
             if job.job_id in srv.active_job_ids:
                 srv.active_job_ids.remove(job.job_id)
-            if s_idx >= 0 and s_idx < len(srv.gpu_slots):
+            if 0 <= s_idx < len(srv.gpu_slots):
                 slot = srv.gpu_slots[s_idx]
                 if slot.job_id == job.job_id:
                     slot.status = "idle"
@@ -1147,6 +1353,11 @@ class FleetJobScheduler:
                     slot.job_name = None
             if not srv.active_job_ids and srv.status != "offline":
                 srv.status = "standby"
+        if affected_servers:
+            self._rebuild_schedule_bitmaps_locked(
+                server_ids=affected_servers,
+                exclude_job_id=job.job_id,
+            )
 
     def book_quote(
         self,
@@ -1176,6 +1387,11 @@ class FleetJobScheduler:
             if quote is None:
                 raise BookingNotFoundError(f"Unknown quote_id '{quote_id}'")
 
+            if quote.consumed:
+                raise BookingConflictError(
+                    f"Quote '{quote_id}' was already consumed by job '{quote.booked_job_id}'"
+                )
+
             now_mono = time.monotonic()
             if now_mono > quote.expires_at_mono:
                 raise QuoteExpiredError(f"Quote '{quote_id}' expired at {quote.expires_at_utc}")
@@ -1186,14 +1402,22 @@ class FleetJobScheduler:
             if self._site_is_offline_locked(site):
                 raise BookingConflictError(f"Assigned site '{sid}' is currently offline")
 
-            n_steps = max(1, int(math.ceil(quote.duration_hours)))
+            effective_start_hour = max(
+                self._sim_hours_elapsed,
+                quote.quoted_sim_hour + quote.start_offset_h,
+            )
+            effective_offset_h = max(
+                0,
+                int(round(effective_start_hour - self._sim_hours_elapsed)),
+            )
+            hours_range = _abs_hour_range(effective_start_hour, quote.duration_hours)
             for srv_id, s_idx in quote.assigned_gpu_slots:
                 srv = self._servers[srv_id]
                 if srv.status == "offline":
                     raise BookingConflictError(f"Assigned server '{srv_id}' went offline")
-                for h_off in range(quote.start_offset_h, quote.start_offset_h + n_steps):
-                    busy = srv.schedule_bitmap.get(h_off, set())
-                    if -1 in busy or s_idx in busy:
+                for abs_h in hours_range:
+                    busy = srv.schedule_bitmap.get(abs_h, set())
+                    if busy and (s_idx == -1 or -1 in busy or s_idx in busy):
                         log_event(
                             "customer_booking",
                             "booking_conflict_preempted",
@@ -1215,15 +1439,23 @@ class FleetJobScheduler:
                         quote.kw_th > self._instant_headroom_kw_locked(sid) + 1e-6
                         or quote.total_heat_kwh
                         > self._forecast_headroom_kwh_locked(sid, 0, quote.duration_hours) + 1e-6
+                        or not self._can_absorb_trajectory_locked(
+                            sid, 0, quote.duration_hours, quote.kw_th
+                        )
                     ):
                         raise BookingConflictError(
                             f"Thermal headroom at '{sid}' saturated since quote creation"
                         )
                 else:
                     horizon_room = self._forecast_headroom_kwh_locked(
-                        sid, quote.start_offset_h, quote.duration_hours
+                        sid, effective_offset_h, quote.duration_hours
                     )
-                    if quote.total_heat_kwh > horizon_room + 1e-6:
+                    if (
+                        quote.total_heat_kwh > horizon_room + 1e-6
+                        or not self._can_absorb_trajectory_locked(
+                            sid, effective_offset_h, quote.duration_hours, quote.kw_th
+                        )
+                    ):
                         raise BookingConflictError(
                             f"Forecast thermal headroom at '{sid}' saturated since quote creation"
                         )
@@ -1232,7 +1464,12 @@ class FleetJobScheduler:
             booking_id = f"bkg-{uuid.uuid4().hex[:10]}"
             effective_name = (job_name or quote.job_name).strip()[:80]
             status_val: Literal["running", "queued"] = (
-                "running" if quote.wait_time_min == 0 else "queued"
+                "running"
+                if effective_start_hour <= self._sim_hours_elapsed + 1e-6
+                else "queued"
+            )
+            effective_wait_min = max(
+                0, int(round((effective_start_hour - self._sim_hours_elapsed) * 60))
             )
             job = ScheduledJob(
                 job_id=job_id,
@@ -1246,12 +1483,10 @@ class FleetJobScheduler:
                 server_ids=list(quote.assigned_server_ids),
                 gpu_slot_refs=list(quote.assigned_gpu_slots),
                 arrival_hour=self._sim_hours_elapsed,
-                start_hour=self._sim_hours_elapsed + quote.start_offset_h,
+                start_hour=effective_start_hour,
                 duration_hours=quote.duration_hours,
                 remaining_hours=quote.duration_hours,
-                deadline_hour=(
-                    self._sim_hours_elapsed + quote.start_offset_h + quote.duration_hours + 6.0
-                ),
+                deadline_hour=effective_start_hour + quote.duration_hours + 6.0,
                 interruptible=(quote.tier == "spot"),
                 kw_e=quote.kw_e,
                 kw_th=quote.kw_th,
@@ -1260,6 +1495,9 @@ class FleetJobScheduler:
             )
             self._jobs[job_id] = job
             self._reserve_job_slots_locked(job)
+            quote.consumed = True
+            quote.booked_job_id = job_id
+            quote.booked_idempotency_key = clean_key
             self._state_version += 1
 
             log_event(
@@ -1297,7 +1535,7 @@ class FleetJobScheduler:
                     "tier": quote.tier,
                     "kw_e": quote.kw_e,
                     "kw_th": quote.kw_th,
-                    "wait_time_min": quote.wait_time_min,
+                    "wait_time_min": effective_wait_min,
                 },
                 store=self._log_store,
             )
@@ -1322,7 +1560,7 @@ class FleetJobScheduler:
                 "assigned_gpu_slots": [
                     {"server_id": s, "slot_index": i} for s, i in quote.assigned_gpu_slots
                 ],
-                "wait_time_min": quote.wait_time_min,
+                "wait_time_min": effective_wait_min,
                 "thermal_output_kw": quote.kw_th,
                 "total_heat_kwh": quote.total_heat_kwh,
                 "total_cost_chf": quote.total_cost_chf,
@@ -1360,12 +1598,11 @@ class FleetJobScheduler:
             offline = self._site_is_offline_locked(site)
             soc_ratio = site.tank_soc_kwh / max(site.tank_capacity_kwh, 1.0)
             overheated = site.indoor_temp_c >= site.comfort_band_max_c
-            committed = self._site_committed_heat_kw_locked(job.site_id, 0)
-            horizon_room = self._forecast_headroom_kwh_locked(
-                job.site_id, 0, min(2.0, job.remaining_hours)
-            )
+            check_dur = max(0.5, min(2.0, job.remaining_hours))
+            horizon_room = self._forecast_headroom_kwh_locked(job.site_id, 0, check_dur)
+            trajectory_ok = self._can_absorb_trajectory_locked(job.site_id, 0, check_dur, 0.0)
             needs_migration = offline or overheated or soc_ratio > 0.92 or (
-                not site.dump_allowed and committed > max(horizon_room, 0.1) * 0.95
+                not site.dump_allowed and (not trajectory_ok or horizon_room <= 0.05)
             )
             if not needs_migration:
                 continue
@@ -1413,10 +1650,29 @@ class FleetJobScheduler:
                     store=self._log_store,
                 )
             else:
-                # Pause/checkpoint in queue until thermal headroom recovers
+                # Pause/checkpoint in queue without colliding with already-queued slots
+                delay_h = 1
+                for candidate_off in range(1, 25):
+                    hours_range = _abs_hour_range(
+                        self._sim_hours_elapsed + candidate_off,
+                        max(0.5, job.remaining_hours),
+                    )
+                    slot_conflict = False
+                    for srv_id, s_idx in job.gpu_slot_refs:
+                        srv = self._servers[srv_id]
+                        for abs_h in hours_range:
+                            busy = srv.schedule_bitmap.get(abs_h, set())
+                            if busy and (s_idx == -1 or -1 in busy or s_idx in busy):
+                                slot_conflict = True
+                                break
+                        if slot_conflict:
+                            break
+                    if not slot_conflict:
+                        delay_h = candidate_off
+                        break
                 job.status = "queued"
-                job.hold_until_hour = self._sim_hours_elapsed + 1.0
-                job.start_hour = self._sim_hours_elapsed + 1.0
+                job.hold_until_hour = self._sim_hours_elapsed + delay_h
+                job.start_hour = self._sim_hours_elapsed + delay_h
                 self._reserve_job_slots_locked(job)
                 migrations.append(
                     {
@@ -1443,6 +1699,22 @@ class FleetJobScheduler:
             room_kw = self._instant_headroom_kw_locked(sid)
             if room_kw <= 0.30:
                 continue
+            max_rem_h = max(
+                [1.0]
+                + [
+                    max(
+                        1.0,
+                        (
+                            (j.start_hour + j.remaining_hours)
+                            if j.status == "queued"
+                            else (self._sim_hours_elapsed + j.remaining_hours)
+                        )
+                        - self._sim_hours_elapsed,
+                    )
+                    for j in self._jobs.values()
+                    if j.site_id == sid and j.status in ("running", "queued")
+                ]
+            )
             # Prefer idle hydronode / edge / rtx slots for low-power backfill
             for srv_id in self._site_servers[sid]:
                 srv = self._servers[srv_id]
@@ -1457,6 +1729,10 @@ class FleetJobScheduler:
                     slot0 = srv.gpu_slots[free_slots[0]]
                     q_th = round(slot0.min_active_kw * slot0.eta, 4)
                     if q_th > room_kw:
+                        continue
+                    if not site.dump_allowed and not self._can_absorb_trajectory_locked(
+                        sid, 0, max_rem_h, q_th, cand_end_override_h=1
+                    ):
                         continue
                     jid = f"bf-{sid}-{uuid.uuid4().hex[:6]}"
                     bf_job = ScheduledJob(
@@ -1493,6 +1769,10 @@ class FleetJobScheduler:
                         continue
                     q_th = round(srv.min_active_kw * srv.eta, 4)
                     if q_th > room_kw:
+                        continue
+                    if not site.dump_allowed and not self._can_absorb_trajectory_locked(
+                        sid, 0, max_rem_h, q_th, cand_end_override_h=1
+                    ):
                         continue
                     jid = f"bf-{sid}-{uuid.uuid4().hex[:6]}"
                     bf_job = ScheduledJob(
@@ -1543,7 +1823,21 @@ class FleetJobScheduler:
             self._sim_dt_utc += timedelta(hours=hours)
             self._refresh_all_site_demands_locked()
 
-            # 1. Advance running jobs and update building RC thermal states
+            # 1. Recover sites whose offline window elapsed before promoting queued jobs
+            recovered_at: dict[str, float] = {}
+            for sid, site in self._sites.items():
+                if (
+                    site.offline_until_hour is not None
+                    and self._sim_hours_elapsed >= site.offline_until_hour - 1e-6
+                ):
+                    recovered_at[sid] = site.offline_until_hour
+                    site.offline_until_hour = None
+                    for srv_id in self._site_servers[sid]:
+                        srv = self._servers[srv_id]
+                        if srv.status == "offline":
+                            srv.status = "standby"
+
+            # 2. Advance running jobs and promote due queued jobs on online sites/servers
             completed_ids: list[str] = []
             for job in list(self._jobs.values()):
                 if job.status == "running":
@@ -1552,20 +1846,30 @@ class FleetJobScheduler:
                         job.status = "completed"
                         self._release_job_slots_locked(job)
                         completed_ids.append(job.job_id)
-                elif job.status == "queued" and self._sim_hours_elapsed >= job.start_hour:
-                    job.status = "running"
-                    self._reserve_job_slots_locked(job)
+                elif job.status == "queued" and self._sim_hours_elapsed >= job.start_hour - 1e-6:
+                    site = self._sites[job.site_id]
+                    if self._site_is_offline_locked(site) or any(
+                        self._servers[srv_id].status == "offline" for srv_id in job.server_ids
+                    ):
+                        continue
+                    effective_start = max(
+                        job.start_hour, recovered_at.get(job.site_id, job.start_hour)
+                    )
+                    elapsed_active = max(
+                        0.0, min(hours, self._sim_hours_elapsed - effective_start)
+                    )
+                    job.remaining_hours = max(0.0, job.remaining_hours - elapsed_active)
+                    if job.remaining_hours <= 1e-6:
+                        job.status = "completed"
+                        self._release_job_slots_locked(job)
+                        completed_ids.append(job.job_id)
+                    else:
+                        job.status = "running"
+                        self._reserve_job_slots_locked(job)
+
+            self._rebuild_schedule_bitmaps_locked()
 
             for sid, site in self._sites.items():
-                if (
-                    site.offline_until_hour is not None
-                    and self._sim_hours_elapsed >= site.offline_until_hour
-                ):
-                    site.offline_until_hour = None
-                    for srv_id in self._site_servers[sid]:
-                        srv = self._servers[srv_id]
-                        if srv.status == "offline":
-                            srv.status = "standby"
                 q_gen = sum(
                     j.kw_th
                     for j in self._jobs.values()
@@ -1573,6 +1877,9 @@ class FleetJobScheduler:
                 )
                 net_heat_kwh = (q_gen - site.heat_demand_kw) * hours
                 new_soc = site.tank_soc_kwh + net_heat_kwh
+                dumped_kwh = max(0.0, new_soc - site.tank_capacity_kwh)
+                if dumped_kwh > 0.0:
+                    site.cumulative_dumped_kwh = round(site.cumulative_dumped_kwh + dumped_kwh, 4)
                 site.tank_soc_kwh = round(max(0.0, min(site.tank_capacity_kwh, new_soc)), 3)
                 # 1-node Vaibhav RC thermal drift on residential/alpine buildings
                 q_space_delivery = min(site.heat_demand_kw, q_gen + site.tank_soc_kwh * 0.15)
@@ -1584,7 +1891,7 @@ class FleetJobScheduler:
                     max(15.0, min(26.0, site.indoor_temp_c + dt_in * 0.25)), 2
                 )
 
-            # 2. Proactive thermal migration & backfill
+            # 3. Proactive thermal migration & backfill
             migrations = self._proactive_migrate_locked()
             backfill_added = self._run_backfill_locked()
             self._state_version += 1
@@ -1715,6 +2022,7 @@ class FleetJobScheduler:
             worker_running = False
             worker_kw_e = 0.0
             worker_kw_th = 0.0
+            worker_measured_kw_e = 0.0
             worker_job_type = None
             if worker_status is not None and getattr(worker_status, "state", None) in (
                 "running",
@@ -1723,15 +2031,33 @@ class FleetJobScheduler:
                 worker_pid = getattr(worker_status, "pid", None)
                 if worker_pid is not None:
                     worker_running = getattr(worker_status, "state", None) == "running"
-                    worker_kw_e = round(
+                    worker_measured_kw_e = round(
                         float(getattr(worker_status, "estimated_cpu_power_w", 0.0)) / 1000.0, 4
                     )
                     scaled = getattr(worker_status, "scaled_1kw", None)
-                    worker_kw_th = (
-                        round(float(getattr(scaled, "heat_recovered_kw", 0.0)), 4)
-                        if scaled is not None
-                        else round(worker_kw_e * 0.80, 4)
-                    )
+                    if worker_running:
+                        if scaled is not None:
+                            ref_kw = getattr(scaled, "reference_server_power_kw", None)
+                            rec_kw = getattr(scaled, "heat_recovered_kw", None)
+                            if ref_kw is not None and float(ref_kw) > 0.0:
+                                worker_kw_e = round(float(ref_kw), 4)
+                                worker_kw_th = (
+                                    round(float(rec_kw), 4)
+                                    if rec_kw is not None
+                                    else round(worker_kw_e * 0.80, 4)
+                                )
+                            elif rec_kw is not None and float(rec_kw) > 0.0:
+                                worker_kw_th = round(float(rec_kw), 4)
+                                worker_kw_e = round(worker_kw_th / 0.80, 4)
+                            else:
+                                worker_kw_e = worker_measured_kw_e
+                                worker_kw_th = round(worker_kw_e * 0.80, 4)
+                        else:
+                            worker_kw_e = worker_measured_kw_e
+                            worker_kw_th = round(worker_kw_e * 0.80, 4)
+                    else:
+                        worker_kw_e = 0.0
+                        worker_kw_th = 0.0
                     worker_job_type = getattr(worker_status, "job_type", None)
 
             for sid in target_sids:
@@ -1790,6 +2116,8 @@ class FleetJobScheduler:
                                 and srv_idx == 0
                                 and slot.slot_index == 0
                                 and worker_pid is not None
+                                and slot.status == "idle"
+                                and slot.job_id is None
                             ):
                                 slot_dict["source"] = "live_pid"
                                 slot_dict["pid"] = worker_pid
@@ -1801,6 +2129,7 @@ class FleetJobScheduler:
                                 )
                                 slot_dict["kw_e"] = worker_kw_e
                                 slot_dict["kw_th"] = worker_kw_th
+                                slot_dict["measured_cpu_kw_e"] = worker_measured_kw_e
                                 slot_dict["job_id"] = f"pid-{worker_pid}"
                                 slot_dict["job_name"] = f"live-cpu-{worker_job_type or 'worker'}"
 
@@ -1885,6 +2214,7 @@ class FleetJobScheduler:
                             100.0 * site.tank_soc_kwh / max(site.tank_capacity_kwh, 1.0), 1
                         ),
                         "tank_capacity_kwh": site.tank_capacity_kwh,
+                        "cumulative_dumped_kwh": round(site.cumulative_dumped_kwh, 3),
                         "target_supply_c": site.target_supply_c,
                         "heater_type": site.heater_type,
                         "gpus_total": site_gpus,
@@ -1951,6 +2281,9 @@ class FleetJobScheduler:
                 "active_jobs_count": running_count,
                 "queued_jobs_count": queued_count,
                 "backfill_kw_e": round(backfill_kw_e, 3),
+                "total_dumped_kwh": round(
+                    sum(s.cumulative_dumped_kwh for s in self._sites.values()), 3
+                ),
             }
             return copy.deepcopy(
                 {

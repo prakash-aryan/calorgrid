@@ -991,6 +991,7 @@ async def lifespan(app_instance: FastAPI):
         _cached_annual_sim("baseline", 4, "basel")
         _cached_daily_timeseries("smart", 4, "basel")
         _cached_daily_timeseries("baseline", 4, "basel")
+        get_swiss_fleet_snapshot(day_of_year=196, hour=14, strategy="smart")
         pricing_service.get_pricing_snapshot(trigger_refresh=True)
 
     try:
@@ -1605,10 +1606,7 @@ def api_fleet_telemetry_tick(req: TelemetryTickRequest | None = None) -> dict:
 def api_compute_pricing(refresh: bool = Query(False)) -> dict:
     """Return non-blocking traditional cloud vs CalorGrid On-Demand/Spot pricing."""
     svc = _get_pricing_service(app)
-    if refresh:
-        # Trigger async background refresh without blocking API response
-        return svc.get_public_pricing_payload(trigger_refresh=True)
-    return svc.get_public_pricing_payload(trigger_refresh=True)
+    return svc.get_public_pricing_payload(trigger_refresh=refresh)
 
 
 @app.post("/api/v1/compute/quote")

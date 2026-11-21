@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import copy
 import math
+import threading
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import lru_cache, wraps
 from typing import Any, Literal
 
 from digitalheat.config import (
@@ -901,7 +902,31 @@ def _offered_fleet_load_factor(hour: int) -> float:
     return 0.56 if 7 <= hour <= 21 else 0.42
 
 
-@lru_cache(maxsize=2)
+def _single_flight_lru(maxsize: int):
+    def decorator(fn):
+        cached_fn = lru_cache(maxsize=maxsize)(fn)
+        registry_lock = threading.Lock()
+        key_locks: dict[tuple, threading.Lock] = {}
+
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            lock_key = (args, tuple(sorted(kwargs.items()))) if kwargs else args
+            with registry_lock:
+                key_lock = key_locks.get(lock_key)
+                if key_lock is None:
+                    key_lock = threading.Lock()
+                    key_locks[lock_key] = key_lock
+            with key_lock:
+                return cached_fn(*args, **kwargs)
+
+        wrapper.cache_clear = cached_fn.cache_clear
+        wrapper.cache_info = cached_fn.cache_info
+        return wrapper
+
+    return decorator
+
+
+@_single_flight_lru(maxsize=2)
 def _compute_annual_fleet_cache(strategy: str) -> dict[str, Any]:
     """Run deterministic 8,760-hour fleet simulation for all 14 Swiss nodes (cached)."""
     w_basel = load_weather_zurich("basel").hours

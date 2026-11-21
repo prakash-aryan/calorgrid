@@ -225,3 +225,107 @@ def test_dst_23h_and_25h_open_meteo_forecast_slicing(
 
     _FORECAST_CACHE.clear()
     assert io.BytesIO is not None
+
+
+def test_tom_month_uses_forecast_date_across_apr_30_to_may_1_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import digitalheat.configurator as cfg
+
+    class _Apr30Datetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2025, 4, 30, 23, 30, tzinfo=tz)
+
+    def _fake_forecast_for_date(date_str: str) -> dict:
+        return {
+            "deployment_id": "municipal_pool",
+            "date": date_str,
+            "temp_min_c": 12.0,
+            "temp_max_c": 18.0,
+            "temp_mean_c": 15.0,
+            "weather_code": 2,
+            "hourly_temps_c": [15.0] * 24,
+            "hourly_local_hours": list(range(24)),
+            "hours_count": 24,
+            "is_dst_transition": False,
+            "source": "mock_boundary",
+            "is_live": False,
+        }
+
+    monkeypatch.setattr(cfg, "datetime", _Apr30Datetime)
+    monkeypatch.setattr(
+        cfg, "fetch_live_swiss_forecast", lambda _dep_id: _fake_forecast_for_date("2025-04-30")
+    )
+    q_apr = compute_configuration_quote(
+        deployment_id="municipal_pool",
+        server_model_id="b200_ai_10kw",
+        server_count=2,
+    )
+
+    monkeypatch.setattr(
+        cfg, "fetch_live_swiss_forecast", lambda _dep_id: _fake_forecast_for_date("2025-05-01")
+    )
+    q_may = compute_configuration_quote(
+        deployment_id="municipal_pool",
+        server_model_id="b200_ai_10kw",
+        server_count=2,
+    )
+
+    # May 1 activates municipal_pool seasonal_months (5..9) even when system clock is Apr 30
+    assert (
+        q_may["host_ledger"]["tomorrow"]["building_heat_demand_kwh"]
+        > q_apr["host_ledger"]["tomorrow"]["building_heat_demand_kwh"] + 100.0
+    )
+
+
+def test_configurator_live_pid_processes_zero_unit_consistency() -> None:
+    from types import SimpleNamespace
+
+    # Force active_servers_now == 0 via warm outdoor temp + low heat_target_pct=20
+    running_worker = SimpleNamespace(
+        state="running",
+        pid=7771,
+        job_type="iiif_embeddings",
+        cpu_percent=85.0,
+        estimated_cpu_power_w=75.0,
+        scaled_1kw=SimpleNamespace(reference_server_power_kw=1.0, heat_recovered_kw=0.8),
+    )
+    q_run = compute_configuration_quote(
+        deployment_id="house_basel",
+        server_model_id="hydronode_1kw",
+        server_count=2,
+        heat_target_pct=20,
+        outdoor_temp_c=24.0,
+        worker_status=running_worker,
+    )
+    p0_run = q_run["heatledger_tomorrow"]["processes"][0]
+    assert p0_run["source"] == "live_pid"
+    assert p0_run["status"] == "RUNNING"
+    assert p0_run["elec_kw"] == pytest.approx(1.0, abs=1e-4)
+    assert p0_run["heat_kw"] == pytest.approx(0.8, abs=1e-4)
+    assert p0_run["heat_kw"] <= p0_run["elec_kw"]
+
+    # Paused worker (SIGSTOP_STANDBY) must report idle_kw / idle_kw*eta even when active=0 or >=1
+    paused_worker = SimpleNamespace(
+        state="paused",
+        pid=7772,
+        job_type="archive_ocr",
+        cpu_percent=0.0,
+        estimated_cpu_power_w=0.0,
+        scaled_1kw=None,
+    )
+    q_pause = compute_configuration_quote(
+        deployment_id="house_basel",
+        server_model_id="hydronode_1kw",
+        server_count=2,
+        heat_target_pct=20,
+        outdoor_temp_c=24.0,
+        worker_status=paused_worker,
+    )
+    p0_pause = q_pause["heatledger_tomorrow"]["processes"][0]
+    assert p0_pause["source"] == "live_pid"
+    assert p0_pause["status"] == "SIGSTOP_STANDBY"
+    assert p0_pause["elec_kw"] > 0.0
+    assert p0_pause["heat_kw"] > 0.0
+    assert p0_pause["heat_kw"] <= p0_pause["elec_kw"]

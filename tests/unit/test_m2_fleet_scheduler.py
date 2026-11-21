@@ -260,3 +260,382 @@ def test_proactive_migrate_failover_backfill_and_live_pid_overlay() -> None:
     assert basel["servers"][0]["gpu_slots"][0]["source"] == "live_pid"
     assert basel["servers"][0]["gpu_slots"][0]["pid"] == 42424
     assert sole["servers"][0]["gpu_slots"][0]["source"] == "simulated"
+
+
+def test_schedule_bitmap_no_double_booking_or_wait_drift_across_ticks() -> None:
+    sched = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+
+    # 1. Queue j1 [0,1), j2 [1,2), j3 [2,4) on sole_uno's single 8x H100 NVL server
+    q1 = sched.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=1.0,
+        preferred_site_id="sole_uno",
+        job_name="j1",
+    )
+    b1 = sched.book_quote(quote_id=q1["quote_id"], idempotency_key="seq-1")
+    assert b1["wait_time_min"] == 0
+    assert b1["status"] == "running"
+
+    q2 = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=1.0,
+        preferred_site_id="sole_uno",
+        job_name="j2",
+    )
+    b2 = sched.book_quote(quote_id=q2["quote_id"], idempotency_key="seq-2")
+    assert b2["wait_time_min"] == 60
+    assert b2["status"] == "queued"
+
+    q3 = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=2.0,
+        preferred_site_id="sole_uno",
+        job_name="j3",
+    )
+    b3 = sched.book_quote(quote_id=q3["quote_id"], idempotency_key="seq-3")
+    assert b3["wait_time_min"] == 120
+    assert b3["status"] == "queued"
+
+    # Advance 1h: j1 completes, j2 starts, j3 stays queued [2,4)
+    tick1 = sched.dispatch_tick(hours=1.0)
+    assert tick1["completed_jobs_count"] == 1
+
+    # New 2h Spot quote at t=1 must wait until t=4 (180 min), never colliding with j3
+    q4 = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=2.0,
+        preferred_site_id="sole_uno",
+        job_name="j4",
+    )
+    assert q4["wait_time_min"] == 180
+    sched.book_quote(quote_id=q4["quote_id"], idempotency_key="seq-4")
+
+    # Advance 1h to t=2: only j3 is running on sole_uno H100 NVL
+    tick2 = sched.dispatch_tick(hours=1.0)
+    running_h100 = [
+        j
+        for j in tick2["telemetry"]["active_jobs"]
+        if j["site_id"] == "sole_uno"
+        and j["gpu_or_sku"] == "h100_nvl_94gb"
+        and j["status"] == "running"
+    ]
+    assert len(running_h100) == 1
+    assert running_h100[0]["job_id"] == b3["job_id"]
+
+    # 2. Stale wait inflation check: 4h job after 3 ticks (1h left) gives 60 min wait, not 240 min
+    sched_wait = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    q_long = sched_wait.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=4,
+        duration_hours=4.0,
+        preferred_site_id="basel_erdsonde",
+    )
+    sched_wait.book_quote(quote_id=q_long["quote_id"], idempotency_key="long-rtx-1")
+    for _ in range(3):
+        sched_wait.dispatch_tick(hours=1.0)
+    q_after = sched_wait.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=4,
+        duration_hours=1.0,
+        preferred_site_id="basel_erdsonde",
+    )
+    assert q_after["wait_time_min"] == 60
+
+    # 3. Multi-hour tick (hours > 1.0) adjusts queued job remaining_hours & guards offline sites
+    sched2 = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-01-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    qa = sched2.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="h100_sxm_80gb",
+        quantity=8,
+        duration_hours=1.0,
+        preferred_site_id="thurgau_greenhouse",
+    )
+    sched2.book_quote(quote_id=qa["quote_id"], idempotency_key="jump-a")
+    qb = sched2.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_sxm_80gb",
+        quantity=8,
+        duration_hours=3.0,
+        preferred_site_id="thurgau_greenhouse",
+    )
+    bb = sched2.book_quote(quote_id=qb["quote_id"], idempotency_key="jump-b")
+    tick_jump = sched2.dispatch_tick(hours=2.0)
+    assert tick_jump["completed_jobs_count"] == 1
+    jb = sched2._jobs[bb["job_id"]]
+    assert jb.status == "running"
+    assert jb.remaining_hours == pytest.approx(2.0, abs=1e-6)
+
+    # Offline site queued job must not flip to running while site remains offline
+    qc = sched2.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="a100_sxm_80gb",
+        quantity=2,
+        duration_hours=2.0,
+        preferred_site_id="emmental_dairy",
+    )
+    bc = sched2.book_quote(quote_id=qc["quote_id"], idempotency_key="off-q-1")
+    sched2._jobs[bc["job_id"]].status = "queued"
+    sched2._jobs[bc["job_id"]].start_hour = sched2._sim_hours_elapsed + 1.0
+    sched2._sites["emmental_dairy"].offline_until_hour = sched2._sim_hours_elapsed + 5.0
+    for srv_id in sched2._site_servers["emmental_dairy"]:
+        sched2._servers[srv_id].status = "offline"
+    sched2._jobs[bc["job_id"]].interruptible = False
+    sched2.dispatch_tick(hours=1.5)
+    assert sched2._jobs[bc["job_id"]].status == "queued"
+
+
+def test_consumed_quote_cannot_be_rebooked_after_completion_or_migration() -> None:
+    sched = FleetJobScheduler(log_store=TelemetryLogStore(), seed_initial_workloads=False)
+
+    # Completion path
+    q1 = sched.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="b200_sxm_180gb",
+        quantity=2,
+        duration_hours=1.0,
+        preferred_site_id="sole_uno",
+    )
+    r1 = sched.book_quote(quote_id=q1["quote_id"], idempotency_key="cons-1")
+    assert r1["idempotent_replay"] is False
+
+    sched.dispatch_tick(hours=1.0)
+    assert sched._jobs[r1["job_id"]].status == "completed"
+
+    # Same Idempotency-Key still replays cleanly
+    r1_replay = sched.book_quote(quote_id=q1["quote_id"], idempotency_key="cons-1")
+    assert r1_replay["idempotent_replay"] is True
+    assert r1_replay["booking_id"] == r1["booking_id"]
+
+    # Different Idempotency-Key must raise BookingConflictError (HTTP 409)
+    with pytest.raises(BookingConflictError, match="already consumed"):
+        sched.book_quote(quote_id=q1["quote_id"], idempotency_key="cons-2")
+
+    # Migration path
+    q_mig = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=2,
+        duration_hours=3.0,
+        preferred_site_id="basel_klingental",
+    )
+    rm = sched.book_quote(quote_id=q_mig["quote_id"], idempotency_key="mig-cons-1")
+    upd = sched.update_site_demand("basel_klingental", indoor_temp_c=23.2, tank_soc_kwh=34.5)
+    assert any(m["job_id"] == rm["job_id"] for m in upd["migrations"])
+    with pytest.raises(BookingConflictError, match="already consumed"):
+        sched.book_quote(quote_id=q_mig["quote_id"], idempotency_key="mig-cons-2")
+
+
+def test_live_pid_unit_consistency_and_no_slot_zero_masking() -> None:
+    sched = FleetJobScheduler(log_store=TelemetryLogStore(), seed_initial_workloads=False)
+    real_like_worker = SimpleNamespace(
+        state="running",
+        pid=51515,
+        job_type="iiif_embeddings",
+        cpu_percent=88.0,
+        estimated_cpu_power_w=75.0,
+        scaled_1kw=SimpleNamespace(reference_server_power_kw=1.0, heat_recovered_kw=0.8),
+    )
+
+    tel_idle = sched.get_fleet_telemetry(worker_status=real_like_worker)
+    basel_idle = next(s for s in tel_idle["sites"] if s["site_id"] == "basel_klingental")
+    slot0 = basel_idle["servers"][0]["gpu_slots"][0]
+    assert slot0["source"] == "live_pid"
+    assert slot0["kw_e"] == pytest.approx(1.0, abs=1e-4)
+    assert slot0["kw_th"] == pytest.approx(0.8, abs=1e-4)
+    assert slot0["kw_th"] / slot0["kw_e"] == pytest.approx(0.80, abs=0.02)
+
+    # Without scaled_1kw, kw_e and kw_th remain consistent at eta ~0.80
+    unscaled_worker = SimpleNamespace(
+        state="running",
+        pid=51516,
+        job_type="archive_ocr",
+        cpu_percent=70.0,
+        estimated_cpu_power_w=75.0,
+        scaled_1kw=None,
+    )
+    tel_unscaled = sched.get_fleet_telemetry(worker_status=unscaled_worker)
+    basel_unscaled = next(s for s in tel_unscaled["sites"] if s["site_id"] == "basel_klingental")
+    slot0_u = basel_unscaled["servers"][0]["gpu_slots"][0]
+    assert slot0_u["kw_e"] == pytest.approx(0.075, abs=1e-4)
+    assert slot0_u["kw_th"] == pytest.approx(0.06, abs=1e-4)
+
+    # Occupying slot 0 with a scheduled job must not be masked by live_pid
+    q_occ = sched.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=1,
+        duration_hours=2.0,
+        preferred_site_id="basel_klingental",
+        job_name="scheduled-slot0",
+    )
+    b_occ = sched.book_quote(quote_id=q_occ["quote_id"], idempotency_key="occ-slot0-1")
+    tel_busy = sched.get_fleet_telemetry(worker_status=real_like_worker)
+    basel_busy = next(s for s in tel_busy["sites"] if s["site_id"] == "basel_klingental")
+    slot0_busy = basel_busy["servers"][0]["gpu_slots"][0]
+    assert slot0_busy["source"] == "simulated"
+    assert slot0_busy["job_id"] == b_occ["job_id"]
+
+
+def test_conserved_tank_trajectory_prevents_stacked_hydronode_dumping() -> None:
+    sched = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+
+    # First 30h hydronode_1kw (0.8 kW_th, 24.0 kWh) fits inside basel_klingental free tank + DHW
+    q1 = sched.create_quote(
+        tier="on_demand",
+        unit_mode="server",
+        gpu_or_sku="hydronode_1kw",
+        quantity=1,
+        duration_hours=30.0,
+        preferred_site_id="basel_klingental",
+    )
+    assert q1["wait_time_min"] == 0
+    assert q1["total_heat_kwh"] == pytest.approx(24.0, abs=1e-4)
+    sched.book_quote(quote_id=q1["quote_id"], idempotency_key="tank-traj-1")
+
+    # 2nd and 3rd consecutive 30h hydronode_1kw quotes must be rejected (tank_free committed)
+    for _ in range(2):
+        with pytest.raises(ThermalCapacityConflictError, match="thermal_headroom_saturated"):
+            sched.create_quote(
+                tier="on_demand",
+                unit_mode="server",
+                gpu_or_sku="hydronode_1kw",
+                quantity=1,
+                duration_hours=30.0,
+                preferred_site_id="basel_klingental",
+            )
+
+    # Stepping 30 hours yields zero dumped heat at basel_klingental and fleet-wide
+    last_tick = None
+    for _ in range(30):
+        last_tick = sched.dispatch_tick(hours=1.0)
+    assert last_tick is not None
+    assert sched._sites["basel_klingental"].cumulative_dumped_kwh == pytest.approx(0.0, abs=1e-6)
+    assert last_tick["telemetry"]["summary"]["total_dumped_kwh"] == pytest.approx(0.0, abs=1e-6)
+
+    # Near-full tank instant headroom must reject kw_th > instant_demand + (cap - soc)
+    sched_full = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    sched_full.update_site_demand("basel_klingental", tank_soc_kwh=34.8)
+    assert sched_full._instant_headroom_kw_locked("basel_klingental") < 0.8
+    with pytest.raises(ThermalCapacityConflictError, match="thermal_headroom_saturated"):
+        sched_full.create_quote(
+            tier="on_demand",
+            unit_mode="server",
+            gpu_or_sku="hydronode_1kw",
+            quantity=1,
+            duration_hours=1.0,
+            preferred_site_id="basel_klingental",
+        )
+
+
+def test_summer_on_demand_strict_sink_filtering_and_davos_warning() -> None:
+    # A. 8x h100_nvl_94gb On-Demand saturates summer sinks without Davos spillover
+    sched_h100 = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=True,
+    )
+    assigned_h100_sites: list[str] = []
+    for idx in range(2):
+        q = sched_h100.create_quote(
+            tier="on_demand",
+            unit_mode="gpu",
+            gpu_or_sku="h100_nvl_94gb",
+            quantity=8,
+            duration_hours=4.0,
+            preferred_site_id=None,
+        )
+        assert q["wait_time_min"] == 0
+        assigned_h100_sites.append(q["assigned_site_id"])
+        sched_h100.book_quote(quote_id=q["quote_id"], idempotency_key=f"sum-h100-{idx}")
+    assert set(assigned_h100_sites) == {"sole_uno", "basel_st_jakob"}
+
+    with pytest.raises(ThermalCapacityConflictError, match="thermal_headroom_saturated"):
+        sched_h100.create_quote(
+            tier="on_demand",
+            unit_mode="gpu",
+            gpu_or_sku="h100_nvl_94gb",
+            quantity=8,
+            duration_hours=4.0,
+            preferred_site_id=None,
+        )
+
+    # B. 4x rtx_pro_4500_blackwell On-Demand uses basel_erdsonde then rejects
+    sched_rtx = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=True,
+    )
+    q_erd = sched_rtx.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=4,
+        duration_hours=8.0,
+        preferred_site_id=None,
+    )
+    assert q_erd["assigned_site_id"] == "basel_erdsonde"
+    sched_rtx.book_quote(quote_id=q_erd["quote_id"], idempotency_key="sum-rtx-0")
+
+    with pytest.raises(ThermalCapacityConflictError, match="thermal_headroom_saturated"):
+        sched_rtx.create_quote(
+            tier="on_demand",
+            unit_mode="gpu",
+            gpu_or_sku="rtx_pro_4500_blackwell",
+            quantity=4,
+            duration_hours=8.0,
+            preferred_site_id=None,
+        )
+
+    # C. Davos summer spa warning triggers whenever placement['site_id'] == 'davos_alpine'
+    q_davos_spot_auto = sched_h100.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=4,
+        duration_hours=2.0,
+        preferred_site_id=None,
+    )
+    assert q_davos_spot_auto["assigned_site_id"] == "davos_alpine"
+    assert any("snowmaking is a cooling load" in w for w in q_davos_spot_auto["warnings"])
