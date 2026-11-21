@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121w">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121y">
   <script type="importmap">
   {
     "imports": {
@@ -488,7 +488,7 @@
     <video id="swiss-rtx-video" class="swiss-rtx-video" autoplay muted loop playsinline preload="auto"></video>
     <div id="sn-site-basement-host" class="sn-site-basement-host" hidden></div>
     <div class="sn-rtx-topctrl">
-      <button type="button" class="sn-rtx-back-btn" id="sn-rtx-back-btn">&lt;- Map</button>
+      <button type="button" class="sn-rtx-back-btn" id="sn-rtx-back-btn"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg><span>Map</span></button>
       <div class="sn-rtx-mode-toggle" role="group" aria-label="Site 3D View">
         <button type="button" class="sn-rtx-mode-btn is-active" id="sn-view-exterior">Outside</button>
         <button type="button" class="sn-rtx-mode-btn" id="sn-view-basement">Inside</button>
@@ -500,13 +500,15 @@
   <div class="swiss-twin-bar" data-testid="swiss-twin-bar" hidden>
     <div id="swiss-twin-bar-info" class="sn-tb-info"></div>
     <div class="sn-tb-actions">
-      <button type="button" class="sn-btn-primary" id="sn-tb-configure">Configure for my building</button>
-      <button type="button" class="sn-btn-dark" id="sn-tb-heatledger">Open HeatLedger</button>
-      <button type="button" class="sn-btn-outline" id="sn-tb-book-compute" data-testid="sn-tb-book-compute">Book GPUs here</button>
-      <button type="button" class="sn-btn-ghost" id="sn-tb-prev">Previous</button>
-      <button type="button" class="sn-btn-ghost" id="sn-tb-next">Next</button>
+      <button type="button" class="sn-btn-heat" id="sn-tb-configure">Heat a similar building</button>
+      <button type="button" class="sn-btn-compute" id="sn-tb-book-compute" data-testid="sn-tb-book-compute">Book GPUs here</button>
+      <button type="button" class="sn-btn-outline" id="sn-tb-heatledger">HeatLedger</button>
+      <div class="sn-tb-pager" role="group" aria-label="Browse Swiss sites">
+        <button type="button" class="sn-btn-ghost" id="sn-tb-prev" aria-label="Previous site">&lsaquo; Prev</button>
+        <button type="button" class="sn-btn-ghost" id="sn-tb-next" aria-label="Next site">Next &rsaquo;</button>
+      </div>
       <button type="button" class="sn-btn-ghost" id="sn-tb-webgl" hidden>Interactive 3D</button>
-      <button type="button" class="sn-btn-ghost sn-desktop-only" id="sn-tb-back-map">Map</button>
+      <button type="button" class="sn-btn-ghost" id="sn-tb-back-map" hidden>Map</button>
     </div>
   </div>
 
@@ -957,6 +959,6 @@
     Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
   </footer>
 
-  <script type="module" src="/js/main.js?v=20261121v"></script>
+  <script type="module" src="/js/main.js?v=20261121x"></script>
 </body>
 </html>

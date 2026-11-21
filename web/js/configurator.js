@@ -1941,21 +1941,23 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
       ? latestSiteTelemetry.active_jobs
       : [];
 
+    const tierPretty = { on_demand: "On-Demand", spot: "Spot", backfill: "Backfill" };
+    const jobCountTxt = jobs.length === 1 ? "1 active job" : `${jobs.length} active jobs`;
     const header = domEl("div", { className: "hl-tel-summary" }, [
       domEl("div", {}, [
         domEl("strong", { text: `${site.name} (${site.canton})` }),
         domEl("span", {
-          text: `Indoor ${site.indoor_temp_c} C (target ${site.target_temp_c} C) · Out ${site.outdoor_temp_c} C · Headroom ${fmtNum(site.thermal_headroom_kw, 2)} kW`,
+          text: `Indoor ${site.indoor_temp_c}°C (target ${site.target_temp_c}°C), outdoor ${site.outdoor_temp_c}°C, ${fmtNum(site.thermal_headroom_kw, 1)} kW headroom`,
         }),
       ]),
       domEl("div", { className: "hl-tel-badges" }, [
         domEl("span", {
           className: "hl-proc-pill is-run",
-          text: `${site.gpus_busy}/${site.gpus_total} GPUs busy · ${fmtNum(site.kw_th, 2)} kW_th`,
+          text: `${site.gpus_busy}/${site.gpus_total} GPUs active, ${fmtNum(site.kw_th, 2)} kW heat`,
         }),
         domEl("span", {
           className: "hl-proc-pill is-offload",
-          text: `${jobs.length} scheduler job(s)`,
+          text: jobCountTxt,
         }),
       ]),
     ]);
@@ -1967,7 +1969,7 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
           domEl("div", { className: "hl-tel-job-pill" }, [
             domEl("strong", { text: `${j.job_name}` }),
             domEl("span", {
-              text: `${j.tier.toUpperCase()} · ${fmtNum(j.kw_e, 2)} kW_e -> ${fmtNum(j.kw_th, 2)} kW_th · ${j.remaining_hours}h left`,
+              text: `${tierPretty[j.tier] || j.tier} · ${fmtNum(j.kw_th, 2)} kW heat · ${j.remaining_hours}h left`,
             }),
           ])
         );
@@ -1975,8 +1977,8 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     } else {
       jobRowList.appendChild(
         domEl("div", {
-          className: "hl-tel-job-pill",
-          text: "No active FleetJobScheduler workloads queued on this site right now.",
+          className: "hl-tel-job-pill is-empty",
+          text: "No active customer jobs assigned to this site right now.",
         })
       );
     }
@@ -2137,6 +2139,7 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
           text: p.source === "live_pid" ? "Live PID" : "Simulated",
         });
 
+        const pctVal = Math.max(0, Math.min(100, Number(p.cpu_pct ?? 0)));
         const rowBox = domEl("div", { className: "hl-proc-card" }, [
           domEl("div", { className: "hl-proc-row" }, [
             domEl("div", { className: "hl-proc-main" }, [
@@ -2144,9 +2147,15 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
                 `Unit ${p.unit} (${p.process}) `,
                 srcBadge,
               ]),
-              domEl("span", { text: `${p.workload} - PID ${p.pid}` }),
+              domEl("span", { text: `${p.workload} · PID ${p.pid}` }),
             ]),
             domEl("span", { className: `hl-proc-pill ${cls}`, text: lbl }),
+          ]),
+          domEl("div", { className: "hl-gpu-bar hl-unit-bar" }, [
+            domEl("div", {
+              className: `hl-gpu-bar-fill${p.status !== "RUNNING" ? " is-idle" : ""}`,
+              style: { width: `${p.status === "RUNNING" ? pctVal : 6}%` },
+            }),
           ]),
         ]);
 

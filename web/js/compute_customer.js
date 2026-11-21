@@ -301,7 +301,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
             : g.calorgrid?.spot_chf_per_gpu_hr;
         opts.push({
           value: g.gpu_id,
-          label: `${g.name.replace(/^NVIDIA\s+/, "")} (${g.vram_gb} GB) - CHF ${Number(rate ?? 0).toFixed(2)}/h`,
+          label: `${g.name.replace(/^NVIDIA\s+/, "")} (${g.vram_gb} GB) - ${fmtChf(rate, 2)}/h`,
         });
       }
     } else {
@@ -312,7 +312,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
             : s.calorgrid?.spot_chf_per_server_hr;
         opts.push({
           value: s.server_model_id,
-          label: `${s.name} (${s.electrical_kw} kW) - CHF ${Number(rate ?? 0).toFixed(2)}/h`,
+          label: `${s.name} (${s.electrical_kw} kW) - ${fmtChf(rate, 2)}/h`,
         });
       }
     }
@@ -758,13 +758,24 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     }
     els.bookingReceipt.hidden = false;
     els.bookingReceipt.className = "cc-receipt-box is-ok";
+    const viewFleetBtn = domEl("button", {
+      type: "button",
+      className: "cc-receipt-link",
+      text: "View live job in fleet ->",
+    });
+    viewFleetBtn.addEventListener("click", () => {
+      telemetrySiteFilter = receipt.assigned_site_id || "";
+      if (els.siteFilterSelect) els.siteFilterSelect.value = telemetrySiteFilter;
+      setSubtab("fleet");
+    });
     els.bookingReceipt.replaceChildren(
       domEl("strong", {
-        text: `Dispatched ${receipt.job_id} (${receipt.status.toUpperCase()}) at ${receipt.assigned_site_name}`,
+        text: `Dispatched ${receipt.job_id} (${receipt.status}) at ${receipt.assigned_site_name}`,
       }),
       domEl("span", {
-        text: `Booking ${receipt.booking_id} · ${receipt.quantity}x ${receipt.gpu_or_sku} (${receipt.duration_hours}h) · ${fmtNum(receipt.thermal_output_kw, 2)} kW_th · ${fmtChf(receipt.total_cost_chf)} · Fleet state v${receipt.state_version}`,
-      })
+        text: `${receipt.quantity}x ${receipt.gpu_or_sku} (${receipt.duration_hours}h) · ${fmtNum(receipt.thermal_output_kw, 2)} kW heat · ${fmtChf(receipt.total_cost_chf)}`,
+      }),
+      viewFleetBtn
     );
   }
 

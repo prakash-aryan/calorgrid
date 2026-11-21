@@ -7960,3 +7960,329 @@ body:not(.app-mode-atlas) .brand-cluster {
     font-size: 12.5px !important;
   }
 }
+
+/* ============================================================================
+   DEEP UX POLISH: 3D SITE SHEET, HEATLEDGER SERVERS, SPOT WARNING & RECEIPT
+   Zero cards-in-cards, SVG back pill, unified tabular-nums, clean CTA hierarchy
+   ============================================================================ */
+
+/* 1. 3D Site Inspection Sheet: crisp Apple Maps / Swiss architectural bottom card */
+.sn-rtx-back-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 7px 13px 7px 10px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(20, 20, 19, 0.14) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--cg-ink) !important;
+}
+.swiss-twin-bar {
+  background: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid var(--cg-line-strong) !important;
+  border-radius: 16px !important;
+  padding: 16px 20px !important;
+  box-shadow: 0 12px 34px rgba(20, 20, 19, 0.14) !important;
+  gap: 10px !important;
+}
+.sn-tb-hardware {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.sn-tb-hardware strong {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--cg-muted) !important;
+}
+.sn-tb-stats-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  border-top: 1px solid var(--cg-line) !important;
+  border-bottom: 1px solid var(--cg-line) !important;
+  padding: 10px 0 !important;
+}
+.sn-tb-stat {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 14px !important;
+}
+.sn-tb-stat:first-child {
+  padding-left: 0 !important;
+}
+.sn-tb-stat + .sn-tb-stat {
+  border-left: 1px solid var(--cg-line) !important;
+}
+.sn-tb-stat span {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: var(--cg-muted) !important;
+}
+.sn-tb-stat b {
+  font-family: var(--font-sans) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  color: var(--cg-ink) !important;
+}
+.sn-tb-stat b.accent-heat {
+  color: var(--cg-accent) !important;
+}
+.sn-tb-flow {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 12.5px !important;
+  color: var(--cg-muted) !important;
+  line-height: 1.4 !important;
+}
+.sn-tb-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+.sn-tb-actions .sn-btn-heat,
+.sn-tb-actions .sn-btn-compute,
+.sn-tb-actions .sn-btn-outline {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 16px !important;
+  border-radius: 9px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.sn-tb-actions .sn-btn-outline {
+  border: 1px solid var(--cg-line-strong) !important;
+  color: var(--cg-ink) !important;
+  background: var(--cg-surface) !important;
+}
+.sn-tb-actions .sn-btn-outline:hover {
+  border-color: var(--cg-ink) !important;
+  background: var(--cg-subtle) !important;
+}
+.sn-tb-pager {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sn-tb-pager .sn-btn-ghost {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--cg-line-strong) !important;
+  background: var(--cg-surface) !important;
+  color: var(--cg-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+}
+.sn-tb-pager .sn-btn-ghost:hover {
+  border-color: var(--cg-ink) !important;
+}
+#sn-tb-webgl {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--cg-line-strong) !important;
+  background: var(--cg-surface) !important;
+  color: var(--cg-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+}
+@media (max-width: 1080px) {
+  #sn-tb-webgl {
+    display: none !important;
+  }
+}
+@media (min-width: 1081px) {
+  .cc-booking-card {
+    gap: 8px !important;
+    padding: 13px 15px !important;
+  }
+  .cc-visual-stage {
+    padding-bottom: 9px !important;
+  }
+  .cc-vis-hw img,
+  .cc-vis-site video {
+    aspect-ratio: 16 / 9 !important;
+  }
+  .cc-quote-ledger {
+    padding: 8px 0 !important;
+    gap: 5px !important;
+  }
+}
+
+@media (max-width: 1080px) {
+  .swiss-twin-bar {
+    padding: 14px 14px 16px !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+  .sn-tb-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    padding: 4px 0 !important;
+  }
+  .sn-tb-stat,
+  .sn-tb-stat + .sn-tb-stat {
+    border-left: none !important;
+    border-bottom: 1px solid var(--cg-line) !important;
+    padding: 8px 10px 8px 0 !important;
+  }
+  .sn-tb-stat:nth-child(2n) {
+    border-left: 1px solid var(--cg-line) !important;
+    padding: 8px 0 8px 12px !important;
+  }
+  .sn-tb-stat:nth-last-child(-n+2) {
+    border-bottom: none !important;
+  }
+  .sn-tb-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .sn-tb-actions .sn-btn-heat,
+  .sn-tb-actions .sn-btn-compute,
+  .sn-tb-actions .sn-btn-outline {
+    width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 10px !important;
+    font-size: 12.5px !important;
+  }
+  .sn-tb-pager {
+    margin-left: 0 !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .sn-tb-pager .sn-btn-ghost {
+    width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 8px !important;
+  }
+}
+
+/* 2. HeatLedger: unified tabular-nums sliders, flat job rows, unit load bars & clean Linux worker strip */
+.slider-head strong {
+  font-family: var(--font-sans) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-weight: 700 !important;
+}
+.hl-tel-job-pill {
+  background: var(--cg-subtle) !important;
+  border: none !important;
+  border-left: 2.5px solid #14537c !important;
+  border-radius: 0 6px 6px 0 !important;
+  padding: 7px 10px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: baseline !important;
+  flex-wrap: wrap !important;
+  gap: 4px 10px !important;
+}
+.hl-tel-job-pill.is-empty {
+  border-left-color: var(--cg-line-strong) !important;
+  color: var(--cg-muted) !important;
+}
+.hl-unit-bar {
+  margin-top: 7px;
+}
+.hl-gpu-bar-fill.is-idle {
+  background: #c7c6be !important;
+}
+.hl-os-strip {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--cg-line) !important;
+  border-radius: 0 !important;
+  padding: 12px 0 2px !important;
+  margin-top: 4px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+.hl-os-text span {
+  font-family: var(--font-sans) !important;
+  font-size: 12px !important;
+  color: var(--cg-muted) !important;
+}
+#hl-real-worker-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--cg-ink) !important;
+  background: var(--cg-ink) !important;
+  color: #ffffff !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+#hl-real-worker-btn:hover {
+  opacity: 0.88;
+}
+
+/* 3. Compute Spot Warning & Booking Confirmation Receipt (flat left-accent, never pushes Book CTA offscreen) */
+.cc-quote-warnings {
+  background: transparent !important;
+  border: none !important;
+  border-left: 2.5px solid #b45309 !important;
+  border-radius: 0 !important;
+  padding: 2px 0 2px 10px !important;
+  margin-top: 6px !important;
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+  color: #854d0e !important;
+}
+.cc-receipt-box,
+.cfg-reserve-toast {
+  background: var(--cg-subtle) !important;
+  border: none !important;
+  border-left: 3px solid var(--cg-save) !important;
+  border-radius: 0 8px 8px 0 !important;
+  padding: 10px 12px !important;
+  color: var(--cg-ink) !important;
+  gap: 4px !important;
+}
+.cc-receipt-box.is-error {
+  border-left-color: #b91c1c !important;
+}
+.cc-receipt-box strong,
+.cfg-reserve-toast strong {
+  color: var(--cg-save) !important;
+  font-size: 13px !important;
+}
+.cc-receipt-box.is-error strong {
+  color: #b91c1c !important;
+}
+.cc-receipt-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 4px 0 0;
+  align-self: flex-start;
+  color: #14537c;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cc-receipt-link:hover {
+  text-decoration: underline;
+}
