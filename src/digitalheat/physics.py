@@ -44,6 +44,7 @@ from digitalheat.data_loader import (
     load_mlperf_summary,
     load_weather_zurich,
 )
+from digitalheat.telemetry_log import log_event
 
 VERBUND_SCENE_IDS: tuple[str, ...] = (
     "basel_erdsonde",
@@ -853,7 +854,7 @@ def simulate_verbund_scene(
     capex_per_h_basel = (capex_central / h_sold_basel) if h_sold_basel > 0 else 0.0
     capex_per_h_scene = (capex_central / h_sold_scene) if h_sold_scene > 0 else 0.0
 
-    return {
+    result = {
         **meta,
         "servers_per_house": n_servers,
         "thermal_output_kw": round(q_th_peak, 3),
@@ -908,6 +909,24 @@ def simulate_verbund_scene(
             "this_scene_continuous_dump_kwh": round(scene_dump, 2),
         },
     }
+    log_event(
+        "simulation_run",
+        "verbund_scene_simulated",
+        (
+            f"Simulated Verbund scene {scene_id} ({n_servers} servers): "
+            f"{dump_elim_pct:.1f}% dump eliminated"
+        ),
+        source_module="physics",
+        site_id="basel_st_jakob" if scene_id == "basel_pool_st_jakob" else scene_id,
+        metrics={
+            "scene_id": scene_id,
+            "n_servers": n_servers,
+            "dump_elim_pct": round(dump_elim_pct, 2),
+            "heat_led_util_pct": result["heat_led_mode"]["server_utilisation_pct"],
+            "jul_valve_split": result["july_valve_split_pct"],
+        },
+    )
+    return result
 
 
 def _schedule_continuous_heat_led(
@@ -1023,7 +1042,7 @@ def compute_heatwise_sensitivity(heatwise_data: dict, base_result: SimulationRes
             }
         )
 
-    return {
+    res = {
         "source": heatwise_data["source"],
         "zenodo_record": heatwise_data["zenodo_record"],
         "idle_to_full_ratio_range": {
@@ -1053,6 +1072,17 @@ def compute_heatwise_sensitivity(heatwise_data: dict, base_result: SimulationRes
             "80% capture at 50-60 C requires full-board warm-water cooling (Aquasar)."
         ),
     }
+    log_event(
+        "analysis_task",
+        "sensitivity_heatwise_computed",
+        (
+            f"Computed HEATWISE idle/throttling sensitivity ({n_srv} servers, "
+            f"mean idle ratio {r_mean:.3f})"
+        ),
+        source_module="physics",
+        metrics={"n_servers": n_srv, "idle_ratio_mean": round(r_mean, 4)},
+    )
+    return res
 
 
 def compute_mlperf_sensitivity(
@@ -1084,7 +1114,7 @@ def compute_mlperf_sensitivity(
             }
         )
 
-    return {
+    res = {
         "source": mlperf_data["source"],
         "break_even_low_chf_per_kwh": round(break_even_low_chf, 4),
         "break_even_high_chf_per_kwh": round(break_even_high_chf, 4),
@@ -1094,6 +1124,14 @@ def compute_mlperf_sensitivity(
             "does not represent a 1 kW server's throughput, VRAM or CAPEX."
         ),
     }
+    log_event(
+        "analysis_task",
+        "sensitivity_mlperf_computed",
+        f"Computed MLPerf v5.1 energy-per-sample sensitivity ({len(table)} workloads)",
+        source_module="physics",
+        metrics={"rows_count": len(table), "be_low_chf": round(break_even_low_chf, 4)},
+    )
+    return res
 
 
 def compute_ashrae_w45_sensitivity(
@@ -1148,7 +1186,7 @@ def compute_ashrae_w45_sensitivity(
         include_hourly=False,
     )
 
-    return {
+    res = {
         "ashrae_w45_supply_limit_c": ASHRAE_W45_MAX_SUPPLY_C,
         "tank_temp_min_c": TANK_TEMP_MIN_C,
         "tank_temp_max_c": TANK_TEMP_MIN_C + TANK_TEMP_SPREAD_K,
@@ -1163,6 +1201,17 @@ def compute_ashrae_w45_sensitivity(
             "a stratified tank (30 C bottom return), W+ server cooling or auxiliary boost."
         ),
     }
+    log_event(
+        "analysis_task",
+        "sensitivity_ashrae_w45_computed",
+        (
+            f"Computed ASHRAE W45 tank sensitivity ({n_servers} servers, "
+            f"mixed util {res['mixed_w45_server_utilisation_pct']}%)"
+        ),
+        source_module="physics",
+        metrics={"n_servers": n_servers, "w45_util_pct": res["mixed_w45_server_utilisation_pct"]},
+    )
+    return res
 
 
 def compute_capex_utilisation_cliff(
@@ -1202,7 +1251,7 @@ def compute_capex_utilisation_cliff(
             }
         )
 
-    return {
+    res = {
         "capex_assumptions_chf_per_server_yr": CAPEX_CHF_PER_SERVER_YR_BANDS,
         "cliff_rows": rows,
         "conclusion": (
@@ -1212,6 +1261,14 @@ def compute_capex_utilisation_cliff(
             "(N=12) without a summer Verbund sink."
         ),
     }
+    log_event(
+        "analysis_task",
+        "sensitivity_capex_cliff_computed",
+        f"Computed CAPEX utilisation cliff across N={counts}",
+        source_module="physics",
+        metrics={"counts": counts},
+    )
+    return res
 
 
 def compute_tariff_gap_sensitivity(elcom_data: dict) -> dict:
@@ -1246,7 +1303,7 @@ def compute_tariff_gap_sensitivity(elcom_data: dict) -> dict:
             }
         )
 
-    return {
+    res = {
         "source": elcom_data["source"],
         "vat_rate": SWISS_VAT_RATE,
         "vat_basis": (
@@ -1255,6 +1312,14 @@ def compute_tariff_gap_sensitivity(elcom_data: dict) -> dict:
         "max_residential_heat_credit_chf_per_kwh_e": round(max_heat_credit_excl, 4),
         "tariffs": rows,
     }
+    log_event(
+        "analysis_task",
+        "sensitivity_tariff_gap_computed",
+        "Computed ElCom 2026 H4 vs C2-C6 tariff gap sensitivity",
+        source_module="physics",
+        metrics={"categories_count": len(rows)},
+    )
+    return res
 
 
 def compute_pilot_reality_sensitivity(
@@ -1284,11 +1349,39 @@ def compute_pilot_reality_sensitivity(
     be_low = base_res.kpis.break_even_computing_price_chf_per_server_hour
     be_high = ELCOM_BASEL_H4_CHF_PER_KWH
 
+    heatwise = compute_heatwise_sensitivity(heatwise_data, base_res)
+    mlperf = compute_mlperf_sensitivity(mlperf_data, be_low, be_high)
+    ashrae = compute_ashrae_w45_sensitivity(weather.hours, n_servers=n_servers)
+    cliff = compute_capex_utilisation_cliff(weather.hours)
+    tariff_gap = compute_tariff_gap_sensitivity(elcom_data)
+
+    c6_gap = next(
+        (
+            t["h4_penalty_excl_vat_chf_per_kwh"]
+            for t in tariff_gap["tariffs"]
+            if t["category"] == "C6"
+        ),
+        0.0,
+    )
+    log_event(
+        "simulation_run",
+        "pilot_reality_suite_completed",
+        f"Completed 5-panel Pilot Reality sensitivity suite ({n_servers} servers)",
+        source_module="physics",
+        site_id="basel_klingental",
+        metrics={
+            "n_servers": n_servers,
+            "heatwise_idle_mean": heatwise["idle_to_full_ratio_range"]["mean"],
+            "w45_util_pct": ashrae["mixed_w45_server_utilisation_pct"],
+            "h4_c6_gap_chf": c6_gap,
+        },
+    )
+
     return {
         "servers_per_house": n_servers,
-        "heatwise": compute_heatwise_sensitivity(heatwise_data, base_res),
-        "mlperf_v51": compute_mlperf_sensitivity(mlperf_data, be_low, be_high),
-        "ashrae_w45": compute_ashrae_w45_sensitivity(weather.hours, n_servers=n_servers),
-        "capex_utilisation_cliff": compute_capex_utilisation_cliff(weather.hours),
-        "tariff_gap": compute_tariff_gap_sensitivity(elcom_data),
+        "heatwise": heatwise,
+        "mlperf_v51": mlperf,
+        "ashrae_w45": ashrae,
+        "capex_utilisation_cliff": cliff,
+        "tariff_gap": tariff_gap,
     }

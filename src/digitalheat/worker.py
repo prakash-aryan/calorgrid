@@ -34,6 +34,7 @@ from digitalheat.scheduler import (
     WORKLOAD_CATALOG,
     ReferenceScheduler,
 )
+from digitalheat.telemetry_log import TelemetryLogStore, log_event
 
 WorkerState = Literal["idle", "running", "paused"]
 JobType = Literal["archive_ocr", "iiif_embeddings", "audio_transcription"]
@@ -336,10 +337,15 @@ def _read_rapl_max_uj() -> int:
 class WorkerManager:
     """Thread-safe controller for a real CPU worker subprocess with SIGSTOP/SIGCONT."""
 
-    def __init__(self, scheduler: ReferenceScheduler | None = None) -> None:
+    def __init__(
+        self,
+        scheduler: ReferenceScheduler | None = None,
+        log_store: TelemetryLogStore | None = None,
+    ) -> None:
         self.scheduler = (
             scheduler if scheduler is not None else ReferenceScheduler(sla_override=False)
         )
+        self._log_store: TelemetryLogStore | None = log_store
         self._lock = threading.RLock()
         self._proc: subprocess.Popen[str] | None = None
         self._stdout_thread: threading.Thread | None = None
@@ -384,6 +390,10 @@ class WorkerManager:
         self._last_error: str | None = None
         self._history: list[WorkerEvent] = []
 
+    def set_log_store(self, log_store: TelemetryLogStore) -> None:
+        with self._lock:
+            self._log_store = log_store
+
     def _append_event_locked(
         self,
         action: Literal[
@@ -401,21 +411,42 @@ class WorkerManager:
         heat_demand_kw: float | None = None,
         outdoor_temp_c: float | None = None,
     ) -> None:
-        self._history.append(
-            WorkerEvent(
-                timestamp_utc=_utc_now_iso(),
-                action=action,
-                pid=self._pid,
-                state=self._state,
-                heat_signal_on=self._heat_signal_on,
-                tank_soc_kwh=tank_soc_kwh,
-                heat_demand_kw=heat_demand_kw,
-                outdoor_temp_c=outdoor_temp_c,
-                detail=detail,
-            )
+        evt = WorkerEvent(
+            timestamp_utc=_utc_now_iso(),
+            action=action,
+            pid=self._pid,
+            state=self._state,
+            heat_signal_on=self._heat_signal_on,
+            tank_soc_kwh=tank_soc_kwh,
+            heat_demand_kw=heat_demand_kw,
+            outdoor_temp_c=outdoor_temp_c,
+            detail=detail,
         )
+        self._history.append(evt)
         if len(self._history) > 100:
             self._history = self._history[-100:]
+        log_event(
+            "worker_lifecycle",
+            f"worker_{action}",
+            f"CPU worker {action} ({self._job_type or 'unknown'}, state={self._state}): {detail}",
+            level="error" if action == "error" else "info",
+            source_module="worker",
+            site_id="basel_klingental",
+            server_id="basel_klingental-srv-01",
+            metrics={
+                "pid": self._pid,
+                "pgid": self._pgid,
+                "state": self._state,
+                "job_type": self._job_type,
+                "units_completed": self._units_completed,
+                "heat_signal_on": self._heat_signal_on,
+                "tank_soc_kwh": tank_soc_kwh,
+                "heat_demand_kw": heat_demand_kw,
+                "estimated_cpu_power_w": round(self._last_power_w, 2),
+                "measured_energy_j": round(self._measured_energy_j, 2),
+            },
+            store=self._log_store,
+        )
 
     def _read_stdout_loop(self, proc: subprocess.Popen[str], generation: int) -> None:
         if proc.stdout is None:

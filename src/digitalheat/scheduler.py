@@ -27,6 +27,7 @@ from digitalheat.physics import (
     compute_house_demand,
     simulate_tank_year,
 )
+from digitalheat.telemetry_log import log_event
 
 WORKLOAD_CATALOG: dict[str, JobTypeSpec] = {
     "archive_ocr": JobTypeSpec(
@@ -428,6 +429,7 @@ class ReferenceScheduler:
         self.extra_sink_kw = extra_sink_kw
         self.primary_demand_override_kw = primary_demand_override_kw
         self.name = "smart_sla" if sla_override else "smart_heat_led"
+        self._last_live_decision: bool | None = None
 
     def max_thermal_servers(self, tank_soc_kwh: float, heat_demand_kw: float) -> int:
         """Maximum integer 1 kW servers whose 0.8 kW_th output fits in demand + tank headroom."""
@@ -452,8 +454,26 @@ class ReferenceScheduler:
         """Live SIGCONT (True) vs SIGSTOP (False) decision using the identical thermal rule."""
         _validate_live_inputs(tank_soc_kwh, heat_demand_kw, outdoor_temp_c)
         if queue_depth <= 0:
-            return False
-        return self.max_thermal_servers(tank_soc_kwh, heat_demand_kw) >= 1
+            decision = False
+        else:
+            decision = self.max_thermal_servers(tank_soc_kwh, heat_demand_kw) >= 1
+        if self._last_live_decision is None or decision != self._last_live_decision:
+            self._last_live_decision = decision
+            log_event(
+                "scheduler_dispatch",
+                "live_heat_signal_evaluated",
+                f"Live heat signal -> {'SIGCONT (RUN)' if decision else 'SIGSTOP (PAUSE)'}",
+                source_module="scheduler",
+                site_id="basel_klingental",
+                metrics={
+                    "decision": decision,
+                    "tank_soc_kwh": round(float(tank_soc_kwh), 3),
+                    "heat_demand_kw": round(float(heat_demand_kw), 3),
+                    "outdoor_temp_c": round(float(outdoor_temp_c), 2),
+                    "queue_depth": int(queue_depth),
+                },
+            )
+        return decision
 
     def schedule_year(
         self,
@@ -767,7 +787,7 @@ def run_annual_simulation(
     else:
         raise ValueError(f"Unsupported strategy: {strategy}")
 
-    return simulate_tank_year(
+    sim_res = simulate_tank_year(
         hours=weather.hours,
         decisions=decisions,
         n_servers=n_servers,
@@ -784,3 +804,25 @@ def run_annual_simulation(
         scaling_notes=SCALING_NOTES,
         include_hourly=include_hourly,
     )
+    log_event(
+        "simulation_run",
+        "annual_simulation_completed",
+        (
+            f"Completed 8,760h simulation ({strategy}, {site}, {n_servers} servers): "
+            f"{sim_res.kpis.heat_demand_covered_share * 100.0:.1f}% heat covered"
+        ),
+        source_module="scheduler",
+        site_id="basel_klingental" if site == "basel" else "davos_alpine",
+        metrics={
+            "strategy": strategy,
+            "site": site,
+            "n_servers": n_servers,
+            "offered_hours_per_server_per_day": offered_hours_per_server_per_day,
+            "heat_covered_pct": round(100.0 * sim_res.kpis.heat_demand_covered_share, 2),
+            "heat_dumped_kwh": round(sim_res.kpis.heat_dumped_kwh, 2),
+            "server_utilisation_pct": round(100.0 * sim_res.kpis.server_utilisation, 2),
+            "missed_deadlines_pct": round(sim_res.kpis.missed_deadlines_pct, 3),
+            "conservation_residual_kwh": sim_res.conservation_residual_kwh,
+        },
+    )
+    return sim_res
