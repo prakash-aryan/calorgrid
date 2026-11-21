@@ -17,7 +17,7 @@ Open `http://127.0.0.1:8000` in Chromium to launch the **CalorGrid** 3D Thermal-
 Run tests and linting on CPU:
 
 ```bash
-env -u PYTHONPATH uv run ruff check src/ tests/
+env -u PYTHONPATH uv run ruff check src/ tests/ scripts/
 env -u PYTHONPATH uv run pytest tests/unit/ -v
 env -u PYTHONPATH PW_CHANNEL=chrome uv run pytest tests/e2e/ -v
 ```
@@ -74,17 +74,17 @@ All data inputs are pinned with SHA-256 checksums in `data/manifest.json`; 3D as
 
 ## Live Web Platform & Interactive Tools
 
-- **Explore (14-Site Swiss Network):** 3D swisstopo Switzerland relief map with a year-round 12-month timeline scrubber, Smart vs. Uncoordinated scheduling comparison, latency-aware fiber routing across 10 cantons, and outside/inside 3D building inspection.
+- **Explore (14-Site Swiss Network):** 3D swisstopo Switzerland relief map with a year-round 12-month timeline scrubber, Smart vs. Uncoordinated scheduling comparison, latency-aware fiber routing across 10 cantons and outside/inside 3D building inspection.
 - **Configure (Zero-Server-Cost Host Sizer):** Opens directly inside the interactive 3D server plant room comparing four CalorGrid-supplied server classes (`CHF 0` server hardware cost to hosts: `0.25 kW` Edge Micro-Cluster, `1 kW` HydroNode, `2.9 kW` OCP Winterfell Hybrid, `10.4 kW` NVIDIA B200 Liquid AI) with an **Already have a boiler?** toggle (`CHF 0` existing boiler tie-in vs. `43%` subsidized host buffer boiler) and live two-loop piping (isolated dielectric coolant ↔ Liebert plate CDU ↔ building heating water).
-- **HeatLedger (Operator Telemetry):** Live Swiss weather integration (keyless Open-Meteo API), interactive thermal demand throttle (`Away` / `Eco` / `Auto` / `Boost`), real-time OS worker dispatch (`SIGSTOP`/`SIGCONT`), and host heating savings verification.
+- **HeatLedger (Operator Telemetry):** Live Swiss weather integration (keyless Open-Meteo API), interactive thermal demand throttle (`Away` / `Eco` / `Auto` / `Boost`), real-time OS worker dispatch (`SIGSTOP`/`SIGCONT`) and host heating savings verification.
 
 ## Integrated Team Engines & Research Modules
 
 This repository combines all three Team Invincibles workstreams with preserved original commit histories (`#1` and `#2`):
 
 1. **CalorGrid Core Platform (`src/digitalheat/`, `web/`, `tests/unit/`, `tests/e2e/`):**
-   - 8,760 h conservation physics engine (`residual <= 7.3e-9 kWh`), 14-site Swiss fleet simulator, zero-server-cost host configurator with optional subsidized boiler pricing, live Linux `tesseract` OCR / FFT / MFCC `SIGSTOP` worker, and Three.js 3D web twin (`77` unit tests + `125` Playwright E2E checks).
+   - 8,760 h conservation physics engine (`residual <= 7.3e-9 kWh`), 14-site Swiss fleet simulator, zero-server-cost host configurator with optional subsidized boiler pricing, live Linux `tesseract` OCR / FFT / MFCC `SIGSTOP` worker and Three.js 3D web twin (`77` unit tests + `125` Playwright E2E checks).
 2. **HeatShift Forecast-Aware EDF Scheduler & ML Checkpoint Workers (`heatshift/`, `live/`, `workers/`, `results/`, PR `#1`):**
-   - Multi-site EDF admission & proactive checkpoint-migration scheduler under noisy 36 h AR(1) weather forecasts (`sd = 1.5 °C`), unplanned outage failover (`184` failovers/yr), 4-policy fleet benchmark (`Always-on`, `Thermostat`, `HeatShift`, `HeatShift + rescue`), `1–16` servers/house sweep, HSR residential heat-profile cross-check (`scripts/compare_heat_profiles.py`), and live CPU ResNet-50 / MiniLM checkpoint workers (`live/controller.py`).
+   - Multi-site EDF admission & proactive checkpoint-migration scheduler under noisy 36 h AR(1) weather forecasts (`sd = 1.5 °C`), unplanned outage failover (`184` failovers/yr), 4-policy fleet benchmark (`Always-on`, `Thermostat`, `HeatShift`, `HeatShift + rescue`), `1–16` servers/house sweep, HSR residential heat-profile cross-check (`scripts/compare_heat_profiles.py`) and live CPU ResNet-50 / MiniLM checkpoint workers (`live/controller.py`).
 3. **Cross-Hemisphere Siting, GPU-Trace `HeatSavingScheduler` & Swiss Utility Meter Data (`engines/vaibhav_scheduler/`, PR `#2`):**
-   - Pure-Python (`103` unit tests) screening engine across **100 Swiss towns × 100 New Zealand towns** on the Swiss clock (`siting.py`), dynamic indoor comfort-band & hot-water draw physics (`heat.py`), multi-GPU Alibaba-trace `HeatSavingScheduler` vs. `FirstFreeScheduler` (`fleet.py`, `examples/dashboard_server.py`), and real anonymized **2021–2026 Swiss Gas & Electricity meter datasets** (`context/house_heat_details/`).
+   - Pure-Python (`103` unit tests) screening engine across **100 Swiss towns × 100 New Zealand towns** on the Swiss clock (`siting.py`), dynamic indoor comfort-band & hot-water draw physics (`heat.py`), multi-GPU Alibaba-trace `HeatSavingScheduler` vs. `FirstFreeScheduler` (`fleet.py`, `examples/dashboard_server.py`) and real anonymized **2021–2026 Swiss Gas & Electricity meter datasets** (`context/house_heat_details/`).

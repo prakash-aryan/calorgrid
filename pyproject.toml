@@ -1,7 +1,7 @@
 [project]
 name = "digitalheat"
 version = "0.1.0"
-description = "DigitalHeat 3D Digital Twin, Reference Scheduler and CPU Worker"
+description = "CalorGrid 3D Digital Twin, Reference Scheduler and CPU Worker"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -34,11 +34,37 @@ build-backend = "hatchling.build"
 packages = ["src/digitalheat"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit", "tests/e2e"]
+norecursedirs = [
+    ".git",
+    ".venv",
+    ".wrangler",
+    "engines",
+    "heatshift",
+    "workers",
+    "live",
+    "results",
+    "scripts",
+    "docs",
+]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+extend-exclude = [
+    "engines",
+    "heatshift",
+    "workers",
+    "live",
+    "results",
+    "scripts/benchmark_jobs.py",
+    "scripts/compare_heat_profiles.py",
+    "scripts/fetch_data.py",
+    "scripts/fetch_workloads.py",
+    "scripts/make_report.py",
+    "scripts/run_year.py",
+    "tests/test_core.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
