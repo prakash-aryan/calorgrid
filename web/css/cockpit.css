@@ -8286,3 +8286,53 @@ body:not(.app-mode-atlas) .brand-cluster {
 .cc-receipt-link:hover {
   text-decoration: underline;
 }
+
+/* 4. Refined Frosted-Glass 3D Map Pins & Dark-Glass Luminous Flow Badges */
+.sn-3d-pin {
+  background: rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(20, 20, 19, 0.12) !important;
+  box-shadow: 0 2px 8px rgba(20, 20, 19, 0.08) !important;
+  padding: 2.5px 7.5px 2.5px 6px !important;
+  font-size: 10.5px !important;
+  gap: 5px !important;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+.sn-3d-pin:hover {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: var(--cg-ink) !important;
+  z-index: 6;
+}
+.sn-3d-pin.is-selected {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1.5px solid #c84411 !important;
+  box-shadow: 0 4px 14px rgba(200, 68, 17, 0.18) !important;
+  z-index: 7;
+}
+.sn-3d-pin b {
+  font-weight: 600 !important;
+  color: var(--cg-ink) !important;
+  letter-spacing: -0.01em;
+}
+.sn-3d-pin span {
+  font-family: var(--font-sans) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: var(--cg-muted) !important;
+}
+.sn-3d-flow-tag {
+  background: rgba(20, 20, 19, 0.78) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 12px rgba(20, 20, 19, 0.22) !important;
+  font-family: var(--font-sans) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 2.5px 8px !important;
+  letter-spacing: 0.01em;
+}

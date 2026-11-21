@@ -183,7 +183,58 @@ export function createSwissNetworkController({
   let animHandle = null;
   let resizeObs = null;
   let animatedPackets = [];
+  let animatedPulses = [];
+  let glowTexture = null;
   let beaconHitTargets = [];
+
+  function getGlowTexture() {
+    if (glowTexture) return glowTexture;
+    const size = 64;
+    const c = document.createElement("canvas");
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext("2d");
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0.0, "rgba(255, 255, 255, 1.0)");
+    g.addColorStop(0.24, "rgba(255, 255, 255, 0.82)");
+    g.addColorStop(0.55, "rgba(255, 255, 255, 0.26)");
+    g.addColorStop(1.0, "rgba(255, 255, 255, 0.0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    glowTexture = new THREE.CanvasTexture(c);
+    return glowTexture;
+  }
+
+  function createGradientArcMesh(curve, radius, opacity, tubularSegs = 48) {
+    const geo = new THREE.TubeGeometry(curve, tubularSegs, radius, 10, false);
+    const pos = geo.attributes.position;
+    const ringVerts = 11; // radialSegments + 1
+    const colors = new Float32Array(pos.count * 3);
+    const cStart = new THREE.Color(0xea580c); // warm terracotta origin
+    const cMid = new THREE.Color(0x38bdf8);   // luminous alpine cyan apex
+    const cEnd = new THREE.Color(0x0284c7);   // deep receiving azure sink
+    const tmp = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const segIdx = Math.floor(i / ringVerts);
+      const u = Math.min(1, segIdx / tubularSegs);
+      if (u < 0.5) {
+        tmp.copy(cStart).lerp(cMid, u * 2.0);
+      } else {
+        tmp.copy(cMid).lerp(cEnd, (u - 0.5) * 2.0);
+      }
+      colors[i * 3] = tmp.r;
+      colors[i * 3 + 1] = tmp.g;
+      colors[i * 3 + 2] = tmp.b;
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+    });
+    return new THREE.Mesh(geo, mat);
+  }
   let labelEntries = [];
   let flowMidEntries = [];
   const raycaster = new THREE.Raycaster();
@@ -439,14 +490,15 @@ export function createSwissNetworkController({
     }
 
     for (const p of placed) {
-      const cx = Math.max(p.w * 0.5 + 6, Math.min(w - p.w * 0.5 - 6, p.x));
-      const minY = isNarrow ? 58 : 44;
-      const cy = Math.max(minY, Math.min(h - 16, p.y));
+      const cx = Math.max(p.w * 0.5 + 8, Math.min(w - p.w * 0.5 - 8, p.x));
+      const minY = isNarrow ? 34 : 26;
+      const maxY = h - 54;
+      const cy = Math.max(minY, Math.min(maxY, p.y));
       p.item.el.style.opacity = "1";
       p.item.el.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) translate(-50%, -50%)`;
     }
 
-    // Position active fiber-arc midpoint pills on desktop; keep mobile Alps clean and uncluttered
+    // Position active fiber-arc midpoint pills on desktop, nudging cleanly clear of site pins
     for (const fm of flowMidEntries) {
       if (isNarrow) {
         fm.el.style.opacity = "0";
@@ -457,8 +509,19 @@ export function createSwissNetworkController({
         fm.el.style.opacity = "0";
         continue;
       }
-      const sx = (projVec.x * 0.5 + 0.5) * w;
-      const sy = (-projVec.y * 0.5 + 0.5) * h;
+      let sx = (projVec.x * 0.5 + 0.5) * w;
+      let sy = (-projVec.y * 0.5 + 0.5) * h;
+      const fw = fm.el.offsetWidth || 84;
+      const fh = fm.el.offsetHeight || 20;
+      for (const p of placed) {
+        const minDx = (fw + p.w) * 0.5 + 4;
+        const minDy = (fh + p.h) * 0.5 + 4;
+        if (Math.abs(sx - p.x) < minDx && Math.abs(sy - p.y) < minDy) {
+          sy = p.y - minDy - 2;
+        }
+      }
+      sx = Math.max(fw * 0.5 + 8, Math.min(w - fw * 0.5 - 8, sx));
+      sy = Math.max(24, Math.min(h - 54, sy));
       fm.el.style.opacity = "1";
       fm.el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -50%)`;
     }
@@ -476,10 +539,33 @@ export function createSwissNetworkController({
       const t = clock.getElapsedTime();
       if (mapControls) mapControls.update();
 
-      // Advance animated fiber workload packets smoothly along 3D parabolic arcs
+      // Advance luminous comet pulses + fading tails smoothly along 3D fiber arcs
       for (const pkt of animatedPackets) {
-        const u = (t * pkt.speed + pkt.phase) % 1.0;
-        pkt.curve.getPoint(u, pkt.mesh.position);
+        const uHead = (t * pkt.speed + pkt.phase) % 1.0;
+        const fadeEdge = Math.min(1, uHead / 0.09) * Math.min(1, (1.0 - uHead) / 0.09);
+        for (let j = 0; j < pkt.sprites.length; j++) {
+          const u = uHead - j * 0.022;
+          const sp = pkt.sprites[j];
+          if (u < 0.0 || u > 1.0) {
+            sp.visible = false;
+            continue;
+          }
+          sp.visible = true;
+          pkt.curve.getPoint(u, sp.position);
+          const tailDecay = 1.0 - j / pkt.sprites.length;
+          sp.material.opacity = fadeEdge * tailDecay * (j === 0 ? 0.96 : 0.62);
+          const sc = pkt.baseScale * (j === 0 ? 1.0 : 0.48 + 0.42 * tailDecay);
+          sp.scale.set(sc, sc, 1);
+        }
+      }
+
+      // Gently breathe terrain anchor rings & beacon halos
+      for (const pulse of animatedPulses) {
+        const phase = (t * pulse.speed + pulse.offset) % 1.0;
+        const ease = 1.0 - Math.pow(1.0 - phase, 2.2);
+        const s = 1.0 + ease * pulse.maxScale;
+        pulse.mesh.scale.set(s, s, 1);
+        pulse.mesh.material.opacity = (1.0 - ease) * pulse.baseOpacity;
       }
 
       if (mapRenderer && mapScene && mapCamera) {
@@ -503,41 +589,69 @@ export function createSwissNetworkController({
     clearGroup(nodesGroup);
     clearGroup(flowsGroup);
     animatedPackets = [];
+    animatedPulses = [];
     beaconHitTargets = [];
     labelEntries = [];
     flowMidEntries = [];
     labelLayer.innerHTML = "";
+    const gTex = getGlowTexture();
 
-    // 1. Build 14 sculpted 3D building server-fleet beacons + projected Swiss callouts
-    for (const n of latestData.nodes) {
+    // 1. Build 14 slender architectural light-spire beacons + breathing terrain pulses
+    latestData.nodes.forEach((n, idx) => {
       const c = NODE_3D_COORDS[n.node_id];
-      if (!c) continue;
+      if (!c) return;
       const isSelected = n.node_id === selectedNodeId;
       const badge = stateBadgeInfo(n.live.scheduler_state);
-      const pillarH = 0.62 + Math.min(2.1, n.servers_installed * 0.095);
+      const pillarH = 0.56 + Math.min(1.85, n.servers_installed * 0.082);
 
-      // Flush base ring on the sculpted terrain
-      const ringGeo = new THREE.RingGeometry(0.24, isSelected ? 0.58 : 0.40, 28);
+      // Crisp inner anchor ring on the sculpted terrain
+      const ringGeo = new THREE.RingGeometry(0.16, isSelected ? 0.36 : 0.28, 32);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: isSelected ? 0xea580c : badge.hex,
+        color: isSelected ? 0xd9480f : badge.hex,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: isSelected ? 0.92 : 0.65,
+        opacity: isSelected ? 0.88 : 0.58,
+        depthWrite: false,
       });
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(c[0], c[1] + 0.04, c[2]);
       nodesGroup.add(ring);
 
-      // Vertical server-capacity beacon column
+      // Breathing radial sonar pulse ring for active Heating / Receiving / Selected sites
+      if (isSelected || n.live.scheduler_state === "heating" || n.live.scheduler_state === "receiving") {
+        const pulseGeo = new THREE.RingGeometry(0.24, 0.32, 32);
+        const pulseMat = new THREE.MeshBasicMaterial({
+          color: isSelected ? 0xd9480f : badge.hex,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.42,
+          depthWrite: false,
+        });
+        const pulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+        pulseMesh.rotation.x = -Math.PI / 2;
+        pulseMesh.position.set(c[0], c[1] + 0.045, c[2]);
+        nodesGroup.add(pulseMesh);
+        animatedPulses.push({
+          mesh: pulseMesh,
+          speed: isSelected ? 0.55 : 0.38,
+          offset: (idx * 0.19) % 1.0,
+          maxScale: isSelected ? 2.4 : 1.75,
+          baseOpacity: isSelected ? 0.55 : 0.36,
+        });
+      }
+
+      // Slender architectural light spire (replaces chunky cylinders)
       const colMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.11, 0.17, pillarH, 16),
+        new THREE.CylinderGeometry(0.036, 0.072, pillarH, 14),
         new THREE.MeshStandardMaterial({
           color: badge.hex,
-          roughness: 0.30,
-          metalness: 0.25,
+          roughness: 0.24,
+          metalness: 0.35,
           emissive: badge.hex,
-          emissiveIntensity: isSelected ? 0.42 : 0.16,
+          emissiveIntensity: isSelected ? 0.55 : 0.24,
+          transparent: true,
+          opacity: 0.90,
         })
       );
       colMesh.position.set(c[0], c[1] + pillarH * 0.5, c[2]);
@@ -545,28 +659,43 @@ export function createSwissNetworkController({
       nodesGroup.add(colMesh);
       beaconHitTargets.push(colMesh);
 
-      // Crown sphere on top of column
+      // Luminous jewel orb on spire tip
       const capMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(isSelected ? 0.27 : 0.20, 18, 14),
+        new THREE.SphereGeometry(isSelected ? 0.20 : 0.14, 18, 14),
         new THREE.MeshStandardMaterial({
-          color: isSelected ? 0xfef08a : 0xffffff,
-          roughness: 0.20,
-          metalness: 0.10,
-          emissive: badge.hex,
-          emissiveIntensity: isSelected ? 0.55 : 0.28,
+          color: 0xffffff,
+          roughness: 0.12,
+          metalness: 0.05,
+          emissive: isSelected ? 0xf97316 : badge.hex,
+          emissiveIntensity: isSelected ? 0.95 : 0.55,
         })
       );
-      capMesh.position.set(c[0], c[1] + pillarH + 0.12, c[2]);
+      capMesh.position.set(c[0], c[1] + pillarH + 0.09, c[2]);
       capMesh.userData = { nodeId: n.node_id };
       nodesGroup.add(capMesh);
       beaconHitTargets.push(capMesh);
 
-      // Projected crisp HTML callout pill (retains .sn-node selector for E2E & video tests)
+      // Soft volumetric radial halo blooming around the orb
+      const haloSprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: gTex,
+          color: isSelected ? 0xf97316 : badge.hex,
+          transparent: true,
+          opacity: isSelected ? 0.82 : 0.52,
+          depthWrite: false,
+        })
+      );
+      const haloSize = isSelected ? 1.55 : 0.92;
+      haloSprite.scale.set(haloSize, haloSize, 1);
+      haloSprite.position.set(c[0], c[1] + pillarH + 0.09, c[2]);
+      nodesGroup.add(haloSprite);
+
+      // Projected frosted-glass HTML callout pill (retains .sn-node selector for E2E & video tests)
       const pill = document.createElement("button");
       pill.type = "button";
       pill.className = `sn-3d-pin sn-node${isSelected ? " is-selected" : ""}`;
       pill.dataset.nodeId = n.node_id;
-      pill.innerHTML = `<i style="background:${badge.color}"></i><b>${SHORT_CITY[n.node_id] || n.city}</b><span>${n.live.heat_generated_kw.toFixed(1)} kW</span>`;
+      pill.innerHTML = `<i style="background:${badge.color}; box-shadow: 0 0 6px ${badge.color}88"></i><b>${SHORT_CITY[n.node_id] || n.city}</b><span>${n.live.heat_generated_kw.toFixed(1)} kW</span>`;
       pill.addEventListener("click", () => {
         selectedNodeId = n.node_id;
         inspectTwinById(n.node_id);
@@ -574,63 +703,68 @@ export function createSwissNetworkController({
       labelLayer.appendChild(pill);
       labelEntries.push({
         el: pill,
-        anchor: new THREE.Vector3(c[0], c[1] + pillarH + 0.58, c[2]),
+        anchor: new THREE.Vector3(c[0], c[1] + pillarH + 0.52, c[2]),
       });
-    }
+    });
 
-    // 2. Build 3D elevated parabolic fiber migration arcs arching over the Swiss Alps
-    const pktGeo = new THREE.SphereGeometry(0.19, 14, 12);
+    // 2. Build Stripe-Globe luminous optical-fiber gradient ribbons + comet light streams
     latestData.flows.forEach((f, idx) => {
       const ca = NODE_3D_COORDS[f.from_id];
       const cb = NODE_3D_COORDS[f.to_id];
       if (!ca || !cb) return;
-      const p1 = new THREE.Vector3(ca[0], ca[1] + 0.85, ca[2]);
-      const p2 = new THREE.Vector3(cb[0], cb[1] + 0.85, cb[2]);
+      const p1 = new THREE.Vector3(ca[0], ca[1] + 0.72, ca[2]);
+      const p2 = new THREE.Vector3(cb[0], cb[1] + 0.72, cb[2]);
       const dist = p1.distanceTo(p2);
       const mid = p1.clone().lerp(p2, 0.5);
-      mid.y = Math.max(p1.y, p2.y) + 2.1 + dist * 0.14;
+      mid.y = Math.max(p1.y, p2.y) + 2.0 + dist * 0.15;
       const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
 
-      const tubeRadius = Math.max(0.065, Math.min(0.13, 0.055 + f.kw_shifted * 0.018));
-      const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 36, tubeRadius, 8, false),
-        new THREE.MeshStandardMaterial({
-          color: 0x0284c7,
-          roughness: 0.25,
-          metalness: 0.1,
-          emissive: 0x0ea5e9,
-          emissiveIntensity: 0.45,
-          transparent: true,
-          opacity: 0.88,
-        })
-      );
-      flowsGroup.add(tube);
+      // Sleek tapered optical-fiber inner filament (warm terracotta -> radiant cyan -> alpine azure)
+      const coreRadius = Math.max(0.030, Math.min(0.056, 0.026 + f.kw_shifted * 0.008));
+      const coreArc = createGradientArcMesh(curve, coreRadius, 0.88, 48);
+      flowsGroup.add(coreArc);
 
-      // Two glowing workload packets traveling smoothly in 3D along the fiber route
-      for (let k = 0; k < 2; k++) {
-        const pm = new THREE.Mesh(
-          pktGeo,
-          new THREE.MeshBasicMaterial({ color: 0xe0f2fe })
-        );
-        flowsGroup.add(pm);
+      // Coaxial soft volumetric glow aura wrapping the fiber ribbon
+      const glowArc = createGradientArcMesh(curve, coreRadius * 2.8, 0.22, 40);
+      flowsGroup.add(glowArc);
+
+      // 2 luminous light-comets per arc, each with a radiant head + 5 fading trail sprites
+      const cometCount = 2;
+      const trailLen = 6;
+      for (let k = 0; k < cometCount; k++) {
+        const sprites = [];
+        for (let j = 0; j < trailLen; j++) {
+          const sp = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+              map: gTex,
+              color: j === 0 ? 0xffffff : j === 1 ? 0xbae6fd : 0x38bdf8,
+              transparent: true,
+              opacity: 0.9,
+              depthWrite: false,
+            })
+          );
+          flowsGroup.add(sp);
+          sprites.push(sp);
+        }
         animatedPackets.push({
-          mesh: pm,
+          sprites,
           curve,
-          speed: 0.34 + (idx % 3) * 0.05,
-          phase: (k * 0.5 + idx * 0.17) % 1.0,
+          baseScale: 0.76 + Math.min(0.32, f.kw_shifted * 0.08),
+          speed: 0.28 + (idx % 3) * 0.045,
+          phase: (k * 0.5 + idx * 0.19) % 1.0,
         });
       }
 
-      // Crisp arc apex badge for inter-regional routes
+      // Subtle frosted dark-glass arc apex tag for inter-regional routes
       if (dist >= 3.2) {
         const apex = curve.getPoint(0.5);
         const tagEl = document.createElement("div");
         tagEl.className = "sn-3d-flow-tag";
-        tagEl.textContent = `${f.kw_shifted.toFixed(1)} kW ${workloadShort(f.workload)}`;
+        tagEl.textContent = `${f.kw_shifted.toFixed(1)} kW · ${workloadShort(f.workload)}`;
         labelLayer.appendChild(tagEl);
         flowMidEntries.push({
           el: tagEl,
-          anchor: new THREE.Vector3(apex.x, apex.y + 0.45, apex.z),
+          anchor: new THREE.Vector3(apex.x, apex.y + 0.42, apex.z),
         });
       }
     });
