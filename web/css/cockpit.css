@@ -6261,7 +6261,7 @@ body:not(.app-mode-atlas) .brand-cluster {
   padding: 0 0 12px !important;
 }
 
-/* 3. DRASTICALLY IMPROVED LANDING PAGE (Explore — Desktop & Mobile) */
+/* 3. DRASTICALLY IMPROVED LANDING PAGE (Explore - Desktop & Mobile) */
 .swiss-network-overlay {
   top: 56px;
   padding: 16px 24px 30px;
@@ -6534,7 +6534,7 @@ body:not(.app-mode-atlas) .brand-cluster {
   }
 }
 
-/* 5. CLEAN MOBILE LAYOUT (<= 1080px) — MAP FIRST, ZERO TOP-BAR "BOOK GPUS" CLUTTER */
+/* 5. CLEAN MOBILE LAYOUT (<= 1080px) - MAP FIRST, ZERO TOP-BAR "BOOK GPUS" CLUTTER */
 @media (max-width: 1080px) {
   body:not(.app-mode-atlas) .cockpit-header {
     height: 52px !important;

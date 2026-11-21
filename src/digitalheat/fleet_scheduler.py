@@ -994,11 +994,13 @@ class FleetJobScheduler:
                         - 0.1 * norm_tariff
                     )
                 else:
+                    # Spot prioritizes heat-demanding Swiss buildings over On-Demand year-round sinks
+                    building_pref = 0.55 if not spec.is_year_round_sink else -0.25
                     score = (
                         0.60 * norm_saving
                         + 0.30 * spare_ratio
                         + cold_bonus
-                        + sink_bonus
+                        + building_pref
                         - 0.10 * norm_tariff
                         - 0.05 * wait_h
                     )
@@ -1181,6 +1183,12 @@ class FleetJobScheduler:
             qid = uuid.uuid4().hex
             effective_name = (job_name or f"{tier}-{gpu_or_sku}-{qid[:6]}").strip()[:80]
             wait_min = int(placement["start_offset_h"] * 60)
+            if tier == "spot" and wait_min == 0 and resolved_pref is None:
+                # Spot waits for the host building's next thermal tank-draw dispatch batch (15-50 min)
+                assigned_site_state = self._sites[placement["site_id"]]
+                soc_frac = assigned_site_state.tank_soc_kwh / max(1.0, assigned_site_state.tank_capacity_kwh)
+                raw_batch = 15.0 + soc_frac * 25.0 + min(15, quantity * 3)
+                wait_min = int(round(raw_batch / 5.0) * 5)
 
             quote_obj = ComputeQuote(
                 quote_id=qid,

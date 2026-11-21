@@ -685,7 +685,11 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     updateVisualStage(quote);
     if (els.bookBtn) els.bookBtn.disabled = false;
     const waitTxt =
-      quote.wait_time_min === 0 ? "0 min (instant)" : `${quote.wait_time_min} min (thermal window)`;
+      quote.wait_time_min === 0
+        ? "0 min (instant)"
+        : quote.wait_time_min >= 60
+          ? `${Math.floor(quote.wait_time_min / 60)}h ${String(quote.wait_time_min % 60).padStart(2, "0")}m (next heat window)`
+          : `~${quote.wait_time_min} min (thermal batch window)`;
     const saveBadge =
       quote.cloud_savings_pct !== null && quote.cloud_savings_pct !== undefined
         ? domEl("span", {
