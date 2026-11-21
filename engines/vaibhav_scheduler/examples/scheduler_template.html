@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DigitalHeat scheduler comparison</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.05);
+  --heat: #eb6834; --dump: #a3a199; --temp: #2a78d6; --accent: #2a78d6; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.07);
+    --heat: #d95926; --dump: #6b6a64; --temp: #3987e5; --accent: #3987e5;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+h1 { font-size: 20px; margin: 0 0 2px; }
+h2 { font-size: 15px; margin: 0 0 2px; }
+h3 { font-size: 13px; margin: 10px 0 0; }
+a { color: var(--accent); }
+.sub { color: var(--ink2); margin: 0 0 14px; max-width: 92ch; }
+.note { color: var(--ink2); margin: 2px 0 8px; max-width: 100ch; }
+.num { font-variant-numeric: tabular-nums; }
+#warn { display: none; border: 1px solid var(--critical); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+
+.controls { position: sticky; top: 0; z-index: 5; background: var(--page);
+  padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row + .row { margin-top: 8px; }
+.row label { color: var(--ink2); }
+button, input[type=date] { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 10px; }
+button { cursor: pointer; border-radius: 999px; color: var(--ink2); }
+button:hover { background: var(--wash); }
+button[aria-pressed=true] { background: var(--ink); color: var(--page); border-color: var(--ink); }
+button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.span { color: var(--ink2); margin-left: 4px; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.tile .k { color: var(--ink2); font-size: 12px; }
+.tile .v { font-size: 22px; font-weight: 600; line-height: 1.25; }
+.tile .v small { font-size: 12px; font-weight: 400; color: var(--ink2); }
+.tile .d { color: var(--muted); font-size: 11px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px 10px; margin-bottom: 12px; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink2); margin: 6px 0 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.sw.heat { background: var(--heat); } .sw.dump { background: var(--dump); }
+.plot { width: 100%; }
+.tablewrap { overflow-x: auto; }
+table.data { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; margin-top: 6px; }
+table.data th, table.data td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.data th { color: var(--ink2); font-weight: 600; font-size: 12px; vertical-align: bottom; }
+table.data th.l, table.data td.l { text-align: left; }
+table.data td.l { white-space: normal; }
+table.data td small { color: var(--muted); }
+table.data tr.group td { font-weight: 600; color: var(--ink2); border-bottom: 1px solid var(--axis); padding-top: 10px; }
+table.data th.grp { text-align: center; border-left: 1px solid var(--border); }
+table.data td.edge, table.data th.edge { border-left: 1px solid var(--border); }
+
+svg { display: block; overflow: visible; }
+svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.gridl { stroke: var(--grid); stroke-width: 1; }
+.axisl { stroke: var(--axis); stroke-width: 1; }
+.hov { fill: var(--wash); }
+.f-heat { fill: var(--heat); } .f-dump { fill: var(--dump); }
+.ln { fill: none; stroke: var(--temp); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 250px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14); display: none; }
+#tip h4 { margin: 0 0 4px; font-size: 12px; }
+#tip table { border-collapse: collapse; width: 100%; }
+#tip td { padding: 1px 0; }
+#tip td:not(:first-child) { text-align: right; padding-left: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tip th { text-align: right; font-weight: 600; color: var(--ink2); font-size: 11px; padding-left: 12px; }
+ol.plain, ul.plain { margin: 4px 0 8px; padding-left: 20px; color: var(--ink2); max-width: 104ch; }
+ol.plain b, ul.plain b { color: var(--ink); }
+ol.plain li, ul.plain li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Where should each job run?</h1>
+  <p class="sub" id="intro"></p>
+  <p id="warn" role="alert"></p>
+
+  <div class="controls">
+    <div class="row" id="presets"></div>
+    <div class="row">
+      <label for="from">From</label><input type="date" id="from">
+      <label for="to">to</label><input type="date" id="to">
+      <span class="span num" id="span"></span>
+    </div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <h2>The three policies over this period</h2>
+    <p class="note" id="comparenote"></p>
+    <div class="tablewrap"><table class="data" id="compare"></table></div>
+  </div>
+
+  <div class="card">
+    <h2 id="charttitle">Server heat</h2>
+    <p class="note">Heat the houses used and heat that had to be dumped, for all six houses together. The less grey, the better the jobs were placed.</p>
+    <div class="legend">
+      <span><i class="sw heat"></i>Used by the houses</span>
+      <span><i class="sw dump"></i>Dumped</span>
+    </div>
+    <div id="charts"></div>
+    <h3>Outdoor temperature, mean of the six towns, °C</h3>
+    <div class="plot" id="c-temp"></div>
+  </div>
+
+  <div class="card">
+    <h2>House by house</h2>
+    <p class="note">Usage is the share of the house's GPUs that were busy. Dumped is the share of its server heat it could not use. Covered is the share of its heating that the servers replaced.</p>
+    <div class="tablewrap"><table class="data" id="houses"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>How the heat-saving scheduler decides</h2>
+    <ol class="plain" id="rule"></ol>
+    <h2>Data, assumptions and references</h2>
+    <ul class="plain" id="refs"></ul>
+  </div>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+const D = /*FLEET_JSON*/null;
+const N = D.hours, SITES = D.sites, POL = D.policies, MON = D.money, SRV = D.server;
+const NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const f = (v, d = 1) => { const t = Math.abs(v) < 0.5 / 10 ** d ? 0 : v; return t.toFixed(d).replace("-", "−"); };
+const n0 = (v) => Math.round(v).toLocaleString("en").replace("-", "−");
+const chf = (v, d = 2) => (v < 0 ? "−" : "") + Math.abs(v).toLocaleString("en", { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (a, b, d = 1) => b > 0 ? f(a / b * 100, d) + "%" : "–";
+const link = (url, text) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>`;
+const sum = (a, fn) => a.reduce((t, x) => t + fn(x), 0);
+
+/* ---- dates and running totals ---- */
+const DAY0 = Date.UTC(D.year, 0, 1), LAST = N / 24 - 1;
+const dayOf = (iso) => Math.round((Date.parse(iso + "T00:00:00Z") - DAY0) / 86400000);
+const isoOf = (day) => new Date(DAY0 + day * 86400000).toISOString().slice(0, 10);
+const nice = (day) => new Date(DAY0 + day * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+function running(values) {                      // running[i] = sum of the first i values
+  const out = new Float64Array(values.length + 1);
+  for (let i = 0; i < values.length; i++) out[i + 1] = out[i] + values[i];
+  return out;
+}
+const between = (run, a, b) => run[b] - run[a];
+const fleet = (key) => { const out = new Float64Array(N); return (arrays) => { for (const arr of arrays) for (let i = 0; i < N; i++) out[i] += arr[i]; return out; }; };
+SITES.forEach((s) => { s.ref = running(s.reference); });
+POL.forEach((p) => {
+  p.run = p.sites.map((s) => ({ gpu: running(s.gpu), absorbed: running(s.absorbed), dumped: running(s.dumped), backup: running(s.backup) }));
+  p.fleetAbsorbed = running(fleet()(p.sites.map((s) => s.absorbed)));
+  p.fleetDumped = running(fleet()(p.sites.map((s) => s.dumped)));
+  p.startedRun = running(p.started); p.missedRun = running(p.missed); p.waitRun = running(p.wait);
+});
+const ARR = running(D.arrivals), TEMP = running(D.mean_temp);
+const GPUS = sum(SITES, (s) => s.gpus), SERVERS = sum(SITES, (s) => s.servers), KW_PER_GPU = SRV.kw / SRV.gpus;
+
+let from = dayOf(D.presets[0].from), to = dayOf(D.presets[0].to), frames = [];
+
+/* ---- the figures of one policy over the chosen hours ---- */
+function figures(p, h0, h1) {
+  const per = SITES.map((s, i) => {
+    const r = p.run[i], gpu = between(r.gpu, h0, h1), absorbed = between(r.absorbed, h0, h1);
+    const dumped = between(r.dumped, h0, h1), backup = between(r.backup, h0, h1), need = between(s.ref, h0, h1);
+    return { gpu, absorbed, dumped, backup, need, avoided: need - backup };
+  });
+  const t = (k) => sum(per, (x) => x[k]), days = (h1 - h0) / 24;
+  const gpu = t("gpu"), kwh = gpu * KW_PER_GPU, avoided = t("avoided");
+  const hw = SERVERS * MON.hardware_chf / (MON.life_years * 365) * days;
+  const mt = SERVERS * MON.hardware_chf * MON.maintenance / 365 * days;
+  const el = kwh * MON.tariff, saving = avoided / MON.cop * MON.tariff, cost = hw + el + mt;
+  const started = between(p.startedRun, h0, h1), missed = between(p.missedRun, h0, h1);
+  return { per, gpu, kwh, absorbed: t("absorbed"), dumped: t("dumped"), backup: t("backup"), need: t("need"), avoided,
+    hw, mt, el, saving, cost, c0: gpu > 0 ? cost / gpu : null, c1: gpu > 0 ? (cost - saving) / gpu : null,
+    started, missed, wait: started > 0 ? between(p.waitRun, h0, h1) / started : 0, usage: gpu / (GPUS * (h1 - h0)) };
+}
+function selfCheck() {
+  let worst = 0;
+  const rel = (a, b) => Math.abs(a - b) / Math.max(1, Math.abs(b));
+  POL.forEach((p) => {
+    const m = figures(p, 0, N);
+    worst = Math.max(worst, rel(m.gpu, p.totals.gpu_hours), rel(m.absorbed, p.totals.absorbed), rel(m.dumped, p.totals.dumped), rel(m.backup, p.totals.backup));
+  });
+  worst = Math.max(worst, rel(sum(SITES, (s) => between(s.ref, 0, N)), D.reference_total));
+  document.body.dataset.check = worst < 1e-3 ? "ok" : "mismatch";
+  if (worst >= 1e-3) { $("warn").style.display = "block"; $("warn").textContent = "Warning: the page's yearly totals differ from the Python run. Regenerate the page before trusting it."; }
+}
+
+/* ---- drawing ---- */
+function s(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceStep(top) { const raw = top / 4, mag = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw); }
+function buckets() {                             // hourly up to ten days, otherwise daily
+  const h0 = from * 24, h1 = (to + 1) * 24, hourly = to - from < 10, size = hourly ? 1 : 24;
+  return { h0, h1, hourly, size, count: (h1 - h0) / size };
+}
+function frame(el, o) {
+  el.textContent = "";
+  const W = Math.max(300, el.clientWidth), Ht = o.height, ml = 46, mr = 14, mt = 10, mb = 22;
+  const svg = s("svg", { width: W, height: Ht, viewBox: `0 0 ${W} ${Ht}`, role: "img", "aria-label": o.label }, el);
+  const pw = W - ml - mr, ph = Ht - mt - mb, B = buckets();
+  const x = (i) => ml + pw * i / B.count;
+  const y = (v) => mt + ph * (1 - (v - o.y0) / (o.y1 - o.y0));
+  const band = s("rect", { class: "hov", x: ml, y: mt, width: Math.max(1, pw / B.count), height: ph, visibility: "hidden" }, svg);
+  for (let v = Math.ceil(o.y0 / o.step) * o.step; v <= o.y1 + 1e-9; v += o.step) {
+    s("line", { class: "gridl", x1: ml, x2: ml + pw, y1: y(v), y2: y(v) }, svg);
+    s("text", { x: ml - 6, y: y(v) + 4, "text-anchor": "end" }, svg, Math.abs(v) >= 1000 ? n0(v) : f(v, o.step < 1 ? 1 : 0));
+  }
+  s("line", { class: "axisl", x1: ml, x2: ml + pw, y1: y(Math.max(o.y0, 0)), y2: y(Math.max(o.y0, 0)) }, svg);
+  const days = to - from + 1, every = Math.max(1, Math.ceil(days / 8));
+  for (let d = 0; d < days; d += every) s("text", { x: x(d * 24 / B.size), y: Ht - 6, "text-anchor": d ? "middle" : "start" }, svg, nice(from + d));
+  const fr = { svg, x, y, pw, ph, ml, mt, band, count: B.count, bw: Math.max(1, Math.min(22, pw / B.count * 0.72)) };
+  const hit = () => {
+    const rect = s("rect", { x: ml, y: mt, width: pw, height: ph, fill: "transparent" }, svg);
+    rect.addEventListener("pointermove", (e) => {
+      const r = rect.getBoundingClientRect();
+      setHover(Math.max(0, Math.min(B.count - 1, Math.floor((e.clientX - r.left) / r.width * B.count))), e);
+    });
+    rect.addEventListener("pointerleave", () => setHover(null));
+    frames.push(fr);
+  };
+  return Object.assign(fr, { hit });
+}
+function drawCharts() {
+  const B = buckets(), unit = B.hourly ? "each hour" : "each day";
+  $("charttitle").textContent = `Server heat, kWh ${unit}`;
+  const series = POL.map((p) => Array.from({ length: B.count }, (_, i) => {
+    const a = B.h0 + i * B.size, b = a + B.size;
+    return [between(p.fleetAbsorbed, a, b), between(p.fleetDumped, a, b)];
+  }));
+  const top = Math.max(1, ...series.flat().map(([a, d]) => a + d)), step = niceStep(top);
+  $("charts").innerHTML = POL.map((p, i) => `<h3>${esc(p.name)}</h3><div class="plot" id="c-${i}"></div>`).join("");
+  POL.forEach((p, k) => {
+    const fr = frame($("c-" + k), { height: 150, y0: 0, y1: Math.ceil(top / step) * step, step, label: `${p.name}: server heat used and dumped ${unit}` });
+    series[k].forEach(([absorbed, dumped], i) => {
+      const xl = fr.x(i + 0.5) - fr.bw / 2, y0 = fr.y(0), ya = fr.y(absorbed), yd = fr.y(absorbed + dumped);
+      if (y0 - ya >= 0.5) s("rect", { class: "f-heat", x: xl, y: ya, width: fr.bw, height: y0 - ya }, fr.svg);
+      const gap = fr.bw >= 4 && ya - yd > 3 ? 1.5 : 0;
+      if (ya - yd >= 0.5) s("rect", { class: "f-dump", x: xl, y: yd, width: fr.bw, height: ya - yd - gap }, fr.svg);
+    });
+    fr.hit();
+  });
+  const temps = Array.from({ length: B.count }, (_, i) => between(TEMP, B.h0 + i * B.size, B.h0 + (i + 1) * B.size) / B.size);
+  const lo = Math.floor(Math.min(0, ...temps) / 5) * 5, hi = Math.ceil(Math.max(5, ...temps) / 5) * 5;
+  const fr = frame($("c-temp"), { height: 120, y0: lo, y1: hi, step: 5, label: `Mean outdoor temperature of the six towns ${unit}` });
+  s("path", { class: "ln", d: temps.map((v, i) => `${i ? "L" : "M"}${fr.x(i + 0.5).toFixed(1)},${fr.y(v).toFixed(1)}`).join("") }, fr.svg);
+  fr.hit();
+  drawCharts.series = series; drawCharts.temps = temps;
+}
+function setHover(i, e) {
+  const B = buckets();
+  for (const fr of frames) {
+    if (i == null) fr.band.setAttribute("visibility", "hidden");
+    else { fr.band.setAttribute("x", fr.x(i)); fr.band.setAttribute("visibility", "visible"); }
+  }
+  const tip = $("tip");
+  if (i == null || !e) { tip.style.display = "none"; return; }
+  const hour = B.h0 + i * B.size, day = Math.floor(hour / 24);
+  const title = B.hourly ? `${nice(day)}, ${String(hour % 24).padStart(2, "0")}:00` : nice(day);
+  tip.innerHTML = `<h4>${title} · ${f(drawCharts.temps[i])} °C outside</h4><table><tr><td></td><th>Used</th><th>Dumped</th></tr>` +
+    POL.map((p, k) => `<tr><td>${esc(p.name)}</td><td>${n0(drawCharts.series[k][i][0])}</td><td>${n0(drawCharts.series[k][i][1])}</td></tr>`).join("") + "</table>";
+  tip.style.display = "block";
+  const w = tip.offsetWidth, ht = tip.offsetHeight;
+  tip.style.left = Math.max(8, e.clientX + 16 + w > innerWidth ? e.clientX - 16 - w : e.clientX + 16) + "px";
+  tip.style.top = Math.max(8, Math.min(innerHeight - ht - 8, e.clientY - ht / 2)) + "px";
+}
+
+/* ---- tables and tiles ---- */
+function render() {
+  frames = [];
+  const h0 = from * 24, h1 = (to + 1) * 24, F = POL.map((p) => figures(p, h0, h1));
+  const first = F[POL.findIndex((p) => p.key === "first")], heat = F[POL.findIndex((p) => p.key === "heat")], hold = F[POL.findIndex((p) => p.key === "hold")];
+  $("from").value = isoOf(from); $("to").value = isoOf(to);
+  const days = to - from + 1;
+  $("span").textContent = `${days} day${days === 1 ? "" : "s"} · ${n0(between(ARR, h0, h1))} jobs arrive`;
+  document.querySelectorAll("#presets button").forEach((b, i) => b.setAttribute("aria-pressed", dayOf(D.presets[i].from) === from && dayOf(D.presets[i].to) === to));
+
+  const tile = (k, v, unit, d) => `<div class="tile"><div class="k">${k}</div><div class="v num">${v} <small>${unit}</small></div><div class="d">${d}</div></div>`;
+  $("tiles").innerHTML =
+    tile("Net cost of a GPU-hour, heat saving", heat.c1 == null ? "–" : chf(heat.c1, 3), "CHF", `first free: ${first.c1 == null ? "–" : chf(first.c1, 3)} CHF`) +
+    tile("Heat savings, heat saving", chf(heat.saving, 0), "CHF", `${chf(heat.saving - first.saving, 0)} CHF more than first free`) +
+    tile("Server heat dumped, heat saving", pct(heat.dumped, heat.absorbed + heat.dumped), "", `first free: ${pct(first.dumped, first.absorbed + first.dumped)}`) +
+    tile("Deadlines missed, heat saving", n0(heat.missed), "jobs", `first free: ${n0(first.missed)} · holding jobs: ${n0(hold.missed)}`);
+
+  $("comparenote").textContent = `Without any server the six houses need ${n0(first.need)} kWh of heating in this period. Costs use the 2020 prices: ${f(MON.tariff, 4)} CHF per kWh, ${n0(MON.hardware_chf)} CHF per server over ${MON.life_years} years, ${f(MON.maintenance * 100, 0)}% maintenance a year.`;
+  const row = (label, fn) => `<tr><td class="l">${label}</td>${F.map((m) => `<td>${fn(m)}</td>`).join("")}</tr>`;
+  const group = (label) => `<tr class="group"><td class="l" colspan="${F.length + 1}">${label}</td></tr>`;
+  $("compare").innerHTML = `<thead><tr><th class="l"></th>${POL.map((p) => `<th>${esc(p.name)}</th>`).join("")}</tr></thead><tbody>` +
+    group("Compute") +
+    row("Jobs started", (m) => n0(m.started)) +
+    row("Jobs that missed their deadline", (m) => `${n0(m.missed)} <small>${pct(m.missed, m.started + m.missed, 2)}</small>`) +
+    row("Average wait before a job starts", (m) => `${f(m.wait, 2)} h`) +
+    row("GPU-hours run", (m) => n0(m.gpu)) +
+    row("Usage of the fleet", (m) => f(m.usage * 100, 1) + "%") +
+    group("Heat, kWh") +
+    row("Server heat produced", (m) => n0(m.absorbed + m.dumped)) +
+    row("Used by the houses", (m) => `${n0(m.absorbed)} <small>${pct(m.absorbed, m.absorbed + m.dumped)}</small>`) +
+    row("Dumped", (m) => `${n0(m.dumped)} <small>${pct(m.dumped, m.absorbed + m.dumped)}</small>`) +
+    row("Backup heat avoided", (m) => `${n0(m.avoided)} <small>${pct(m.avoided, m.need)} of the need</small>`) +
+    row("Backup heat still needed", (m) => n0(m.backup)) +
+    group("Money, CHF") +
+    row("Hardware and maintenance", (m) => chf(m.hw + m.mt, 0)) +
+    row("Electricity", (m) => chf(m.el, 0)) +
+    row("Heat savings", (m) => chf(m.saving, 0)) +
+    row("Cost of a GPU-hour without heat savings", (m) => m.c0 == null ? "–" : chf(m.c0, 3)) +
+    row("Net cost of a GPU-hour with heat savings", (m) => m.c1 == null ? "–" : `<b>${chf(m.c1, 3)}</b>`) + "</tbody>";
+
+  $("houses").innerHTML = `<thead><tr><th class="l" rowspan="2">Town</th><th rowspan="2">Size</th><th rowspan="2">Servers</th><th rowspan="2">Heat need at the mean temperature</th>` +
+    POL.map((p) => `<th class="grp" colspan="3">${esc(p.name)}</th>`).join("") + "</tr><tr>" +
+    POL.map(() => '<th class="edge">Usage</th><th>Dumped</th><th>Covered</th>').join("") + "</tr></thead><tbody>" +
+    SITES.map((site, i) => `<tr><td class="l">${esc(site.name)} <small>${f(site.mean_c)} °C mean</small></td><td>${site.size}×</td><td>${site.servers}</td><td>${f(site.need_kw)} kW</td>` +
+      F.map((m) => { const x = m.per[i]; return `<td class="edge">${pct(x.gpu, site.gpus * (h1 - h0), 0)}</td><td>${pct(x.dumped, x.absorbed + x.dumped, 0)}</td><td>${pct(x.avoided, x.need, 0)}</td>`; }).join("") + "</tr>").join("") + "</tbody>";
+  drawCharts();
+}
+
+/* ---- controls ---- */
+$("presets").innerHTML = D.presets.map((p, i) => `<button data-i="${i}">${esc(p.label)}</button>`).join("");
+$("presets").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const p = D.presets[+b.dataset.i]; from = dayOf(p.from); to = dayOf(p.to); render();
+});
+for (const id of ["from", "to"]) {
+  $(id).min = isoOf(0); $(id).max = isoOf(LAST);
+  $(id).addEventListener("change", (e) => {
+    if (!e.target.value) return;
+    const day = Math.max(0, Math.min(LAST, dayOf(e.target.value)));
+    if (id === "from") { from = day; if (to < from) to = from; } else { to = day; if (from > to) from = to; }
+    render();
+  });
+}
+
+/* ---- static text ---- */
+const J = D.jobs, heatPerServer = SRV.kw * SRV.recovery;
+$("intro").textContent = `Six houses in alpine towns, each twice the size of the one before, with ${SERVERS} servers and ${GPUS} GPUs between them. ` +
+  `${n0(J.total)} jobs arrive over ${D.year}, asking for about ${f(J.load * 100, 0)}% of the fleet. Three ways of placing them are compared over the dates you choose.`;
+$("rule").innerHTML = [
+  "Every hour, jobs that can no longer finish before their deadline are dropped and counted as missed.",
+  `The waiting jobs are sorted by priority. A job starts at ${J.classes.map((c) => `${c.priority} if ${c.name}`).join(", ")}, gains 1 for every hour it waits, and gains up to ${f(J.urgency_weight, 0)} more as the time it can still wait runs out.`,
+  "For each job in that order, the scheduler looks at every house that has a server with enough free GPUs for the job's whole run.",
+  "For each such house it works out the backup heat avoided: the house's heat model is run over the job's hours with what is already booked there, and again with this job's heat added. The weather of those hours is taken as known.",
+  "The job starts in the house with the largest saving. A started job runs to its end and is never moved.",
+  `<b>Holding jobs</b> adds one step: a job waits while even the best house would use less than half of its heat, until it has under 12 hours of slack left. Over the year this saved little heat and cost deadlines, so it is not the default.`,
+].map((t) => `<li>${t}</li>`).join("");
+$("refs").innerHTML = [
+  `<b>Houses.</b> The reference house scaled ${SITES.map((x) => `${x.size}× in ${esc(x.name)}`).join(", ")}. Size scales heat loss, thermal mass, the heating-system limit, hot water and the tank together. The sizes are an assumption, chosen so that each house is twice the previous one.`,
+  `<b>Servers.</b> ${esc(SRV.system)}, ${SRV.gpus} × ${esc(SRV.accelerator)}: ${f(SRV.kw, 2)} kW at full load on ${esc(SRV.benchmark)}, ${f(heatPerServer, 2)} kW of heat (${link(SRV.url, SRV.source)}). Each house gets enough of them that ${f(SRV.usage * 100, 0)}% usage covers its heat need at the town's mean outdoor temperature, rounded up.`,
+  `<b>Jobs.</b> Random draws from the 15 example tasks of the ${link(J.source_url, J.source)}, in the proportions of their size groups; within a group ${Object.entries(J.rank_share).map(([k, v]) => `${f(v * 100, 0)}% ${esc(k)}`).join(", ")}. Jobs under an hour arrive as a batch run back to back for ${f(J.batch_h, 0)} hours. The arrival times are random (seed ${J.seed}); all three policies get the same jobs.`,
+  `<b>Deadlines and classes.</b> ${J.classes.map((c) => `${f(c.share * 100, 0)}% ${esc(c.name)} (deadline ${c.deadline_factor}× the run time after arrival)`).join(", ")}. The trace has no deadlines; these are assumptions.`,
+  `<b>Heat savings.</b> Backup heat with no servers minus backup heat with them, divided by a heat pump COP of ${MON.cop} and priced at the electricity tariff.`,
+  `<b>Prices, all 2020.</b> Electricity ${f(MON.tariff, 4)} CHF per kWh (${esc(MON.tariff_source)}), used for all six towns. Hardware ${n0(MON.hardware_chf)} CHF per server (${esc(MON.hardware_source)}) over ${MON.life_years} years. Maintenance ${f(MON.maintenance * 100, 0)}% of the hardware price a year, a team assumption. For comparison, a GPU-hour cost ${chf(MON.on_demand)} CHF on demand and ${chf(MON.spot)} CHF spot (${esc(MON.gpu_source)}).`,
+  `<b>Weather.</b> ${esc(D.weather_source)}. The scheduler sees the real weather of the coming hours, which a real forecast would not match.`,
+  "<b>Any range of dates</b> is a slice of the same year-long runs, so a week in July starts from the state the houses and queues were in on that day.",
+].map((t) => `<li>${t}</li>`).join("");
+
+selfCheck();
+let wait;
+addEventListener("resize", () => { clearTimeout(wait); wait = setTimeout(render, 80); });
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DigitalHeat servers and workload</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.05);
+  --water: #2a78d6; --space: #eb6834; --water-room: #b7d3f6; --space-room: #f7cdbb;
+  --load: #1baf7a; --dump: #a3a199; --accent: #2a78d6; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.07);
+    --water: #3987e5; --space: #d95926; --water-room: #1b3f6e; --space-room: #5e2a14;
+    --load: #199e70; --dump: #6b6a64; --accent: #3987e5;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+h1 { font-size: 20px; margin: 0 0 2px; }
+h2 { font-size: 15px; margin: 0 0 2px; }
+h3 { font-size: 13px; margin: 0; }
+a { color: var(--accent); }
+.sub { color: var(--ink2); margin: 0 0 14px; max-width: 92ch; }
+.note { color: var(--ink2); margin: 2px 0 8px; max-width: 100ch; }
+.num { font-variant-numeric: tabular-nums; }
+#warn { display: none; border: 1px solid var(--critical); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.tile .k { color: var(--ink2); font-size: 12px; }
+.tile .v { font-size: 22px; font-weight: 600; line-height: 1.25; }
+.tile .v small { font-size: 12px; font-weight: 400; color: var(--ink2); }
+.tile .d { color: var(--muted); font-size: 11px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px 10px; margin-bottom: 12px; min-width: 0; }
+.cardhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cardhead .grow { flex: 1 1 auto; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink2); margin: 6px 0 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.sw.space { background: var(--space); } .sw.water { background: var(--water); }
+.sw.space-room { background: var(--space-room); } .sw.water-room { background: var(--water-room); }
+.sw.dump { background: var(--dump); } .sw.load { background: var(--load); }
+.sw.tick { width: 14px; height: 3px; border-radius: 0; background: var(--ink); }
+
+button, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 8px; }
+button { cursor: pointer; padding: 4px 10px; }
+button:hover { background: var(--wash); }
+button:disabled { opacity: .45; cursor: default; }
+select { max-width: 100%; }
+button:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.server { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; }
+.server .facts { color: var(--ink2); margin: 6px 0 8px; }
+.server .facts b { color: var(--ink); }
+.over { color: var(--ink); margin: 2px 0 6px; }
+.over i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--critical); margin-right: 6px; }
+.scrollx { overflow-x: auto; }
+table.jobs { border-collapse: collapse; width: 100%; min-width: 760px; }
+table.jobs th { text-align: left; color: var(--ink2); font-weight: 600; font-size: 12px; padding: 2px 8px 4px 0; }
+table.jobs td { padding: 3px 8px 3px 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.jobs td.muted, .muted { color: var(--muted); }
+.plot { width: 100%; }
+.loadhead { color: var(--ink2); margin: 8px 0 0; display: flex; align-items: center; gap: 6px; }
+
+svg { display: block; overflow: visible; }
+svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted);
+  font-variant-numeric: tabular-nums; }
+svg text.lbl { fill: var(--ink2); }
+svg text.val { fill: var(--ink); font-weight: 600; }
+.gridl { stroke: var(--grid); stroke-width: 1; }
+.axisl, .refl { stroke: var(--axis); stroke-width: 1; }
+.hov, .bandfill { fill: var(--wash); }
+.f-space { fill: var(--space); } .f-water { fill: var(--water); }
+.f-space-room { fill: var(--space-room); } .f-water-room { fill: var(--water-room); }
+.f-dump { fill: var(--dump); } .f-load { fill: var(--load); } .f-crit { fill: var(--critical); }
+.l-space { stroke: var(--space); } .l-water { stroke: var(--water); }
+.ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.area { opacity: .1; }
+.ring { stroke: var(--surface); }
+.mark-ink { stroke: var(--ink); }
+.dot-ring { stroke: var(--surface); stroke-width: 2; }
+
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 270px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14); display: none; }
+#tip h4 { margin: 0 0 4px; font-size: 12px; }
+#tip table { border-collapse: collapse; width: 100%; }
+#tip td { padding: 1px 0; vertical-align: top; }
+#tip td:last-child { text-align: right; padding-left: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tip tr.sep td { border-top: 1px solid var(--border); padding-top: 4px; }
+#tip .dim { color: var(--ink2); }
+
+summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.tablewrap { overflow-x: auto; }
+table.data { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.data th { color: var(--ink2); font-weight: 600; }
+table.data th.l, table.data td.l { text-align: left; }
+ul.plain { margin: 4px 0 8px; padding-left: 18px; color: var(--ink2); max-width: 104ch; }
+ul.plain b { color: var(--ink); }
+ul.plain li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Servers, workload and heat</h1>
+  <p class="sub" id="intro"></p>
+  <p id="warn" role="alert"></p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <div class="cardhead">
+      <h2>Servers in the house</h2>
+      <span class="grow"></span>
+      <button id="reset">Reset to the example</button>
+      <button id="add-server">Add a server</button>
+    </div>
+    <p class="note">Each server is a system whose power was measured in MLPerf Inference. Its jobs are real tasks from the Alibaba GPU cluster trace. A server draws its measured full-load power times the share of its GPUs that are busy, and 80% of that electricity is recovered as heat.</p>
+    <div id="servers"></div>
+  </div>
+
+  <div class="card">
+    <h2>Heat produced by the servers and absorbed by the house, kWh in each hour</h2>
+    <p class="note">A column is the most heat the house can take in that hour. The solid part is server heat it absorbs; the pale part is room still left. The tick is the least the house must get: where the solid part stops below it, the backup heater fills the gap. Server heat beyond the column is dumped.</p>
+    <div class="legend">
+      <span><i class="sw space"></i>Fulfilled, space heating</span>
+      <span><i class="sw water"></i>Fulfilled, hot water</span>
+      <span><i class="sw space-room"></i>Remaining, space heating</span>
+      <span><i class="sw water-room"></i>Remaining, hot water</span>
+      <span><i class="sw dump"></i>Dumped</span>
+      <span><i class="sw tick"></i>Must-run minimum</span>
+    </div>
+    <div class="plot" id="c-range"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h2>Indoor temperature, °C</h2>
+      <p class="note">Starts at the bottom of the comfort band. Heat above the must-run amount warms the house.</p>
+      <div class="plot" id="c-indoor"></div></div>
+    <div class="card"><h2>Heat left in the hot-water tank, kWh</h2>
+      <p class="note">Starts full. Every draw replaces hot water with cold, which opens room for server heat.</p>
+      <div class="plot" id="c-tank"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Data and references</h2>
+    <ul class="plain" id="refs"></ul>
+    <details>
+      <summary>The jobs taken from the trace</summary>
+      <div class="tablewrap"><table class="data" id="jobtable"></table></div>
+    </details>
+    <details>
+      <summary>The measured systems</summary>
+      <div class="tablewrap"><table class="data" id="proftable"></table></div>
+    </details>
+    <details>
+      <summary>Hourly table</summary>
+      <div class="tablewrap"><table class="data" id="table"></table></div>
+    </details>
+  </div>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+const D = /*WORKLOAD_JSON*/null;
+const P = D.params, HRS = D.hours, M = D.meta, DT = P.dt_h;
+const PROF = Object.fromEntries(D.profiles.map((p) => [p.id, p]));
+const JOB = Object.fromEntries(D.jobs.map((j) => [j.id, j]));
+const KEEP = [0, 1, 2, 3, 4, 6, 8, 12, 24];
+const NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const f = (v, d = 1) => { const t = Math.abs(v) < 0.5 / 10 ** d ? 0 : v; return t.toFixed(d).replace("-", "−"); };
+const g = (v) => String(+v.toFixed(2));                       // GPU counts: 0.25, 1, 1.5
+const hh = (h) => String(h).padStart(2, "0") + ":00";
+const dur = (h) => h < 1 ? `${Math.round(h * 60)} min` : `${f(h)} h`;
+const sum = (a, fn) => a.reduce((t, x) => t + fn(x), 0);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let cfg = clone(D.default);        // [{p: profile id, jobs: [{j: job id, s: start hour, k: keep running hours}]}]
+let servers = [], steps = [], frames = [];
+
+/* ---- the model: copies of gpu_hours_by_step, PowerProfile.power_kw and HouseHeatModel.deliver ---- */
+function serverDay(server) {
+  const prof = PROF[server.p];
+  return HRS.map((_, h) => {
+    const asked = sum(server.jobs, (e) => {
+      const job = JOB[e.j], end = e.s + (e.k || job.duration_h);
+      return job.gpus * Math.max(0, Math.min(end, (h + 1) * DT) - Math.max(e.s, h * DT));
+    });
+    const busy = Math.min(asked, prof.gpus * DT);
+    const kwh = prof.kw / prof.gpus * busy;
+    return { asked, busy, kwh, heat: kwh * P.recovery, over: asked > prof.gpus * DT + 1e-9 };
+  });
+}
+function stepHour(state, h, supplied) {
+  const out = HRS[h].t_out, draw = HRS[h].draw;
+  const loss = P.loss_kw_per_k * (state.tin - out) * DT;
+  const reach = (target) => Math.max(0, loss + P.capacity_kwh_per_k * (target - state.tin));
+  const limit = M.heating_day ? P.max_space_kw * DT : 0;
+  const smin = Math.min(reach(P.min_c), limit), smax = Math.min(reach(P.max_c), limit);
+  const wmin = Math.max(0, P.reserve_kwh - (state.lvl - draw));
+  const wmax = Math.max(0, P.tank_kwh - (state.lvl - draw));
+  let left = supplied;
+  const take = (amount) => { const used = Math.min(left, amount); left -= used; return used; };
+  let tw = take(wmin), ts = take(smin);
+  const bw = wmin - tw, bs = smin - ts;
+  tw += take(wmax - wmin); ts += take(smax - smin);
+  const dump = left > 1e-9 ? left : 0;
+  const lvl = Math.min(P.tank_kwh, Math.max(0, state.lvl + tw + bw - draw));
+  const tin = state.tin + (ts + bs - loss) / P.capacity_kwh_per_k;
+  return { supplied, smin, smax, wmin, wmax, ts, tw, bs, bw, dump, tin, lvl, tin0: state.tin, lvl0: state.lvl };
+}
+function simulate(config) {
+  const days = config.map(serverDay);
+  let state = { tin: P.start_c, lvl: P.tank_kwh };
+  const house = HRS.map((_, h) => { const q = stepHour(state, h, sum(days, (d) => d[h].heat)); state = { tin: q.tin, lvl: q.lvl }; return q; });
+  return { days, house };
+}
+function selfCheck() {
+  const mine = simulate(D.check.config);
+  let worst = 0;
+  D.check.heat.forEach((ref, h) => { worst = Math.max(worst, Math.abs(ref - mine.house[h].supplied)); });
+  D.check.steps.forEach((ref, h) => { for (const k in ref) worst = Math.max(worst, Math.abs(ref[k] - mine.house[h][k])); });
+  document.body.dataset.check = worst < 1e-3 ? "ok" : "mismatch";
+  if (worst >= 1e-3) {
+    $("warn").style.display = "block";
+    $("warn").textContent = `Warning: this page's copy of the model differs from the Python model by up to ${worst.toFixed(3)}. Regenerate the page before trusting it.`;
+  }
+}
+
+/* ---- drawing ---- */
+function s(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function ticksFor(y0, y1, step) { const out = []; for (let v = Math.ceil(y0 / step) * step; v <= y1 + 1e-9; v += step) out.push(+v.toFixed(6)); return out; }
+function frame(id, o) {
+  const el = $(id); el.textContent = "";
+  const W = Math.max(300, el.clientWidth), Ht = o.height, ml = 34, mr = o.mr ?? 14, mt = 12, mb = 24;
+  const svg = s("svg", { width: W, height: Ht, viewBox: `0 0 ${W} ${Ht}`, role: "img", "aria-label": o.label }, el);
+  const pw = W - ml - mr, ph = Ht - mt - mb;
+  const x = (h) => ml + pw * h / 24;
+  const y = (v) => mt + ph * (1 - (v - o.y0) / (o.y1 - o.y0));
+  const band = s("rect", { class: "hov", x: ml, y: mt, width: pw / 24, height: ph, visibility: "hidden" }, svg);
+  for (const t of ticksFor(o.y0, o.y1, o.step)) {
+    s("line", { class: "gridl", x1: ml, x2: ml + pw, y1: y(t), y2: y(t) }, svg);
+    s("text", { x: ml - 6, y: y(t) + 4, "text-anchor": "end" }, svg, f(t, o.dec ?? 0));
+  }
+  s("line", { class: "axisl", x1: ml, x2: ml + pw, y1: y(o.y0), y2: y(o.y0) }, svg);
+  for (let h = 0; h <= 24; h += 3) s("text", { x: x(h), y: Ht - 7, "text-anchor": "middle" }, svg, String(h).padStart(2, "0"));
+  const fr = { svg, x, y, pw, ph, ml, mt, W, band, bw: Math.min(24, pw / 24 * 0.62) };
+  fr.finish = () => {
+    const hit = s("rect", { x: ml, y: mt, width: pw, height: ph, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", (e) => {
+      const r = hit.getBoundingClientRect();
+      setHover(Math.max(0, Math.min(23, Math.floor((e.clientX - r.left) / r.width * 24))), e);
+    });
+    hit.addEventListener("pointerleave", () => setHover(null));
+    frames.push(fr);
+  };
+  return fr;
+}
+/* One column of stacked segments [value, class], bottom to top, with a 2px surface gap between them. */
+function stack(fr, h, segs) {
+  const xl = fr.x(h + 0.5) - fr.bw / 2, w = fr.bw, px = fr.y(0) - fr.y(1);
+  const shown = segs.filter(([v]) => v * px >= 0.75);
+  let v0 = 0;
+  shown.forEach(([v, cls], i) => {
+    const last = i === shown.length - 1, hpx = v * px;
+    const yb = fr.y(v0), yt = fr.y(v0 + v) + (!last && hpx > 4 ? 2 : 0);
+    const r = last ? Math.min(4, yb - yt, w / 2) : 0;
+    s("path", { class: cls, d: `M${xl},${yb}V${yt + r}Q${xl},${yt} ${xl + r},${yt}H${xl + w - r}Q${xl + w},${yt} ${xl + w},${yt + r}V${yb}Z` }, fr.svg);
+    v0 += v;
+  });
+}
+function line(fr, pts, cls, area0) {
+  const d = pts.map(([h, v], i) => `${i ? "L" : "M"}${fr.x(h).toFixed(1)},${fr.y(v).toFixed(1)}`).join("");
+  if (area0 != null) s("path", { class: `area ${cls.replace("l-", "f-")}`, d: `${d}L${fr.x(pts[pts.length - 1][0])},${fr.y(area0)}L${fr.x(pts[0][0])},${fr.y(area0)}Z` }, fr.svg);
+  s("path", { class: `ln ${cls}`, d }, fr.svg);
+}
+function endDot(fr, [h, v], cls, label) {
+  s("circle", { class: `${cls.replace("l-", "f-")} dot-ring`, cx: fr.x(h), cy: fr.y(v), r: 4.5 }, fr.svg);
+  s("text", { class: "val", x: fr.x(h) + 9, y: fr.y(v) + 4 }, fr.svg, label);
+}
+function refLine(fr, v, label, above) {
+  s("line", { class: "refl", x1: fr.ml, x2: fr.ml + fr.pw, y1: fr.y(v), y2: fr.y(v) }, fr.svg);
+  s("text", { class: "lbl", x: fr.ml + 6, y: fr.y(v) + (above ? -5 : 13) }, fr.svg, label);
+}
+
+function drawLoad(i) {
+  const prof = PROF[cfg[i].p];
+  const fr = frame("load-" + i, { height: 104, y0: 0, y1: prof.gpus, step: prof.gpus / 2,
+    label: `GPUs busy on server ${i + 1} in each hour` });
+  servers[i].forEach((q, h) => {
+    stack(fr, h, [[q.busy / DT, "f-load"]]);
+    if (q.over) s("circle", { class: "f-crit", cx: fr.x(h + 0.5), cy: fr.mt - 5, r: 3.5 }, fr.svg);
+  });
+  fr.finish();
+}
+function drawRange() {
+  const top = Math.max(24, ...steps.map((q) => Math.max(q.supplied, q.smax + q.wmax)));
+  const fr = frame("c-range", { height: 300, y0: 0, y1: Math.ceil(top / 4) * 4, step: top > 48 ? 8 : 4,
+    label: "For each hour: heat the house can absorb, the part fulfilled by server heat, the room remaining, heat dumped, and the must-run minimum" });
+  steps.forEach((q, h) => {
+    stack(fr, h, [[q.ts, "f-space"], [q.tw, "f-water"], [q.smax - q.ts, "f-space-room"], [q.wmax - q.tw, "f-water-room"], [q.dump, "f-dump"]]);
+    const xm = fr.x(h + 0.5), ym = fr.y(q.smin + q.wmin), half = fr.bw / 2 + 3;
+    s("line", { class: "ring", x1: xm - half - 1, x2: xm + half + 1, y1: ym, y2: ym, "stroke-width": 5 }, fr.svg);
+    s("line", { class: "mark-ink", x1: xm - half, x2: xm + half, y1: ym, y2: ym, "stroke-width": 2.5 }, fr.svg);
+  });
+  fr.finish();
+}
+function drawIndoor() {
+  const fr = frame("c-indoor", { height: 190, y0: P.min_c - 0.5, y1: P.max_c + 0.5, step: 1, mr: 62,
+    label: "Indoor temperature over the day inside the comfort band" });
+  s("rect", { class: "bandfill", x: fr.ml, y: fr.y(P.max_c), width: fr.pw, height: fr.y(P.min_c) - fr.y(P.max_c) }, fr.svg);
+  refLine(fr, P.max_c, `Upper limit ${f(P.max_c, 0)} °C`, false);
+  refLine(fr, P.min_c, `Lower limit ${f(P.min_c, 0)} °C`, false);
+  const pts = [[0, P.start_c], ...steps.map((q, h) => [h + 1, q.tin])];
+  line(fr, pts, "l-space");
+  endDot(fr, pts[24], "l-space", `${f(pts[24][1])} °C`);
+  fr.finish();
+}
+function drawTank() {
+  const fr = frame("c-tank", { height: 190, y0: 0, y1: Math.ceil(P.tank_kwh / 4) * 4 + 4, step: 4, mr: 66,
+    label: "Heat left in the hot-water tank over the day" });
+  refLine(fr, P.tank_kwh, `Full ${f(P.tank_kwh)} kWh`, true);
+  refLine(fr, P.reserve_kwh, `Reserve ${f(P.reserve_kwh)} kWh`, false);
+  const pts = [[0, P.tank_kwh], ...steps.map((q, h) => [h + 1, q.lvl])];
+  line(fr, pts, "l-water", 0);
+  endDot(fr, pts[24], "l-water", `${f(pts[24][1])} kWh`);
+  fr.finish();
+}
+
+function tiles() {
+  const gpuh = sum(servers, (d) => sum(d, (q) => q.busy)), cap = sum(cfg, (c) => PROF[c.p].gpus) * 24 * DT;
+  const elec = sum(servers, (d) => sum(d, (q) => q.kwh)), heat = sum(steps, (q) => q.supplied);
+  const peakE = Math.max(0, ...HRS.map((_, h) => sum(servers, (d) => d[h].kwh))) / DT;
+  const peakH = Math.max(0, ...steps.map((q) => q.supplied)) / DT;
+  const can = sum(steps, (q) => q.smax + q.wmax), used = sum(steps, (q) => q.ts + q.tw);
+  const back = sum(steps, (q) => q.bs + q.bw), dump = sum(steps, (q) => q.dump);
+  const tile = (k, v, unit, d) => `<div class="tile"><div class="k">${k}</div><div class="v num">${v} <small>${unit}</small></div><div class="d">${d}</div></div>`;
+  $("tiles").innerHTML =
+    tile("Compute run", f(gpuh, 0), "GPU-hours", `${f(cap ? gpuh / cap * 100 : 0, 0)}% of ${cfg.length} server${cfg.length === 1 ? "" : "s"} for 24 hours`) +
+    tile("Electricity used", f(elec, 0), "kWh", `peak ${f(peakE)} kW`) +
+    tile("Heat produced", f(heat, 0), "kWh", `peak ${f(peakH)} kW · the brief sizes a unit at 5–20 kW`) +
+    tile("House can absorb", f(can, 0), "kWh", `space ${f(sum(steps, (q) => q.smax), 0)} · hot water ${f(sum(steps, (q) => q.wmax), 0)}`) +
+    tile("Fulfilled by servers", f(used, 0), "kWh", `${f(can ? used / can * 100 : 0, 0)}% of what the house can absorb`) +
+    tile("Remaining to fulfil", f(can - used, 0), "kWh", "room still open for server heat") +
+    tile("Dumped", f(dump, 0), "kWh", `${f(heat ? dump / heat * 100 : 0, 0)}% of the heat produced`) +
+    tile("Left to the backup", f(back, 0), "kWh", "must-run heat the servers missed");
+}
+
+/* ---- server cards ---- */
+function profileSelect(i) {
+  const groups = {};
+  D.profiles.forEach((p) => { (groups[p.system] ??= []).push(p); });
+  return `<select data-i="${i}" data-f="p" aria-label="Measured system and benchmark of server ${i + 1}">` +
+    Object.entries(groups).map(([system, list]) => `<optgroup label="${esc(system)}">` +
+      list.map((p) => `<option value="${esc(p.id)}"${p.id === cfg[i].p ? " selected" : ""}>${esc(p.benchmark)} · ${esc(p.scenario)} · ${f(p.kw)} kW</option>`).join("") +
+      "</optgroup>").join("") + "</select>";
+}
+function jobSelect(i, e) {
+  const groups = {};
+  D.jobs.forEach((j) => { (groups[j.group] ??= []).push(j); });
+  return `<select data-i="${i}" data-e="${e}" data-f="j" aria-label="Job ${e + 1} on server ${i + 1}">` +
+    Object.entries(groups).map(([group, list]) => `<optgroup label="${esc(group)}">` +
+      list.map((j) => `<option value="${esc(j.id)}"${j.id === cfg[i].jobs[e].j ? " selected" : ""}>${g(j.gpus)} GPU · ${dur(j.duration_h)} · ${esc(j.task)} (${esc(j.rank)})</option>`).join("") +
+      "</optgroup>").join("") + "</select>";
+}
+function renderServers() {
+  $("servers").innerHTML = cfg.map((server, i) => {
+    const prof = PROF[server.p], day = servers[i], setup = D.default_sets[prof.default];
+    const overHours = day.map((q, h) => q.over ? hh(h) : null).filter(Boolean);
+    const rows = server.jobs.map((e, k) => {
+      const job = JOB[e.j], end = Math.min(24, e.s + (e.k || job.duration_h));
+      return `<tr><td>${jobSelect(i, k)}</td>` +
+        `<td><select data-i="${i}" data-e="${k}" data-f="s" aria-label="Start hour">${HRS.map((_, h) => `<option value="${h}"${h === e.s ? " selected" : ""}>${hh(h)}</option>`).join("")}</select></td>` +
+        `<td><select data-i="${i}" data-e="${k}" data-f="k" aria-label="Run once or keep running">${KEEP.map((v) => `<option value="${v}"${v === e.k ? " selected" : ""}>${v ? `back to back for ${v} h` : "once"}</option>`).join("")}</select></td>` +
+        `<td>${hh(e.s)} to ${end >= 24 ? "24:00" : `${String(Math.floor(end)).padStart(2, "0")}:${String(Math.round((end % 1) * 60)).padStart(2, "0")}`}</td>` +
+        `<td>${f(prof.kw / prof.gpus * job.gpus, 2)} kW</td>` +
+        `<td class="muted" title="Job ${esc(job.trace_job)} in the trace">${esc(job.trace_job.slice(0, 8))}…</td>` +
+        `<td><button data-i="${i}" data-e="${k}" data-act="del-job" aria-label="Remove this job">Remove</button></td></tr>`;
+    }).join("");
+    return `<div class="server"><div class="cardhead"><h3>Server ${i + 1}</h3>${profileSelect(i)}<span class="grow"></span>` +
+      `<button data-i="${i}" data-act="defaults" title="Replace this server's jobs with the ready-made day for ${esc(setup.name.toLowerCase())}">Apply default jobs</button>` +
+      `<button data-i="${i}" data-act="add-job">Add a job</button>` +
+      `<button data-i="${i}" data-act="del-server"${cfg.length === 1 ? " disabled" : ""}>Remove server</button></div>` +
+      `<p class="facts"><b>${esc(prof.system)}</b> · ${prof.gpus} × ${esc(prof.accelerator)} · <b>${f(prof.kw)} kW</b> at full load running ${esc(prof.benchmark)} (${f(prof.kw / prof.gpus, 2)} kW per GPU) · up to ${f(prof.kw * P.recovery)} kW of heat · <a href="${esc(prof.url)}" target="_blank" rel="noopener">${esc(prof.source)}</a></p>` +
+      `<p class="facts">Default jobs for this choice: <b>${esc(setup.name)}</b>, ${esc(setup.about)}.</p>` +
+      (rows ? `<div class="scrollx"><table class="jobs"><thead><tr><th>Job from the trace</th><th>Start</th><th>Run</th><th>Occupies the GPUs</th><th>Power</th><th>Trace job</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+            : '<p class="note">No jobs yet: this server is switched off and makes no heat. Use “Apply default jobs” for a ready-made day, or add jobs one by one.</p>') +
+      `<p class="loadhead"><i class="sw load"></i>GPUs busy in each hour, of ${prof.gpus}</p><div class="plot" id="load-${i}"></div>` +
+      (overHours.length ? `<p class="over"><i></i>Overbooked at ${overHours.join(", ")}: the jobs ask for more than ${prof.gpus} GPUs, and the extra is ignored.</p>` : "") +
+      "</div>";
+  }).join("");
+  $("add-server").disabled = cfg.length >= P.max_servers;
+}
+$("servers").addEventListener("change", (ev) => {
+  const t = ev.target, i = +t.dataset.i, e = +t.dataset.e, field = t.dataset.f;
+  if (!field) return;
+  if (field === "p") cfg[i].p = t.value;
+  else cfg[i].jobs[e][field] = field === "j" ? t.value : +t.value;
+  render();
+});
+$("servers").addEventListener("click", (ev) => {
+  const t = ev.target.closest("button"); if (!t) return;
+  const i = +t.dataset.i, act = t.dataset.act;
+  if (act === "defaults") cfg[i].jobs = clone(D.default_sets[PROF[cfg[i].p].default].jobs);
+  else if (act === "add-job") cfg[i].jobs.push({ j: "1-gpu-90th" in JOB ? "1-gpu-90th" : D.jobs[0].id, s: 0, k: 0 });
+  else if (act === "del-job") cfg[i].jobs.splice(+t.dataset.e, 1);
+  else if (act === "del-server" && cfg.length > 1) cfg.splice(i, 1);
+  else return;
+  render();
+});
+$("add-server").addEventListener("click", () => {
+  if (cfg.length < P.max_servers) { cfg.push({ p: cfg[cfg.length - 1].p, jobs: [] }); render(); }
+});
+$("reset").addEventListener("click", () => { cfg = clone(D.default); render(); });
+
+function setHover(h, e) {
+  for (const fr of frames) {
+    if (h == null) fr.band.setAttribute("visibility", "hidden");
+    else { fr.band.setAttribute("x", fr.x(h)); fr.band.setAttribute("visibility", "visible"); }
+  }
+  const tip = $("tip");
+  if (h == null || !e) { tip.style.display = "none"; return; }
+  const q = steps[h], can = q.smax + q.wmax, used = q.ts + q.tw;
+  const row = (k, v, cls = "") => `<tr class="${cls}"><td>${k}</td><td>${v}</td></tr>`;
+  const key = (c, t) => `<span class="dim"><i class="sw ${c}"></i> ${t}</span>`;
+  tip.innerHTML = `<h4>${hh(h)} to ${hh(h + 1)}</h4><table>` +
+    servers.map((d, i) => row(key("load", `server ${i + 1}`), `${g(d[h].busy / DT)} of ${PROF[cfg[i].p].gpus} GPUs · ${f(d[h].kwh / DT)} kW`)).join("") +
+    row("Electricity", `${f(sum(servers, (d) => d[h].kwh))} kWh`, "sep") +
+    row("Heat produced", `<b>${f(q.supplied)} kWh</b>`) +
+    row("House can absorb", `<b>${f(can)} kWh</b>`, "sep") +
+    row(key("space", "fulfilled, space heating"), `${f(q.ts)} of ${f(q.smax)}`) +
+    row(key("water", "fulfilled, hot water"), `${f(q.tw)} of ${f(q.wmax)}`) +
+    row("Remaining to fulfil", `<b>${f(can - used)} kWh</b>`) +
+    row("Dumped", `${f(q.dump)} kWh`) +
+    row("Must-run minimum", `${f(q.smin + q.wmin)} kWh`, "sep") +
+    row('<span class="dim">left to the backup</span>', f(q.bs + q.bw)) +
+    row("Outdoor", `${f(HRS[h].t_out)} °C`, "sep") +
+    row("Indoor", `${f(q.tin0)} → ${f(q.tin)} °C`) +
+    row("Tank", `${f(q.lvl0)} → ${f(q.lvl)} kWh`) + "</table>";
+  tip.style.display = "block";
+  const w = tip.offsetWidth, ht = tip.offsetHeight;
+  const left = e.clientX + 16 + w > innerWidth ? e.clientX - 16 - w : e.clientX + 16;
+  tip.style.left = Math.max(8, left) + "px";
+  tip.style.top = Math.max(8, Math.min(innerHeight - ht - 8, e.clientY - ht / 2)) + "px";
+}
+function hourTable() {
+  const head = ["Hour", "GPUs busy", "Electricity", "Heat produced", "Can absorb", "Fulfilled, space", "Fulfilled, water", "Remaining", "Dumped", "Must-run", "Backup", "Indoor °C at start", "Tank kWh at start"];
+  let html = `<thead><tr>${head.map((t, i) => `<th${i ? "" : ' class="l"'}>${t}</th>`).join("")}</tr></thead><tbody>`;
+  steps.forEach((q, h) => {
+    html += `<tr><td class="l">${hh(h)}</td><td>${g(sum(servers, (d) => d[h].busy) / DT)}</td>` +
+      [sum(servers, (d) => d[h].kwh), q.supplied, q.smax + q.wmax, q.ts, q.tw, q.smax + q.wmax - q.ts - q.tw, q.dump, q.smin + q.wmin, q.bs + q.bw]
+        .map((v) => `<td>${f(v, 2)}</td>`).join("") + `<td>${f(q.tin0)}</td><td>${f(q.lvl0)}</td></tr>`;
+  });
+  $("table").innerHTML = html + "</tbody>";
+}
+function render() {
+  frames = [];
+  const result = simulate(cfg);
+  servers = result.days; steps = result.house;
+  history.replaceState(null, "", "#c=" + encodeURIComponent(JSON.stringify(cfg)));
+  tiles(); renderServers();
+  cfg.forEach((_, i) => drawLoad(i));
+  drawRange(); drawIndoor(); drawTank(); hourTable();
+}
+
+/* ---- static text, references and catalogue tables ---- */
+const SJ = D.sources.jobs, SP = D.sources.power, link = (url, text) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text)}</a>`;
+$("intro").textContent = `One house in ${M.place} on ${M.label}, a day averaging ${f(M.mean_c)} °C outside. ` +
+  "Choose the servers in the house and the jobs each one runs. The page works out the GPUs busy, the electricity drawn and the heat produced in every hour, " +
+  `and how much of the heat the house can absorb is fulfilled. The house starts at ${f(P.start_c, 0)} °C with a full hot-water tank.`;
+$("refs").innerHTML = [
+  `<b>Jobs.</b> ${link(SJ.source_url, SJ.source)}. The trace holds ${SJ.tasks_in_trace.toLocaleString("en")} tasks, of which ${SJ.tasks_finished.toLocaleString("en")} finished. ${esc(SJ.method)} Retrieved ${esc(SJ.retrieved)} from ${link(SJ.data_url, "the trace archive")}.`,
+  `<b>Power.</b> ${link(SP.source_url, SP.source)}. ${esc(SP.method)} Rounds used: ${Object.entries(SP.data_urls).map(([name, url]) => link(url, name)).join(", ")}. Retrieved ${esc(SP.retrieved)}.`,
+  `<b>Heat recovery.</b> ${f(D.sources.recovery.value * 100, 0)}% of a server's electricity becomes useful heat (${esc(D.sources.recovery.source)}).`,
+  "<b>Size of a unit.</b> The DigitalHeat brief gives 5–20 kW of useful heat per installed unit, a rack of up to 40 servers (slides 1 and 2). One measured 8-GPU system here draws 3 to 10 kW, so one or two of them fill that range.",
+  "<b>How power follows the workload.</b> A server draws its measured full-load power times the share of its GPUs that are busy, and nothing when no job runs. The results measure full load only, so the idle draw of a real machine is left out: this is a modelling choice.",
+  `<b>Default jobs.</b> Every server choice has a ready-made day of trace jobs, by the kind of benchmark it runs: ${Object.values(D.default_sets).map((d) => `${esc(d.name.toLowerCase())} (${esc(d.about)})`).join("; ")}. The jobs are real trace tasks; which ones run when is our own arrangement, not something the trace or MLPerf provides.`,
+  "<b>What a job is.</b> The trace gives the GPUs a task asked for and how long it ran; it does not say what the task computed. A job takes the power profile of the benchmark its server runs. Run times are those recorded on the trace's 2020 hardware and are not rescaled to the newer systems.",
+  `<b>House.</b> The heat range model of the planner page: comfort band ${f(P.min_c, 0)} to ${f(P.max_c, 0)} °C, ${f(P.max_space_kw, 0)} kW heating-system limit, ${f(P.tank_l, 0)} litre hot-water tank. These are team assumptions. Weather: ${esc(M.source)}.`,
+  "<b>Check.</b> The page recomputes everything in the browser and checks its result against a configuration computed by the Python model when it loads.",
+].map((t) => `<li>${t}</li>`).join("");
+$("jobtable").innerHTML = `<thead><tr>${["Size group", "Duration rank", "GPUs", "Run time", "Task type", "Instances", "CPU cores", "Memory, GiB", "GPU in the trace", "Job in the trace"].map((t, i) => `<th${i < 2 ? ' class="l"' : ""}>${t}</th>`).join("")}</tr></thead><tbody>` +
+  D.jobs.map((j) => `<tr><td class="l">${esc(j.group)}</td><td class="l">${esc(j.rank)}</td><td>${g(j.gpus)}</td><td>${dur(j.duration_h)}</td><td>${esc(j.task)}</td><td>${g(j.instances)}</td><td>${g(j.cores)}</td><td>${g(j.mem)}</td><td>${esc(j.gpu_type)}</td><td>${esc(j.trace_job)}</td></tr>`).join("") + "</tbody>";
+$("proftable").innerHTML = `<thead><tr>${["System", "Accelerators", "Benchmark", "Scenario", "Power at full load, kW", "Source"].map((t, i) => `<th${i < 4 || i === 5 ? ' class="l"' : ""}>${t}</th>`).join("")}</tr></thead><tbody>` +
+  D.profiles.map((p) => `<tr><td class="l">${esc(p.system)}</td><td class="l">${p.gpus} × ${esc(p.accelerator)}</td><td class="l">${esc(p.benchmark)}</td><td class="l">${esc(p.scenario)}</td><td>${f(p.kw, 2)}</td><td class="l">${link(p.url, p.source)}</td></tr>`).join("") + "</tbody>";
+
+/* ---- start ---- */
+function validConfig(c) {
+  return Array.isArray(c) && c.length >= 1 && c.length <= P.max_servers && c.every((sv) => sv && PROF[sv.p] && Array.isArray(sv.jobs) &&
+    sv.jobs.every((e) => e && JOB[e.j] && Number.isInteger(e.s) && e.s >= 0 && e.s < 24 && KEEP.includes(e.k)));
+}
+selfCheck();
+try {
+  const asked = /c=([^&]+)/.exec(location.hash);
+  if (asked) { const c = JSON.parse(decodeURIComponent(asked[1])); if (validConfig(c)) cfg = c.map((sv) => ({ p: sv.p, jobs: sv.jobs.map((e) => ({ j: e.j, s: e.s, k: e.k })) })); }
+} catch (err) { /* a broken address falls back to the example */ }
+let wait;
+addEventListener("resize", () => { clearTimeout(wait); wait = setTimeout(render, 80); });
+render();
+</script>
+</body>
+</html>

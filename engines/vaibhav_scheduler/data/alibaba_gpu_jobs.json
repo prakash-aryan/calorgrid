@@ -1,0 +1,233 @@
+{
+ "source": "Alibaba GPU cluster trace 2020 (cluster-trace-gpu-v2020), table pai_task_table",
+ "source_url": "https://github.com/alibaba/clusterdata/tree/master/cluster-trace-gpu-v2020",
+ "data_url": "https://aliopentrace.oss-cn-beijing.aliyuncs.com/v2020GPUTraces/pai_task_table.tar.gz",
+ "retrieved": "2026-11-21",
+ "method": "Tasks with status Terminated and a start and end time. GPUs = inst_num x plan_gpu / 100; kept if they fit in 8 GPUs. Within each group, sorted by duration, the task at each stated percentile.",
+ "tasks_in_trace": 1261050,
+ "tasks_finished": 885073,
+ "groups": [
+  {
+   "group": "under 1 GPU",
+   "tasks": 280600,
+   "share_of_finished": 0.317
+  },
+  {
+   "group": "1 GPU",
+   "tasks": 293675,
+   "share_of_finished": 0.3318
+  },
+  {
+   "group": "2 GPUs",
+   "tasks": 35417,
+   "share_of_finished": 0.04
+  },
+  {
+   "group": "3 to 4 GPUs",
+   "tasks": 35214,
+   "share_of_finished": 0.0398
+  },
+  {
+   "group": "5 to 8 GPUs",
+   "tasks": 37480,
+   "share_of_finished": 0.0423
+  }
+ ],
+ "jobs": [
+  {
+   "id": "under-1-gpu-median",
+   "group": "under 1 GPU",
+   "duration_rank": "median",
+   "trace_job": "d800f49900fb96505ddc4499",
+   "task_name": "evaluator",
+   "instances": 1.0,
+   "gpus": 0.25,
+   "duration_s": 696.0,
+   "cpu_cores": 6.0,
+   "mem_gib": 29.3,
+   "gpu_type": "T4"
+  },
+  {
+   "id": "under-1-gpu-90th",
+   "group": "under 1 GPU",
+   "duration_rank": "90th percentile",
+   "trace_job": "29ace3d6e5d023315934cef9",
+   "task_name": "tensorflow",
+   "instances": 1.0,
+   "gpus": 0.1,
+   "duration_s": 11849.0,
+   "cpu_cores": 0.2,
+   "mem_gib": 29.3,
+   "gpu_type": "MISC"
+  },
+  {
+   "id": "under-1-gpu-99th",
+   "group": "under 1 GPU",
+   "duration_rank": "99th percentile",
+   "trace_job": "d0a2e77e95efd3d081588878",
+   "task_name": "tensorflow",
+   "instances": 1.0,
+   "gpus": 0.25,
+   "duration_s": 57049.0,
+   "cpu_cores": 6.0,
+   "mem_gib": 29.3,
+   "gpu_type": "MISC"
+  },
+  {
+   "id": "1-gpu-median",
+   "group": "1 GPU",
+   "duration_rank": "median",
+   "trace_job": "00ca37d809900c3044aeec2a",
+   "task_name": "worker",
+   "instances": 1.0,
+   "gpus": 1.0,
+   "duration_s": 287.0,
+   "cpu_cores": 6.0,
+   "mem_gib": 29.3,
+   "gpu_type": "T4"
+  },
+  {
+   "id": "1-gpu-90th",
+   "group": "1 GPU",
+   "duration_rank": "90th percentile",
+   "trace_job": "94b08ed8d180b62a0045f4a6",
+   "task_name": "PyTorchWorker",
+   "instances": 1.0,
+   "gpus": 1.0,
+   "duration_s": 10436.0,
+   "cpu_cores": 18.0,
+   "mem_gib": 58.59,
+   "gpu_type": "P100"
+  },
+  {
+   "id": "1-gpu-99th",
+   "group": "1 GPU",
+   "duration_rank": "99th percentile",
+   "trace_job": "23e4e3d116db8f0230841a04",
+   "task_name": "tensorflow",
+   "instances": 1.0,
+   "gpus": 1.0,
+   "duration_s": 84482.0,
+   "cpu_cores": 6.0,
+   "mem_gib": 29.3,
+   "gpu_type": "MISC"
+  },
+  {
+   "id": "2-gpus-median",
+   "group": "2 GPUs",
+   "duration_rank": "median",
+   "trace_job": "6491f0371589e990dcb4ef1c",
+   "task_name": "worker",
+   "instances": 3.0,
+   "gpus": 1.5,
+   "duration_s": 577.0,
+   "cpu_cores": 18.0,
+   "mem_gib": 87.89,
+   "gpu_type": "T4"
+  },
+  {
+   "id": "2-gpus-90th",
+   "group": "2 GPUs",
+   "duration_rank": "90th percentile",
+   "trace_job": "a46145f5aed894d0359cc5ce",
+   "task_name": "worker",
+   "instances": 5.0,
+   "gpus": 1.25,
+   "duration_s": 9594.0,
+   "cpu_cores": 20.0,
+   "mem_gib": 73.24,
+   "gpu_type": "MISC"
+  },
+  {
+   "id": "2-gpus-99th",
+   "group": "2 GPUs",
+   "duration_rank": "99th percentile",
+   "trace_job": "2b3b4b822d7ce36b69fe9276",
+   "task_name": "worker",
+   "instances": 4.0,
+   "gpus": 2.0,
+   "duration_s": 75111.0,
+   "cpu_cores": 24.0,
+   "mem_gib": 234.38,
+   "gpu_type": "T4"
+  },
+  {
+   "id": "3-to-4-gpus-median",
+   "group": "3 to 4 GPUs",
+   "duration_rank": "median",
+   "trace_job": "12228f3709e4c67d151a222a",
+   "task_name": "worker",
+   "instances": 12.0,
+   "gpus": 3.0,
+   "duration_s": 1697.0,
+   "cpu_cores": 72.0,
+   "mem_gib": 24.0,
+   "gpu_type": "T4"
+  },
+  {
+   "id": "3-to-4-gpus-90th",
+   "group": "3 to 4 GPUs",
+   "duration_rank": "90th percentile",
+   "trace_job": "bdfba0091ab0311764cddbe1",
+   "task_name": "PyTorchWorker",
+   "instances": 4.0,
+   "gpus": 4.0,
+   "duration_s": 22630.0,
+   "cpu_cores": 4.0,
+   "mem_gib": 15.62,
+   "gpu_type": "MISC"
+  },
+  {
+   "id": "3-to-4-gpus-99th",
+   "group": "3 to 4 GPUs",
+   "duration_rank": "99th percentile",
+   "trace_job": "ee889269cbdfa6043b60e6d2",
+   "task_name": "worker",
+   "instances": 12.0,
+   "gpus": 3.0,
+   "duration_s": 80521.0,
+   "cpu_cores": 72.0,
+   "mem_gib": 24.0,
+   "gpu_type": "T4"
+  },
+  {
+   "id": "5-to-8-gpus-median",
+   "group": "5 to 8 GPUs",
+   "duration_rank": "median",
+   "trace_job": "f15e5d203e5c96021b97a28d",
+   "task_name": "worker",
+   "instances": 20.0,
+   "gpus": 5.0,
+   "duration_s": 2270.0,
+   "cpu_cores": 100.0,
+   "mem_gib": 781.25,
+   "gpu_type": "MISC"
+  },
+  {
+   "id": "5-to-8-gpus-90th",
+   "group": "5 to 8 GPUs",
+   "duration_rank": "90th percentile",
+   "trace_job": "ace3b2173392c490c71b276f",
+   "task_name": "PyTorchWorker",
+   "instances": 1.0,
+   "gpus": 5.0,
+   "duration_s": 19332.0,
+   "cpu_cores": 0.5,
+   "mem_gib": 48.83,
+   "gpu_type": "V100"
+  },
+  {
+   "id": "5-to-8-gpus-99th",
+   "group": "5 to 8 GPUs",
+   "duration_rank": "99th percentile",
+   "trace_job": "34e37f1b36b463c3f216d463",
+   "task_name": "worker",
+   "instances": 32.0,
+   "gpus": 8.0,
+   "duration_s": 123991.0,
+   "cpu_cores": 192.0,
+   "mem_gib": 1000.0,
+   "gpu_type": "MISC"
+  }
+ ]
+}
