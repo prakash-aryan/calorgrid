@@ -639,3 +639,229 @@ def test_summer_on_demand_strict_sink_filtering_and_davos_warning() -> None:
     )
     assert q_davos_spot_auto["assigned_site_id"] == "davos_alpine"
     assert any("snowmaking is a cooling load" in w for w in q_davos_spot_auto["warnings"])
+
+
+@pytest.mark.parametrize("tail_hours", [1.0, 24.0])
+def test_checkpointed_standby_never_double_books_schedule_bitmap(tail_hours: float) -> None:
+    sched = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-01-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    for alt_sid in (
+        "basel_erdsonde",
+        "zurich_oerlikon",
+        "bern_matte",
+        "geneva_carouge",
+        "lugano_lakeside",
+    ):
+        sched.failover_site(alt_sid, offline_hours=96.0)
+
+    q_24h = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=4,
+        duration_hours=24.0,
+        preferred_site_id="basel_klingental",
+        job_name="spot-24h",
+    )
+    b_24h = sched.book_quote(quote_id=q_24h["quote_id"], idempotency_key=f"chk-24-{tail_hours}")
+
+    q_tail = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=4,
+        duration_hours=tail_hours,
+        preferred_site_id="basel_klingental",
+        job_name="spot-tail",
+    )
+    b_tail = sched.book_quote(
+        quote_id=q_tail["quote_id"], idempotency_key=f"chk-tail-{tail_hours}"
+    )
+
+    upd = sched.update_site_demand("basel_klingental", indoor_temp_c=22.6, tank_soc_kwh=32.5)
+    assert any(m["reason"] == "checkpointed_standby" for m in upd["migrations"])
+
+    # Disjoint bitmap reservations right after checkpointing
+    h_24 = set(sched._job_abs_hours_locked(sched._jobs[b_24h["job_id"]]))
+    h_tail = set(sched._job_abs_hours_locked(sched._jobs[b_tail["job_id"]]))
+    assert h_24 and h_tail
+    assert h_24.isdisjoint(h_tail)
+
+    # No slot on basel_klingental ever has >1 running job across full execution horizon
+    total_ticks = int(24 + tail_hours + 26)
+    for _ in range(total_ticks):
+        sched.dispatch_tick(hours=1.0)
+        slot_owners: dict[tuple[str, int], list[str]] = {}
+        for job in sched._jobs.values():
+            if job.site_id != "basel_klingental" or job.status != "running":
+                continue
+            for srv_id, s_idx in job.gpu_slot_refs:
+                slot_owners.setdefault((srv_id, s_idx), []).append(job.job_id)
+        assert all(len(owners) <= 1 for owners in slot_owners.values())
+
+    assert sched._jobs[b_24h["job_id"]].status == "completed"
+    assert sched._jobs[b_tail["job_id"]].status == "completed"
+
+
+def test_dispatch_tick_conserves_thermal_energy_and_matches_hourly_integration() -> None:
+    # A. 1h hydronode_1kw completion conserves exact thermal energy
+    sched_a = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    q1 = sched_a.create_quote(
+        tier="on_demand",
+        unit_mode="server",
+        gpu_or_sku="hydronode_1kw",
+        quantity=1,
+        duration_hours=1.0,
+        preferred_site_id="basel_klingental",
+    )
+    b1 = sched_a.book_quote(quote_id=q1["quote_id"], idempotency_key="cons-1h-hydro")
+    soc0 = sched_a._sites["basel_klingental"].tank_soc_kwh
+    sched_a.dispatch_tick(hours=1.0)
+    dem1 = sched_a._sites["basel_klingental"].heat_demand_kw
+    soc1 = sched_a._sites["basel_klingental"].tank_soc_kwh
+    assert sched_a._jobs[b1["job_id"]].status == "completed"
+    assert soc1 == pytest.approx(round(soc0 + q1["kw_th"] * 1.0 - dem1 * 1.0, 3), abs=1e-3)
+
+    # B. Queued job promoted at t=1 injects 0.0 kWh phantom heat during [0, 1)
+    sched_b = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    sched_b.update_site_demand("basel_klingental", tank_soc_kwh=32.0)
+    q_now = sched_b.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=1,
+        duration_hours=1.0,
+        preferred_site_id="basel_klingental",
+    )
+    b_now = sched_b.book_quote(quote_id=q_now["quote_id"], idempotency_key="cons-now-rtx")
+    q_next = sched_b.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="rtx_pro_4500_blackwell",
+        quantity=4,
+        duration_hours=1.0,
+        preferred_site_id="basel_klingental",
+    )
+    assert q_next["wait_time_min"] == 60
+    b_next = sched_b.book_quote(quote_id=q_next["quote_id"], idempotency_key="cons-next-rtx")
+    assert b_next["status"] == "queued"
+
+    sched_b.dispatch_tick(hours=1.0)
+    dem_b1 = sched_b._sites["basel_klingental"].heat_demand_kw
+    soc_b1 = sched_b._sites["basel_klingental"].tank_soc_kwh
+    assert sched_b._jobs[b_now["job_id"]].status == "completed"
+    assert sched_b._jobs[b_next["job_id"]].status == "running"
+    assert soc_b1 == pytest.approx(
+        round(32.0 + q_now["kw_th"] * 1.0 - dem_b1 * 1.0, 3), abs=1e-3
+    )
+
+    # C. Multi-hour dispatch_tick(3.0) matches 3 x dispatch_tick(1.0) hourly integration
+    sched_1h = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    sched_3h = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    booked_1h: list[str] = []
+    booked_3h: list[str] = []
+    for idx, (sched, out_ids) in enumerate([(sched_1h, booked_1h), (sched_3h, booked_3h)]):
+        qa = sched.create_quote(
+            tier="on_demand",
+            unit_mode="gpu",
+            gpu_or_sku="rtx_pro_4500_blackwell",
+            quantity=4,
+            duration_hours=1.0,
+            preferred_site_id="basel_klingental",
+        )
+        out_ids.append(
+            sched.book_quote(quote_id=qa["quote_id"], idempotency_key=f"mh-a-{idx}")["job_id"]
+        )
+        qb = sched.create_quote(
+            tier="on_demand",
+            unit_mode="server",
+            gpu_or_sku="hydronode_1kw",
+            quantity=3,
+            duration_hours=3.0,
+            preferred_site_id="basel_klingental",
+        )
+        out_ids.append(
+            sched.book_quote(quote_id=qb["quote_id"], idempotency_key=f"mh-b-{idx}")["job_id"]
+        )
+        qc = sched.create_quote(
+            tier="spot",
+            unit_mode="gpu",
+            gpu_or_sku="rtx_pro_4500_blackwell",
+            quantity=4,
+            duration_hours=2.0,
+            preferred_site_id="basel_klingental",
+        )
+        assert qc["wait_time_min"] == 60
+        out_ids.append(
+            sched.book_quote(quote_id=qc["quote_id"], idempotency_key=f"mh-c-{idx}")["job_id"]
+        )
+
+    for _ in range(3):
+        sched_1h.dispatch_tick(hours=1.0)
+    sched_3h.dispatch_tick(hours=3.0)
+
+    site_1h = sched_1h._sites["basel_klingental"]
+    site_3h = sched_3h._sites["basel_klingental"]
+    assert site_3h.tank_soc_kwh == pytest.approx(site_1h.tank_soc_kwh, abs=1e-3)
+    assert site_3h.indoor_temp_c == pytest.approx(site_1h.indoor_temp_c, abs=0.01)
+    assert site_3h.cumulative_dumped_kwh == pytest.approx(0.0, abs=1e-6)
+    assert all(sched_1h._jobs[jid].status == "completed" for jid in booked_1h)
+    assert all(sched_3h._jobs[jid].status == "completed" for jid in booked_3h)
+
+
+def test_fractional_tick_quote_to_book_trajectory_alignment() -> None:
+    sched = FleetJobScheduler(
+        log_store=TelemetryLogStore(),
+        simulation_clock_utc="2025-07-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    q1 = sched.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=2.0,
+        preferred_site_id="sole_uno",
+    )
+    sched.book_quote(quote_id=q1["quote_id"], idempotency_key="ft-sole-1")
+
+    q2 = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=1.0,
+        preferred_site_id="sole_uno",
+    )
+    assert q2["wait_time_min"] == 120  # starts at t=2.0
+
+    sched.dispatch_tick(hours=0.6)
+    # Exact remaining offset 1.4h aligns candidate window with [2.0, 3.0)
+    with sched._lock:
+        committed_exact = sched._site_committed_energy_kwh_locked("sole_uno", 2.0, 3.0)
+        assert committed_exact == pytest.approx(0.0, abs=1e-6)
+        assert sched._can_absorb_trajectory_locked("sole_uno", 1.4, 1.0, q2["kw_th"])
+
+    b2 = sched.book_quote(quote_id=q2["quote_id"], idempotency_key="ft-sole-2")
+    assert b2["status"] == "queued"
+    assert b2["wait_time_min"] == 84
+    assert sched._jobs[b2["job_id"]].start_hour == pytest.approx(2.0, abs=1e-6)
