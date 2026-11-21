@@ -62,16 +62,47 @@ def wait_until(
 
 @dataclass
 class BrowserSessionErrors:
-    """Captured browser console errors, page errors and failed network responses."""
+    """Captured browser console errors, page errors, HTTP failures and external requests."""
 
     console_errors: list[str] = field(default_factory=list)
     page_errors: list[str] = field(default_factory=list)
     http_failures: list[str] = field(default_factory=list)
+    external_requests: list[str] = field(default_factory=list)
 
     def assert_clean(self) -> None:
         assert not self.page_errors, f"Uncaught page errors: {self.page_errors}"
         assert not self.console_errors, f"Console errors: {self.console_errors}"
         assert not self.http_failures, f"HTTP >=400 failures: {self.http_failures}"
+        assert not self.external_requests, (
+            f"Unexpected external network requests: {self.external_requests}"
+        )
+
+
+def _attach_error_listeners(
+    page: Any,
+    errors: BrowserSessionErrors,
+    live_server_url: str,
+) -> None:
+    def _on_console(msg: Any) -> None:
+        if msg.type == "error":
+            errors.console_errors.append(msg.text)
+
+    def _on_pageerror(err: Any) -> None:
+        errors.page_errors.append(str(err))
+
+    def _on_response(resp: Any) -> None:
+        if resp.status >= 400 and "/favicon.ico" not in resp.url:
+            errors.http_failures.append(f"{resp.status} {resp.url}")
+
+    def _on_request(req: Any) -> None:
+        url = str(req.url)
+        if url.startswith(("http://", "https://")) and not url.startswith(live_server_url):
+            errors.external_requests.append(url)
+
+    page.on("console", _on_console)
+    page.on("pageerror", _on_pageerror)
+    page.on("response", _on_response)
+    page.on("request", _on_request)
 
 
 @pytest.fixture(scope="session")
@@ -199,32 +230,78 @@ def cockpit_page(
     browser: Any,
     live_server_url: str,
 ) -> Generator[tuple[Any, BrowserSessionErrors], None, None]:
-    """Open the cockpit page in a clean context and record console, page and HTTP errors."""
-    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    """Open the Basel 3D Atlas workbench (?view=atlas) and record browser errors."""
+    context = browser.new_context(viewport={"width": 2400, "height": 1080})
     page = context.new_page()
     errors = BrowserSessionErrors()
+    _attach_error_listeners(page, errors, live_server_url)
 
-    def _on_console(msg: Any) -> None:
-        if msg.type == "error":
-            errors.console_errors.append(msg.text)
-
-    def _on_pageerror(err: Any) -> None:
-        errors.page_errors.append(str(err))
-
-    def _on_response(resp: Any) -> None:
-        if resp.status >= 400 and "/favicon.ico" not in resp.url:
-            errors.http_failures.append(f"{resp.status} {resp.url}")
-
-    page.on("console", _on_console)
-    page.on("pageerror", _on_pageerror)
-    page.on("response", _on_response)
-
-    page.goto(live_server_url, wait_until="domcontentloaded", timeout=30_000)
+    page.goto(f"{live_server_url}/?view=atlas", wait_until="domcontentloaded", timeout=30_000)
     page.locator("[data-testid='kpi-scorecard']").wait_for(state="visible", timeout=15_000)
     wait_until(
         lambda: page.locator("[data-testid='kpi-servers-per-house']").inner_text().strip() != "",
         timeout_s=15.0,
         description="initial KPI scorecard hydration",
+    )
+
+    try:
+        yield page, errors
+    finally:
+        try:
+            httpx.post(f"{live_server_url}/api/v1/worker/stop", timeout=3.0)
+        except httpx.HTTPError:
+            pass
+        context.close()
+
+
+@pytest.fixture()
+def app_page(
+    browser: Any,
+    live_server_url: str,
+) -> Generator[tuple[Any, BrowserSessionErrors], None, None]:
+    """Open the default CalorGrid Explore landing view and record browser errors."""
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = context.new_page()
+    errors = BrowserSessionErrors()
+    _attach_error_listeners(page, errors, live_server_url)
+
+    page.goto(live_server_url, wait_until="domcontentloaded", timeout=30_000)
+    page.locator("[data-testid='swiss-network-overlay']").wait_for(
+        state="visible", timeout=15_000
+    )
+    wait_until(
+        lambda: page.locator("#swiss-fleet-kpis").inner_text().strip() != "",
+        timeout_s=15.0,
+        description="initial Swiss fleet KPI strip hydration",
+    )
+
+    try:
+        yield page, errors
+    finally:
+        try:
+            httpx.post(f"{live_server_url}/api/v1/worker/stop", timeout=3.0)
+        except httpx.HTTPError:
+            pass
+        context.close()
+
+
+@pytest.fixture()
+def mobile_app_page(
+    browser: Any,
+    live_server_url: str,
+) -> Generator[tuple[Any, BrowserSessionErrors], None, None]:
+    """Open the CalorGrid app at 390x844 mobile viewport and record browser errors."""
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    errors = BrowserSessionErrors()
+    _attach_error_listeners(page, errors, live_server_url)
+
+    page.goto(live_server_url, wait_until="domcontentloaded", timeout=30_000)
+    page.locator("[data-testid='app-bottom-nav']").wait_for(state="visible", timeout=15_000)
+    wait_until(
+        lambda: page.locator("#swiss-fleet-kpis").inner_text().strip() != "",
+        timeout_s=15.0,
+        description="mobile Swiss fleet hydration",
     )
 
     try:
