@@ -72,12 +72,12 @@ export const LOG_CATEGORY_LABELS = {
 };
 
 const LOG_CATEGORY_BADGE = {
-  simulation_run: "SIM",
-  analysis_task: "ANALYSIS",
-  scheduler_dispatch: "SCHED",
-  customer_booking: "BOOKING",
-  worker_lifecycle: "WORKER",
-  thermal_rebalance: "THERMAL",
+  simulation_run: "Simulation",
+  analysis_task: "Analysis",
+  scheduler_dispatch: "Scheduler",
+  customer_booking: "Booking",
+  worker_lifecycle: "Worker",
+  thermal_rebalance: "Thermal",
 };
 
 function formatShortUtc(ts) {
@@ -185,32 +185,33 @@ export function renderLogFeed(hostEl, payload, activeCategory, onCategoryChange,
 }
 
 /**
- * Render nested GPU slots (used in both HeatLedger processes and Compute Fleet Telemetry).
+ * Render sleek inline GPU slot utilization rows (no nested box cards).
  */
 export function buildGpuSlotsElement(gpuSlots) {
   if (!Array.isArray(gpuSlots) || !gpuSlots.length) return null;
-  const grid = domEl("div", { className: "hl-gpu-slots" });
+  const list = domEl("div", { className: "hl-gpu-slots" });
   for (const gs of gpuSlots) {
     const rawStatus = String(gs.status || "idle").toLowerCase();
     const isBusy = rawStatus === "running" || rawStatus === "busy";
     const isOff = rawStatus === "fiber_offload" || rawStatus === "offline";
     const cls = isBusy ? "is-busy" : isOff ? "is-offload" : "is-idle";
-    const util = Number(gs.utilization_pct ?? 0).toFixed(0);
-    const pKw = Number(gs.kw_e ?? gs.power_kw ?? 0).toFixed(2);
+    const utilNum = Math.max(0, Math.min(100, Number(gs.utilization_pct ?? 0)));
+    const util = utilNum.toFixed(0);
     const hKw = Number(gs.kw_th ?? gs.heat_kw ?? 0).toFixed(2);
-    const jobLbl = gs.job_name || gs.job_id || (isBusy ? "Active" : "Idle");
+    const jobLbl = gs.job_name || (isBusy ? "Active workload" : "Idle");
+    const shortId = (gs.gpu_id || `GPU ${gs.slot_index}`).replace(/_/g, " ");
 
-    const chip = domEl("div", { className: `hl-gpu-chip ${cls}` }, [
+    const row = domEl("div", { className: `hl-gpu-chip ${cls}` }, [
       domEl("div", { className: "hl-gpu-chip-top" }, [
-        domEl("strong", { text: gs.gpu_id || `GPU-${gs.slot_index}` }),
-        domEl("span", { className: "hl-gpu-util", text: `${util}%` }),
-      ]),
-      domEl("div", { className: "hl-gpu-chip-meta" }, [
-        domEl("span", { text: `${pKw} kW_e -> ${hKw} kW_th` }),
+        domEl("strong", { text: shortId }),
         domEl("span", { className: "hl-gpu-job", text: jobLbl }),
+        domEl("span", { className: "hl-gpu-util", text: `${util}% · ${hKw} kW heat` }),
+      ]),
+      domEl("div", { className: "hl-gpu-bar" }, [
+        domEl("div", { className: "hl-gpu-bar-fill", style: { width: `${utilNum}%` } }),
       ]),
     ]);
-    grid.appendChild(chip);
+    list.appendChild(row);
   }
-  return grid;
+  return list;
 }

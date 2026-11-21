@@ -709,33 +709,26 @@ export function createSwissNetworkController({
     detailEl.innerHTML = `
       <div class="sn-detail-head">
         <div>
-          <span class="sn-detail-region">${n.region} · Canton ${n.canton} · ${n.elevation_m} m</span>
+          <div class="sn-detail-region">${n.city}, ${n.canton} (${n.elevation_m} m)</div>
           <h3>${n.name}</h3>
           <div class="sn-detail-arch">${n.archetype}</div>
         </div>
-        <span class="sn-state-pill" style="color:${badge.color};background:${badge.bg};border-color:${badge.color}44">${badge.text}</span>
+        <span class="sn-state-pill" style="color:${badge.color};background:${badge.bg}">${badge.text}</span>
       </div>
       <div class="sn-detail-thumb">
         <video src="${rtxUrl}" autoplay muted loop playsinline preload="auto"></video>
-        <span>3D Cinematic RTX View · swisstopo 3D + SimReady USD</span>
+        <span>3D preview</span>
       </div>
-      <div class="sn-detail-hw">
-        <span>Installed Hardware</span>
-        <strong>${hwText}</strong>
-      </div>
-      <p class="sn-detail-summary">${n.summary}</p>
-      <div class="sn-detail-grid">
-        <div><span>Servers Active</span><strong>${n.live.servers_active.toFixed(1)} / ${n.servers_installed} x 1 kW</strong></div>
-        <div><span>Heat Generated</span><strong style="color:#c2410c">${n.live.heat_generated_kw.toFixed(1)} kW_th (${n.target_supply_c} C)</strong></div>
-        <div><span>Building Demand</span><strong>${n.live.heat_demand_kw.toFixed(1)} kW_th (${n.live.outdoor_temp_c} C out)</strong></div>
-        <div><span>Tank SoC / Temp</span><strong>${n.live.tank_soc_pct.toFixed(0)}% (${n.live.tank_temp_c} C)</strong></div>
-        <div><span>Electricity / Break-Even</span><strong>${n.tariff_chf_per_kwh.toFixed(3)} · ${n.annual.opex_breakeven_chf.toFixed(3)} CHF/h</strong></div>
-        <div><span>Annual Heat / Waste</span><strong>${n.annual.annual_heat_covered_pct}% cov · ${n.annual.annual_dumped_kwh} kWh waste</strong></div>
+      <div class="sn-detail-hw-line">${hwText}</div>
+      <div class="sn-detail-stats">
+        <div><span>Active</span><strong>${Math.round(n.live.servers_active)} / ${n.servers_installed}</strong></div>
+        <div><span>Heat out</span><strong class="accent-heat">${n.live.heat_generated_kw.toFixed(1)} kW (${n.target_supply_c}°C)</strong></div>
+        <div><span>Annual cov.</span><strong>${n.annual.annual_heat_covered_pct}%</strong></div>
       </div>
       <div class="sn-detail-flow">${flowNote}</div>
       <div class="sn-detail-actions">
-        <button type="button" class="sn-btn-primary" id="sn-inspect-3d-btn" data-testid="swiss-inspect-twin-btn">Open 3D Cinema</button>
-        <button type="button" class="sn-btn-ghost" id="sn-detail-configure-btn">Configure Similar</button>
+        <button type="button" class="sn-btn-primary" id="sn-inspect-3d-btn" data-testid="swiss-inspect-twin-btn">Open 3D view</button>
+        <button type="button" class="sn-btn-outline" id="sn-detail-configure-btn">Configure similar</button>
       </div>
     `;
 
@@ -761,11 +754,10 @@ export function createSwissNetworkController({
           <button type="button" class="sn-roster-row ${sel}" data-roster-id="${n.node_id}">
             <div class="sn-roster-main">
               <strong>${n.name}</strong>
-              <span>${n.city} (${n.canton}) · ${n.servers_installed} servers · ${n.live.heat_generated_kw.toFixed(1)} kW heat</span>
+              <span>${n.city} (${n.canton}), ${n.servers_installed} servers, ${n.live.heat_generated_kw.toFixed(1)} kW</span>
             </div>
             <div class="sn-roster-right">
               <span class="sn-roster-pill" style="color:${badge.color};background:${badge.bg}">${badge.text}</span>
-              <span class="sn-roster-arrow">View 3D -></span>
             </div>
           </button>
         `;
@@ -782,10 +774,12 @@ export function createSwissNetworkController({
       if (!latestData.flows.length) {
         flowsHost.innerHTML = `<div class="sn-flow-empty">Winter peak: all 14 Swiss buildings absorb 100% of local server heat.</div>`;
       } else {
+        const shortName = (s) => String(s || "").split(" ").slice(0, 2).join(" ");
         flowsHost.innerHTML = latestData.flows
+          .slice(0, 4)
           .map(
             (f) =>
-              `<div class="sn-flow-chip"><strong>${f.from_name}</strong> -&gt; <strong>${f.to_name}</strong> <span>${f.kw_shifted.toFixed(1)} kW (${workloadShort(f.workload)}, ${f.latency_ms} ms)</span></div>`
+              `<div class="sn-flow-chip"><strong>${shortName(f.from_name)}</strong> to <strong>${shortName(f.to_name)}</strong> <span>${f.kw_shifted.toFixed(1)} kW ${workloadShort(f.workload)}</span></div>`
           )
           .join("");
       }
@@ -876,7 +870,7 @@ export function createSwissNetworkController({
     const hasRealGlb = Boolean(node.glb_scene_key);
     if (webglToggleBtn) {
       webglToggleBtn.hidden = !hasRealGlb;
-      webglToggleBtn.textContent = preferWebgl ? "RTX Cinema View" : "Interactive 3D";
+      webglToggleBtn.textContent = preferWebgl ? "Exterior 3D" : "Interactive 3D";
       webglToggleBtn.dataset.mode = preferWebgl ? "webgl" : "rtx";
     }
 

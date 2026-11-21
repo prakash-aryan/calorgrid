@@ -1,10 +1,10 @@
-import { createCockpitScene } from "./scene.js?v=20261121m";
-import { createProvenanceController } from "./provenance.js?v=20261121m";
-import { createWorkerRackOverlay } from "./worker_rack.js?v=20261121m";
-import { createSwissNetworkController } from "./swiss_network.js?v=20261121m";
-import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121m";
-import { createComputeCustomerController } from "./compute_customer.js?v=20261121m";
-import { initHud } from "./hud.js?v=20261121m";
+import { createCockpitScene } from "./scene.js?v=20261121n";
+import { createProvenanceController } from "./provenance.js?v=20261121n";
+import { createWorkerRackOverlay } from "./worker_rack.js?v=20261121n";
+import { createSwissNetworkController } from "./swiss_network.js?v=20261121n";
+import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121n";
+import { createComputeCustomerController } from "./compute_customer.js?v=20261121n";
+import { initHud } from "./hud.js?v=20261121n";
 
 const canvasEl = document.getElementById("canvas-3d");
 const legendEl = document.querySelector("[data-testid='provenance-legend']");
@@ -37,7 +37,7 @@ function syncAppTabUi(tabId) {
     canvasEl.hidden = tabId !== "atlas";
   }
   document.querySelectorAll("[data-app-tab]").forEach((btn) => {
-    if (btn.classList.contains("btn-order-compact")) return;
+    if (btn.classList.contains("btn-order-compact") || btn.classList.contains("brand-home-btn")) return;
     btn.classList.toggle("is-active", btn.dataset.appTab === tabId);
   });
 }

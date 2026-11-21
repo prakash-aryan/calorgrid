@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121m">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121o">
   <script type="importmap">
   {
     "imports": {
@@ -20,44 +20,46 @@
 
   <header class="cockpit-header" data-testid="cockpit-header">
     <div class="brand-cluster">
-      <div class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 64 64" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="cg-nav-loop" x1="16" y1="48" x2="48" y2="16" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#38bdf8"/>
-              <stop offset="50%" stop-color="#f97316"/>
-              <stop offset="100%" stop-color="#ef4444"/>
-            </linearGradient>
-            <linearGradient id="cg-nav-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#202026"/>
-              <stop offset="100%" stop-color="#111115"/>
-            </linearGradient>
-          </defs>
-          <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#cg-nav-bg)"/>
-          <rect x="13" y="13" width="16" height="16" rx="4" stroke="#ffffff" stroke-opacity="0.26" stroke-width="2.2"/>
-          <rect x="35" y="13" width="16" height="16" rx="4" fill="#ef4444" fill-opacity="0.22" stroke="#f87171" stroke-width="2.2"/>
-          <rect x="13" y="35" width="16" height="16" rx="4" fill="#0284c7" fill-opacity="0.22" stroke="#38bdf8" stroke-width="2.2"/>
-          <rect x="35" y="35" width="16" height="16" rx="4" stroke="#ffffff" stroke-opacity="0.26" stroke-width="2.2"/>
-          <path d="M 21 43 L 21 32 Q 21 21 32 21 L 43 21" stroke="url(#cg-nav-loop)" stroke-width="5.6" stroke-linecap="round"/>
-          <path d="M 21 43 L 32 43 Q 43 43 43 32 L 43 21" stroke="url(#cg-nav-loop)" stroke-width="3.2" stroke-linecap="round" opacity="0.45"/>
-          <circle cx="21" cy="43" r="3.6" fill="#e0f2fe"/>
-          <circle cx="43" cy="21" r="4.0" fill="#fde047"/>
-        </svg>
-      </div>
-      <div class="brand-text">
-        <span class="brand-title">CalorGrid</span>
-        <span class="brand-sub">Useful Load -&gt; Useful Heat · Decentralized Swiss Network</span>
-      </div>
-      <span class="health-badge" data-testid="api-health-badge">Live</span>
+      <button type="button" class="brand-home-btn" id="brand-home-btn" data-app-tab="explore" aria-label="CalorGrid Home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="cg-nav-loop" x1="16" y1="48" x2="48" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="50%" stop-color="#f97316"/>
+                <stop offset="100%" stop-color="#ef4444"/>
+              </linearGradient>
+              <linearGradient id="cg-nav-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#202026"/>
+                <stop offset="100%" stop-color="#111115"/>
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#cg-nav-bg)"/>
+            <rect x="13" y="13" width="16" height="16" rx="4" stroke="#ffffff" stroke-opacity="0.26" stroke-width="2.2"/>
+            <rect x="35" y="13" width="16" height="16" rx="4" fill="#ef4444" fill-opacity="0.22" stroke="#f87171" stroke-width="2.2"/>
+            <rect x="13" y="35" width="16" height="16" rx="4" fill="#0284c7" fill-opacity="0.22" stroke="#38bdf8" stroke-width="2.2"/>
+            <rect x="35" y="35" width="16" height="16" rx="4" stroke="#ffffff" stroke-opacity="0.26" stroke-width="2.2"/>
+            <path d="M 21 43 L 21 32 Q 21 21 32 21 L 43 21" stroke="url(#cg-nav-loop)" stroke-width="5.6" stroke-linecap="round"/>
+            <path d="M 21 43 L 32 43 Q 43 43 43 32 L 43 21" stroke="url(#cg-nav-loop)" stroke-width="3.2" stroke-linecap="round" opacity="0.45"/>
+            <circle cx="21" cy="43" r="3.6" fill="#e0f2fe"/>
+            <circle cx="43" cy="21" r="4.0" fill="#fde047"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-title">CalorGrid</span>
+          <span class="brand-sub">Swiss thermal-compute network</span>
+        </span>
+      </button>
+      <span class="health-badge" data-testid="api-health-badge" hidden>Live</span>
 
       <nav class="app-top-tabs" data-testid="app-top-tabs" aria-label="Primary App Views">
-        <span class="nav-role-tag">Hosts</span>
-        <button type="button" class="app-tab-btn is-active" data-app-tab="explore">Explore</button>
-        <button type="button" class="app-tab-btn" data-app-tab="configure">Configure</button>
-        <button type="button" class="app-tab-btn" data-app-tab="heatledger">HeatLedger</button>
+        <div class="nav-group-host">
+          <button type="button" class="app-tab-btn is-active" data-app-tab="explore">Explore</button>
+          <button type="button" class="app-tab-btn" data-app-tab="configure">Configure</button>
+          <button type="button" class="app-tab-btn" data-app-tab="heatledger">HeatLedger</button>
+        </div>
         <span class="nav-divider" aria-hidden="true"></span>
-        <span class="nav-role-tag">Customers</span>
-        <button type="button" class="app-tab-btn app-tab-compute" data-app-tab="compute" data-testid="tab-compute-gpus">Compute / GPUs</button>
+        <button type="button" class="app-tab-btn app-tab-compute" data-app-tab="compute" data-testid="tab-compute-gpus">Compute &amp; GPUs</button>
       </nav>
 
       <div class="mobile-header-actions">
@@ -425,8 +427,8 @@
   <section class="swiss-network-overlay" data-testid="swiss-network-overlay" hidden>
     <div class="sn-topbar">
       <div class="sn-title-group">
-        <h2>Switzerland Decentralized Heat-Compute Fleet</h2>
-        <p class="sn-subtitle">Building Hosts get CHF 0 servers &amp; lower heating bills · Compute Customers book On-Demand or Spot GPUs across 14 Swiss sites</p>
+        <h2>Swiss Thermal-Compute Network</h2>
+        <p class="sn-subtitle">Fourteen Swiss buildings and heat sinks sharing live server warmth over fiber.</p>
       </div>
       <div class="sn-controls">
         <div class="sn-year-scrubber" role="group" aria-label="Month of year">
@@ -446,7 +448,7 @@
           <button type="button" class="sn-pill is-active" data-sn-strategy="smart">Smart</button>
           <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
         </div>
-        <button type="button" class="sn-btn-primary sn-desktop-only" id="sn-order-server-btn">Host a server</button>
+        <button type="button" class="sn-btn-primary sn-desktop-only" id="sn-order-server-btn">Get heating</button>
         <button type="button" class="sn-btn-dark sn-desktop-only" id="sn-book-compute-btn" data-testid="sn-book-compute-btn">Book GPUs</button>
       </div>
     </div>
@@ -539,26 +541,30 @@
 
       <div class="app-panel-col">
         <div class="app-card">
-          <span class="app-eyebrow">Building Host View · CHF 0 Server Hardware</span>
-          <h2>Configure your building</h2>
-          <label class="field-group">
-            <span>Building</span>
-            <select id="cfg-deployment-select" data-testid="cfg-deployment-select" aria-label="Building type"></select>
-          </label>
-          <label class="field-group">
-            <span>Existing default heater</span>
-            <select id="cfg-heater-select" data-testid="cfg-heater-select" aria-label="Existing default heater">
-              <option value="" selected>Site default heating system</option>
-              <option value="gas_boiler">Gas Boiler (90% eff.)</option>
-              <option value="heat_pump">Air/Ground Heat Pump (COP 2.5)</option>
-              <option value="electric_backup">Direct Electric Resistance Heater</option>
-            </select>
-          </label>
+          <div class="card-top-row">
+            <h2>Configure heating</h2>
+            <span class="subtle-tag">Heat customer</span>
+          </div>
+          <div class="cfg-selects-grid">
+            <label class="field-group">
+              <span>Building</span>
+              <select id="cfg-deployment-select" data-testid="cfg-deployment-select" aria-label="Building type"></select>
+            </label>
+            <label class="field-group">
+              <span>Existing heater</span>
+              <select id="cfg-heater-select" data-testid="cfg-heater-select" aria-label="Existing default heater">
+                <option value="" selected>Site default heater</option>
+                <option value="gas_boiler">Gas Boiler (90% eff.)</option>
+                <option value="heat_pump">Heat Pump (COP 2.5)</option>
+                <option value="electric_backup">Direct Electric</option>
+              </select>
+            </label>
+          </div>
 
           <div class="cfg-boiler-toggle-row" data-testid="cfg-boiler-toggle-row">
             <div class="cfg-boiler-copy">
               <strong>Already have a boiler?</strong>
-              <span id="cfg-boiler-sub">Reduced host boiler: CHF 2,400 (was CHF 4,200)</span>
+              <span id="cfg-boiler-sub">Optional subsidized boiler: CHF 2,400</span>
             </div>
             <label class="cfg-toggle-switch" for="cfg-existing-boiler-toggle" title="Toggle if your building already has a hot-water boiler">
               <input type="checkbox" id="cfg-existing-boiler-toggle" data-testid="cfg-existing-boiler-toggle">
@@ -570,12 +576,11 @@
 
         <div class="app-card">
           <div class="card-section-head">
-            <span>Server class (CHF 0 · CalorGrid-owned)</span>
+            <span>Server class</span>
+            <small>Supplied and powered by CalorGrid (CHF 0)</small>
           </div>
           <div id="cfg-server-models" class="cfg-models-grid" data-testid="cfg-server-models"></div>
-        </div>
 
-        <div class="app-card">
           <div class="stepper-row">
             <div class="stepper-info">
               <strong>Units</strong>
@@ -592,23 +597,23 @@
             <strong>Balanced fit</strong>
             <span>Covers 64% of annual heat with zero summer waste.</span>
           </div>
-
-          <div id="cfg-live-kpis" class="cfg-kpi-grid" data-testid="cfg-live-kpis"></div>
-
-          <div class="cfg-cta-row">
-            <button type="button" class="sn-btn-primary" id="cfg-test-heatledger-btn" data-testid="cfg-test-heatledger-btn">Preview in HeatLedger</button>
-            <button type="button" class="sn-btn-outline" id="cfg-reserve-btn" data-testid="cfg-reserve-btn">Save host quote</button>
-          </div>
-
-          <div id="cfg-reserve-summary" class="cfg-reserve-toast" hidden></div>
         </div>
 
         <div class="app-card">
           <div class="card-section-head">
-            <span>CalorGrid vs. Default Heater (Annual)</span>
-            <small>Host keeps existing heating system</small>
+            <span>Heating Bill &amp; Annual Savings</span>
+            <small>Keep existing heater</small>
           </div>
+
           <div id="cfg-host-breakdown" class="cg-host-breakdown" data-testid="cfg-host-breakdown"></div>
+          <div id="cfg-live-kpis" class="cg-flat-metrics" data-testid="cfg-live-kpis"></div>
+
+          <div class="cfg-cta-row">
+            <button type="button" class="sn-btn-primary" id="cfg-test-heatledger-btn" data-testid="cfg-test-heatledger-btn">Preview in HeatLedger</button>
+            <button type="button" class="sn-btn-outline" id="cfg-reserve-btn" data-testid="cfg-reserve-btn">Save Quote</button>
+          </div>
+
+          <div id="cfg-reserve-summary" class="cfg-reserve-toast" hidden></div>
         </div>
       </div>
     </div>
@@ -618,7 +623,7 @@
     <div class="app-split-shell">
       <div class="app-stage-col">
         <div class="stage-toolbar">
-          <strong class="hl-stage-heading">Building Host HeatLedger</strong>
+          <strong class="hl-stage-heading">HeatLedger</strong>
           <button type="button" class="sn-btn-ghost" id="hl-reset-3d-btn">Reset</button>
         </div>
 
@@ -643,97 +648,102 @@
       </div>
 
       <div class="app-panel-col">
-        <div class="app-card">
-          <div class="hl-site-header">
-            <h2>Tomorrow</h2>
-            <select id="hl-deployment-select" data-testid="hl-deployment-select" class="hl-site-select" aria-label="Building"></select>
-          </div>
-          <label class="field-group">
-            <span>Default backup heater</span>
-            <select id="hl-heater-select" data-testid="hl-heater-select" aria-label="Default backup heater">
-              <option value="" selected>Site default heating system</option>
-              <option value="gas_boiler">Gas Boiler (90% eff.)</option>
-              <option value="heat_pump">Air/Ground Heat Pump (COP 2.5)</option>
-              <option value="electric_backup">Direct Electric Resistance Heater</option>
-            </select>
-          </label>
+        <div class="subtab-bar" role="tablist" aria-label="HeatLedger Views" data-testid="hl-subtab-bar">
+          <button type="button" class="subtab-btn is-active" data-hl-subtab="overview" role="tab" aria-selected="true">Overview</button>
+          <button type="button" class="subtab-btn" data-hl-subtab="servers" role="tab" aria-selected="false">Servers &amp; GPUs</button>
+          <button type="button" class="subtab-btn" data-hl-subtab="logs" role="tab" aria-selected="false">Logs</button>
+        </div>
 
-          <div id="hl-weather-card" class="hl-weather-card" data-testid="hl-weather-card">
-            <div class="hl-weather-top">
-              <strong>Loading forecast...</strong>
-              <span class="hl-live-tag">Open-Meteo</span>
+        <div class="subtab-pane" data-hl-pane="overview">
+          <div class="app-card">
+            <div class="hl-site-header">
+              <h2>Tomorrow</h2>
+              <select id="hl-deployment-select" data-testid="hl-deployment-select" class="hl-site-select" aria-label="Building"></select>
+            </div>
+
+            <div id="hl-weather-card" class="hl-weather-card" data-testid="hl-weather-card">
+              <div class="hl-weather-top">
+                <strong>Loading forecast...</strong>
+                <span class="hl-source-caption">Open-Meteo</span>
+              </div>
+            </div>
+
+            <div class="slider-block">
+              <div class="slider-head">
+                <label for="hl-heat-slider">Heat target</label>
+                <strong id="hl-heat-readout" data-testid="hl-heat-readout">100%</strong>
+              </div>
+              <input type="range" id="hl-heat-slider" data-testid="hl-heat-slider" class="cg-slider" min="20" max="140" step="5" value="100">
+              <div class="preset-pills-row">
+                <button type="button" class="hl-preset-btn" data-hl-preset="25">Away</button>
+                <button type="button" class="hl-preset-btn" data-hl-preset="70">Eco</button>
+                <button type="button" class="hl-preset-btn is-active" data-hl-preset="100">Auto</button>
+                <button type="button" class="hl-preset-btn" data-hl-preset="130">Boost</button>
+              </div>
+            </div>
+
+            <div class="slider-block">
+              <div class="slider-head">
+                <label for="hl-indoor-slider">Indoor temperature</label>
+                <strong id="hl-indoor-readout" data-testid="hl-indoor-readout">21.0 °C</strong>
+              </div>
+              <input type="range" id="hl-indoor-slider" data-testid="hl-indoor-slider" class="cg-slider" min="18" max="24" step="0.5" value="21">
+            </div>
+          </div>
+
+          <div class="app-card">
+            <div class="card-section-head">
+              <span>Heating Bill vs. Backup</span>
+              <select id="hl-heater-select" data-testid="hl-heater-select" class="cg-inline-select" aria-label="Default backup heater">
+                <option value="" selected>Site default heater</option>
+                <option value="gas_boiler">Gas Boiler (90%)</option>
+                <option value="heat_pump">Heat Pump (COP 2.5)</option>
+                <option value="electric_backup">Direct Electric</option>
+              </select>
+            </div>
+            <div id="hl-host-breakdown" class="cg-host-breakdown" data-testid="hl-host-breakdown"></div>
+            <div id="hl-live-kpis" class="cg-flat-metrics" data-testid="hl-live-kpis"></div>
+          </div>
+
+          <div class="app-card">
+            <div class="card-section-head">
+              <span>24-Hour Heat vs. Demand</span>
+              <div class="hl-chart-legend">
+                <span><i style="background:#d4d4d8"></i>Demand</span>
+                <span><i style="background:#d9480f"></i>CalorGrid</span>
+              </div>
+            </div>
+            <div id="hl-hourly-chart" class="hl-hourly-chart" data-testid="hl-hourly-chart"></div>
+          </div>
+        </div>
+
+        <div class="subtab-pane" data-hl-pane="servers" hidden>
+          <div class="app-card">
+            <div class="card-section-head">
+              <span>Site Server &amp; GPU Load</span>
+              <small>Live thermal output</small>
+            </div>
+            <div id="hl-live-telemetry" class="hl-live-telemetry" data-testid="hl-live-telemetry"></div>
+            <div id="hl-process-list" class="hl-process-list" data-testid="hl-process-list"></div>
+
+            <div class="hl-os-strip">
+              <div class="hl-os-text">
+                <strong>Linux Batch Worker</strong>
+                <span id="hl-real-worker-status">Idle</span>
+              </div>
+              <button type="button" class="sn-btn-ghost" id="hl-real-worker-btn">Start OCR</button>
             </div>
           </div>
         </div>
 
-        <div class="app-card">
-          <div class="slider-block">
-            <div class="slider-head">
-              <label for="hl-heat-slider">Heat target</label>
-              <strong id="hl-heat-readout" data-testid="hl-heat-readout">100%</strong>
+        <div class="subtab-pane" data-hl-pane="logs" hidden>
+          <div class="app-card">
+            <div class="card-section-head">
+              <span>Simulation &amp; Scheduler Logs</span>
+              <small>Real-time event feed</small>
             </div>
-            <input type="range" id="hl-heat-slider" data-testid="hl-heat-slider" class="cg-slider" min="20" max="140" step="5" value="100">
-            <div class="preset-pills-row">
-              <button type="button" class="hl-preset-btn" data-hl-preset="25">Away</button>
-              <button type="button" class="hl-preset-btn" data-hl-preset="70">Eco</button>
-              <button type="button" class="hl-preset-btn is-active" data-hl-preset="100">Auto</button>
-              <button type="button" class="hl-preset-btn" data-hl-preset="130">Boost</button>
-            </div>
+            <div id="cg-app-logs" class="cg-app-logs" data-testid="cg-app-logs"></div>
           </div>
-
-          <div class="slider-block">
-            <div class="slider-head">
-              <label for="hl-indoor-slider">Indoor temperature</label>
-              <strong id="hl-indoor-readout" data-testid="hl-indoor-readout">21.0 C</strong>
-            </div>
-            <input type="range" id="hl-indoor-slider" data-testid="hl-indoor-slider" class="cg-slider" min="18" max="24" step="0.5" value="21">
-          </div>
-
-          <div id="hl-live-kpis" class="cfg-kpi-grid" data-testid="hl-live-kpis"></div>
-        </div>
-
-        <div class="app-card">
-          <div class="card-section-head">
-            <span>Heating-Bill Savings vs. Default Heater</span>
-            <small>CHF 0 servers · CalorGrid pays server power</small>
-          </div>
-          <div id="hl-host-breakdown" class="cg-host-breakdown" data-testid="hl-host-breakdown"></div>
-        </div>
-
-        <div class="app-card">
-          <div class="card-section-head">
-            <span>24-hour heat vs demand</span>
-            <div class="hl-chart-legend">
-              <span><i style="background:#d4d4d8"></i>Demand</span>
-              <span><i style="background:#d9480f"></i>Servers</span>
-            </div>
-          </div>
-          <div id="hl-hourly-chart" class="hl-hourly-chart" data-testid="hl-hourly-chart"></div>
-        </div>
-
-        <div class="app-card">
-          <div class="card-section-head">
-            <span>Live Site GPU Telemetry &amp; Running Processes</span>
-            <small>Per-server load + GPU kW_th</small>
-          </div>
-          <div id="hl-live-telemetry" class="hl-live-telemetry" data-testid="hl-live-telemetry"></div>
-          <div id="hl-process-list" class="hl-process-list" data-testid="hl-process-list"></div>
-
-          <div class="hl-os-strip">
-            <div class="hl-os-text">
-              <strong>Linux worker</strong>
-              <span id="hl-real-worker-status">Idle</span>
-            </div>
-            <button type="button" class="sn-btn-ghost" id="hl-real-worker-btn">Start OCR</button>
-          </div>
-        </div>
-
-        <div class="app-card">
-          <div class="card-section-head">
-            <span>Application &amp; Simulation Logs</span>
-            <small>Simulations · Analysis · Scheduler · Workers</small>
-          </div>
-          <div id="cg-app-logs" class="cg-app-logs" data-testid="cg-app-logs"></div>
         </div>
       </div>
     </div>
@@ -741,122 +751,162 @@
 
   <section class="app-overlay compute-overlay" data-testid="compute-overlay" hidden>
     <div class="cc-shell">
-      <div class="cc-hero">
-        <div class="cc-hero-copy">
-          <span class="app-eyebrow">Compute / GPU Customers · Decentralized Swiss Network</span>
-          <h2>Book GPUs &amp; Servers Hosted Inside Swiss Heat Sinks</h2>
-          <p class="app-lead">Instead of building energy-wasting hyperscale data centers, CalorGrid places compute directly inside Swiss pools, spas, biogas digesters &amp; buildings. Choose instant <strong>On-Demand</strong> capacity at year-round sinks or save 50% with thermal-matched <strong>Spot</strong> routing.</p>
-          <div id="cc-pricing-meta" class="cc-pricing-meta" data-testid="compute-pricing-meta"></div>
+      <div class="cc-topbar">
+        <div class="cc-topbar-copy">
+          <h2>Book Swiss compute</h2>
+          <p class="sn-subtitle">Liquid-cooled GPUs and servers hosted inside Swiss pools, alpine resorts and buildings.</p>
         </div>
-        <div class="cc-hero-actions">
-          <button type="button" class="sn-btn-ghost" id="cc-refresh-pricing-btn" data-testid="cc-refresh-pricing-btn">Refresh Cloud Rates</button>
-          <button type="button" class="sn-btn-outline" id="cc-switch-to-host-btn">Building Host View</button>
+        <div class="cc-topbar-right">
+          <div class="subtab-bar cc-subtabs" role="tablist" aria-label="Compute Views" data-testid="cc-subtab-bar">
+            <button type="button" class="subtab-btn is-active" data-cc-subtab="book" role="tab" aria-selected="true">Pricing</button>
+            <button type="button" class="subtab-btn" data-cc-subtab="fleet" role="tab" aria-selected="false">Live fleet</button>
+            <button type="button" class="subtab-btn" data-cc-subtab="sinks" role="tab" aria-selected="false">Sinks</button>
+            <button type="button" class="subtab-btn" data-cc-subtab="logs" role="tab" aria-selected="false">Logs</button>
+          </div>
+          <button type="button" class="sn-btn-ghost cc-refresh-btn" id="cc-refresh-pricing-btn" data-testid="cc-refresh-pricing-btn">Refresh rates</button>
+          <button type="button" class="sn-btn-outline cc-host-switch" id="cc-switch-to-host-btn">Heat view</button>
         </div>
       </div>
 
-      <div class="cc-main-grid">
-        <div class="cc-col-left">
-          <div class="app-card" data-testid="compute-quote-panel">
-            <div class="card-section-head">
-              <span>1. Configure Compute Capacity &amp; Thermal Tier</span>
-              <small>Live scheduler quoting</small>
-            </div>
-
-            <div class="cc-form-row">
-              <div class="cc-seg-wrap">
-                <span class="cc-field-label">Pricing Tier</span>
-                <div class="seg-toggle" data-testid="compute-tier-toggle" role="group" aria-label="Pricing tier">
-                  <button type="button" class="seg-btn is-active" data-cc-tier="on_demand" data-testid="cc-tier-ondemand">On-Demand (0 min)</button>
-                  <button type="button" class="seg-btn" data-cc-tier="spot" data-testid="cc-tier-spot">Spot (-50%)</button>
+      <div class="cc-subpane" data-cc-pane="book">
+        <div class="cc-main-grid">
+          <div class="cc-col-left">
+            <div class="app-card cc-booking-card" data-testid="compute-quote-panel">
+              <div class="cc-visual-stage" id="cc-visual-stage" data-testid="cc-visual-stage">
+                <div class="cc-vis-hw">
+                  <img id="cc-vis-hw-img" src="/img/hardware/gpu_h100.jpg" alt="Selected GPU hardware" loading="eager">
+                  <div class="cc-vis-caption">
+                    <strong id="cc-vis-hw-name">H100 SXM 80GB</strong>
+                    <span id="cc-vis-hw-spec">750 W · 45°C liquid</span>
+                  </div>
+                </div>
+                <div class="cc-vis-link" aria-hidden="true">
+                  <div class="cc-vis-pipe"><span class="cc-vis-pulse"></span></div>
+                  <span class="cc-vis-heat-tag" id="cc-vis-heat-tag">0.60 kW heat</span>
+                </div>
+                <div class="cc-vis-site">
+                  <video id="cc-vis-site-video" src="/media/twins/basel_st_jakob.mp4" autoplay muted loop playsinline preload="auto"></video>
+                  <div class="cc-vis-caption">
+                    <strong id="cc-vis-site-name">St. Jakob Pool</strong>
+                    <span id="cc-vis-site-wait">Instant allocation</span>
+                  </div>
                 </div>
               </div>
-              <div class="cc-seg-wrap">
-                <span class="cc-field-label">Unit Mode</span>
-                <div class="seg-toggle" data-testid="compute-unit-mode-toggle" role="group" aria-label="Unit mode">
+
+              <div class="cc-switch-stack">
+                <div class="seg-toggle cc-seg-full" data-testid="compute-tier-toggle" role="group" aria-label="Pricing tier">
+                  <button type="button" class="seg-btn is-active" data-cc-tier="on_demand" data-testid="cc-tier-ondemand">On-Demand (instant)</button>
+                  <button type="button" class="seg-btn" data-cc-tier="spot" data-testid="cc-tier-spot">Spot (50% off)</button>
+                </div>
+                <div class="seg-toggle cc-seg-full" data-testid="compute-unit-mode-toggle" role="group" aria-label="Unit mode">
                   <button type="button" class="seg-btn is-active" data-cc-unit-mode="gpu" data-testid="cc-mode-gpu">Individual GPU</button>
-                  <button type="button" class="seg-btn" data-cc-unit-mode="server" data-testid="cc-mode-server">Full Server</button>
+                  <button type="button" class="seg-btn" data-cc-unit-mode="server" data-testid="cc-mode-server">Full server</button>
                 </div>
               </div>
+
+              <div class="cc-form-stack">
+                <label class="field-group">
+                  <span>Hardware</span>
+                  <select id="cc-sku-select" data-testid="compute-sku-select" aria-label="GPU or server SKU"></select>
+                </label>
+                <label class="field-group">
+                  <span>Swiss site routing</span>
+                  <select id="cc-site-select" data-testid="compute-site-select" aria-label="Preferred Swiss site"></select>
+                </label>
+                <div class="cc-form-pair">
+                  <label class="field-group">
+                    <span>Quantity</span>
+                    <input type="number" id="cc-qty-input" data-testid="compute-qty-input" min="1" max="64" step="1" value="1">
+                  </label>
+                  <label class="field-group">
+                    <span>Duration (hrs)</span>
+                    <input type="number" id="cc-hours-input" data-testid="compute-hours-input" min="0.5" max="168" step="0.5" value="4">
+                  </label>
+                </div>
+                <div class="cc-form-pair">
+                  <label class="field-group">
+                    <span>Workload</span>
+                    <select id="cc-workload-select" data-testid="compute-workload-select" aria-label="Workload type"></select>
+                  </label>
+                  <label class="field-group">
+                    <span>Job name</span>
+                    <input type="text" id="cc-job-name-input" data-testid="compute-job-name-input" maxlength="80" placeholder="llama3-eval">
+                  </label>
+                </div>
+              </div>
+
+              <div id="cc-quote-result" class="cc-quote-result" data-testid="compute-quote-result"></div>
+
+              <div class="cc-action-stack">
+                <button type="button" class="sn-btn-primary cc-primary-cta" id="cc-book-btn" data-testid="compute-book-btn">Book &amp; dispatch job</button>
+                <div class="cc-secondary-actions">
+                  <button type="button" class="sn-btn-ghost" id="cc-quote-btn" data-testid="compute-quote-btn">Recalculate</button>
+                  <button type="button" class="sn-btn-ghost" id="cc-tick-btn" data-testid="compute-tick-btn">Step sim (+1h)</button>
+                </div>
+              </div>
+
+              <div id="cc-booking-receipt" class="cc-receipt-box" data-testid="compute-booking-receipt" hidden></div>
             </div>
-
-            <div class="cc-form-grid">
-              <label class="field-group">
-                <span>GPU or Server SKU</span>
-                <select id="cc-sku-select" data-testid="compute-sku-select" aria-label="GPU or server SKU"></select>
-              </label>
-              <label class="field-group">
-                <span>Preferred Swiss Site</span>
-                <select id="cc-site-select" data-testid="compute-site-select" aria-label="Preferred Swiss site"></select>
-              </label>
-              <label class="field-group">
-                <span>Quantity</span>
-                <input type="number" id="cc-qty-input" data-testid="compute-qty-input" min="1" max="64" step="1" value="1">
-              </label>
-              <label class="field-group">
-                <span>Duration (hours)</span>
-                <input type="number" id="cc-hours-input" data-testid="compute-hours-input" min="0.5" max="168" step="0.5" value="4">
-              </label>
-              <label class="field-group">
-                <span>Workload Type</span>
-                <select id="cc-workload-select" data-testid="compute-workload-select" aria-label="Workload type"></select>
-              </label>
-              <label class="field-group">
-                <span>Job Name (optional)</span>
-                <input type="text" id="cc-job-name-input" data-testid="compute-job-name-input" maxlength="80" placeholder="e.g. llama3-basel-eval">
-              </label>
-            </div>
-
-            <div id="cc-quote-result" class="cc-quote-result" data-testid="compute-quote-result"></div>
-
-            <div class="cc-action-bar">
-              <button type="button" class="sn-btn-outline" id="cc-quote-btn" data-testid="compute-quote-btn">Update Quote</button>
-              <button type="button" class="sn-btn-primary" id="cc-book-btn" data-testid="compute-book-btn">Dispatch Compute Job</button>
-              <button type="button" class="sn-btn-dark" id="cc-tick-btn" data-testid="compute-tick-btn">Advance Sim Tick (+1h)</button>
-            </div>
-
-            <div id="cc-booking-receipt" class="cc-receipt-box" data-testid="compute-booking-receipt" hidden></div>
           </div>
 
-          <div class="app-card" data-testid="compute-fleet-telemetry">
-            <div class="card-section-head">
-              <span>2. Live Fleet Server &amp; GPU Telemetry</span>
-              <select id="cc-telemetry-site-filter" class="cc-inline-select" aria-label="Filter telemetry by site"></select>
+          <div class="cc-col-right">
+            <div class="app-card cc-pricing-card" data-testid="compute-cloud-comparison">
+              <div class="card-section-head cc-pricing-head">
+                <div>
+                  <span id="cc-pricing-heading">GPU pricing vs. cloud providers</span>
+                  <small>Select any option to update hardware preview &amp; quote</small>
+                </div>
+                <div class="seg-toggle cc-table-switch" role="group" aria-label="Catalog view">
+                  <button type="button" class="seg-btn is-active" data-cc-catalog="gpu">GPUs</button>
+                  <button type="button" class="seg-btn" data-cc-catalog="server">Full servers</button>
+                </div>
+              </div>
+              <div id="cc-gpu-table-host" class="cc-table-wrap"></div>
+              <div id="cc-sku-table-host" class="cc-table-wrap" hidden></div>
+
+              <div id="cc-pricing-meta" class="cc-pricing-meta" data-testid="compute-pricing-meta"></div>
             </div>
-            <div id="cc-fleet-summary" class="cfg-kpi-grid"></div>
-            <div class="cc-subhead">Active &amp; Queued Scheduler Jobs</div>
-            <div id="cc-active-jobs" class="cc-active-jobs"></div>
-            <div class="cc-subhead">Per-Site Servers &amp; GPU Slots</div>
-            <div id="cc-fleet-sites" class="cc-fleet-sites"></div>
           </div>
         </div>
+      </div>
 
-        <div class="cc-col-right">
-          <div class="app-card" data-testid="compute-cloud-comparison">
-            <div class="card-section-head">
-              <span>3. Live Cloud Comparison (On-Demand &amp; Spot)</span>
-              <small>Click any row to quote</small>
-            </div>
-            <div class="cc-subhead">Individual GPU Pricing vs. Hyperscalers</div>
-            <div id="cc-gpu-table-host" class="cc-table-wrap"></div>
-            <div class="cc-subhead">Full Server SKUs (All 4 Implemented Nodes)</div>
-            <div id="cc-sku-table-host" class="cc-table-wrap"></div>
+      <div class="cc-subpane" data-cc-pane="fleet" hidden>
+        <div class="app-card" data-testid="compute-fleet-telemetry">
+          <div class="card-section-head">
+            <span>Live Swiss Fleet &amp; GPU Telemetry</span>
+            <select id="cc-telemetry-site-filter" class="cg-inline-select" aria-label="Filter telemetry by site"></select>
           </div>
+          <div id="cc-fleet-summary" class="cg-flat-metrics cg-flat-4"></div>
+          <div class="cc-fleet-split">
+            <div class="cc-fleet-col">
+              <div class="cc-subhead">Active &amp; Queued Jobs</div>
+              <div id="cc-active-jobs" class="cc-active-jobs"></div>
+            </div>
+            <div class="cc-fleet-col">
+              <div class="cc-subhead">Per-Site Server Load &amp; Heat Output</div>
+              <div id="cc-fleet-sites" class="cc-fleet-sites"></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div class="app-card" data-testid="compute-summer-sinks">
-            <div class="card-section-head">
-              <span>4. Summer &amp; Year-Round Distributed Sink Cost Model</span>
-              <small>8x B200 node break-even across Swiss sinks</small>
-            </div>
-            <div id="cc-summer-sinks"></div>
+      <div class="cc-subpane" data-cc-pane="sinks" hidden>
+        <div class="app-card" data-testid="compute-summer-sinks">
+          <div class="card-section-head">
+            <span>Summer &amp; Year-Round Swiss Heat Sinks</span>
+            <small>Click any sink to route On-Demand compute there</small>
           </div>
+          <div id="cc-summer-sinks"></div>
+        </div>
+      </div>
 
-          <div class="app-card">
-            <div class="card-section-head">
-              <span>5. Scheduler, Booking &amp; Simulation Logs</span>
-              <small>Real-time TelemetryLogStore</small>
-            </div>
-            <div id="cc-app-logs" class="cg-app-logs" data-testid="cc-app-logs"></div>
+      <div class="cc-subpane" data-cc-pane="logs" hidden>
+        <div class="app-card">
+          <div class="card-section-head">
+            <span>Scheduler, Booking &amp; Simulation Logs</span>
+            <small>Real-time event feed</small>
           </div>
+          <div id="cc-app-logs" class="cg-app-logs" data-testid="cc-app-logs"></div>
         </div>
       </div>
     </div>
@@ -907,6 +957,6 @@
     Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
   </footer>
 
-  <script type="module" src="/js/main.js?v=20261121m"></script>
+  <script type="module" src="/js/main.js?v=20261121n"></script>
 </body>
 </html>

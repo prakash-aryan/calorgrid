@@ -5,15 +5,63 @@ import {
   fmtNum,
   fmtUsd,
   renderLogFeed,
-} from "./telemetry_logs.js?v=20261121m";
+} from "./telemetry_logs.js?v=20261121n";
 
 const WORKLOAD_LABELS = {
-  llm_inference: "LLM Inference (vLLM / TensorRT-LLM)",
-  training_fine_tune: "LoRA / Fine-Tuning Batch",
-  archive_ocr: "Swiss Heritage Archive OCR",
-  iiif_embeddings: "Museum IIIF Vector Embeddings",
-  scientific_sim: "Alpine Climate & CFD Batch",
+  llm_inference: "LLM inference",
+  training_fine_tune: "Fine-tuning batch",
+  archive_ocr: "Heritage archive OCR",
+  iiif_embeddings: "Vector embeddings",
+  scientific_sim: "Alpine climate / CFD",
 };
+
+const HW_IMG_MAP = {
+  b200_sxm_180gb: "/img/hardware/gpu_b200.jpg",
+  h100_sxm_80gb: "/img/hardware/gpu_h100.jpg",
+  h100_nvl_94gb: "/img/hardware/gpu_h100.jpg",
+  a100_sxm_80gb: "/img/hardware/gpu_a100.jpg",
+  rtx_pro_4500_blackwell: "/img/hardware/gpu_a100.jpg",
+  hydronode_1kw: "/img/hardware/server_hydronode.jpg",
+  ocp_winterfell_3kw: "/img/hardware/server_hydronode.jpg",
+  b200_ai_10kw: "/img/hardware/gpu_b200.jpg",
+  edge_micro_250w: "/img/hardware/server_hydronode.jpg",
+};
+
+const SITE_VIDEO_MAP = {
+  basel_st_jakob: "/media/twins/basel_st_jakob.mp4",
+  basel_klingental: "/media/twins/basel_klingental.mp4",
+  riehen_villa: "/media/twins/riehen_villa.mp4",
+  basel_erdsonde: "/media/twins/basel_erdsonde.mp4",
+  zurich_oerlikon: "/media/twins/zurich_oerlikon.mp4",
+  bern_matte: "/media/twins/bern_matte.mp4",
+  emmental_dairy: "/media/twins/emmental_dairy.mp4",
+  thurgau_greenhouse: "/media/twins/thurgau_greenhouse.mp4",
+  geneva_carouge: "/media/twins/geneva_carouge.mp4",
+  valais_dryer: "/media/twins/valais_dryer.mp4",
+  lucerne_bakery: "/media/twins/lucerne_bakery.mp4",
+  stgallen_hospital: "/media/twins/stgallen_hospital.mp4",
+  davos_alpine: "/media/twins/davos_alpine.mp4",
+  lugano_lakeside: "/media/twins/lugano_lakeside.mp4",
+  ara_basel_biogas: "/media/twins/basel_st_jakob.mp4",
+  sole_uno_spa: "/media/twins/basel_st_jakob.mp4",
+  zermatt_ski_resort: "/media/twins/davos_alpine.mp4",
+  st_moritz_alpine: "/media/twins/davos_alpine.mp4",
+};
+
+function hwImgFor(id) {
+  return HW_IMG_MAP[id] || "/img/hardware/gpu_h100.jpg";
+}
+
+function siteVideoFor(siteId, sinkType = "") {
+  if (siteId && SITE_VIDEO_MAP[siteId]) return SITE_VIDEO_MAP[siteId];
+  if (String(sinkType).includes("alpine") || String(sinkType).includes("ski")) {
+    return "/media/twins/davos_alpine.mp4";
+  }
+  if (String(sinkType).includes("pool") || String(sinkType).includes("spa") || String(sinkType).includes("biogas")) {
+    return "/media/twins/basel_st_jakob.mp4";
+  }
+  return "/media/twins/basel_klingental.mp4";
+}
 
 function makeIdempotencyKey() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -69,7 +117,97 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     siteFilterSelect: document.getElementById("cc-telemetry-site-filter"),
     logsHost: document.getElementById("cc-app-logs"),
     hostSwitchBtn: document.getElementById("cc-switch-to-host-btn"),
+    subtabBtns: Array.from(overlay.querySelectorAll("[data-cc-subtab]")),
+    subpanes: Array.from(overlay.querySelectorAll("[data-cc-pane]")),
+    catalogBtns: Array.from(overlay.querySelectorAll("[data-cc-catalog]")),
+    pricingHeading: document.getElementById("cc-pricing-heading"),
+    visHwImg: document.getElementById("cc-vis-hw-img"),
+    visHwName: document.getElementById("cc-vis-hw-name"),
+    visHwSpec: document.getElementById("cc-vis-hw-spec"),
+    visHeatTag: document.getElementById("cc-vis-heat-tag"),
+    visSiteVideo: document.getElementById("cc-vis-site-video"),
+    visSiteName: document.getElementById("cc-vis-site-name"),
+    visSiteWait: document.getElementById("cc-vis-site-wait"),
   };
+
+  let activeSubtab = "book";
+  let activeCatalog = "gpu";
+
+  function setSubtab(tab) {
+    activeSubtab = tab;
+    els.subtabBtns.forEach((b) => {
+      const act = b.dataset.ccSubtab === tab;
+      b.classList.toggle("is-active", act);
+      b.setAttribute("aria-selected", act ? "true" : "false");
+    });
+    els.subpanes.forEach((p) => {
+      p.hidden = p.dataset.ccPane !== tab;
+    });
+    if (tab === "fleet") fetchTelemetry().catch(() => {});
+    if (tab === "logs") fetchLogs().catch(() => {});
+  }
+
+  function setCatalogView(mode) {
+    activeCatalog = mode === "server" ? "server" : "gpu";
+    els.catalogBtns.forEach((b) => {
+      b.classList.toggle("is-active", b.dataset.ccCatalog === activeCatalog);
+    });
+    if (els.gpuTableHost) els.gpuTableHost.hidden = activeCatalog !== "gpu";
+    if (els.skuTableHost) els.skuTableHost.hidden = activeCatalog !== "server";
+    if (els.pricingHeading) {
+      els.pricingHeading.textContent =
+        activeCatalog === "gpu"
+          ? "GPU pricing vs. cloud providers"
+          : "Full server nodes vs. cloud equivalents";
+    }
+  }
+
+  function updateVisualStage(quote = null) {
+    const hwId = state.gpuOrSku;
+    const imgSrc = hwImgFor(hwId);
+    if (els.visHwImg && els.visHwImg.getAttribute("src") !== imgSrc) {
+      els.visHwImg.setAttribute("src", imgSrc);
+    }
+    if (pricingData) {
+      if (state.unitMode === "gpu") {
+        const g = (pricingData.gpu_comparisons || []).find((x) => x.gpu_id === hwId);
+        if (g) {
+          if (els.visHwName) els.visHwName.textContent = g.name.replace(/^NVIDIA\s+/, "");
+          if (els.visHwSpec) {
+            els.visHwSpec.textContent = `${g.vram_gb} GB · ${(Number(g.typical_kw_per_gpu) * 1000).toFixed(0)} W · ${g.supply_temp_c}°C`;
+          }
+        }
+      } else {
+        const s = (pricingData.server_sku_comparisons || []).find((x) => x.server_model_id === hwId);
+        if (s) {
+          if (els.visHwName) els.visHwName.textContent = s.name;
+          if (els.visHwSpec) {
+            els.visHwSpec.textContent = `${s.electrical_kw} kW · ${s.supply_temp_c}°C water`;
+          }
+        }
+      }
+    }
+    if (quote) {
+      if (els.visHeatTag) {
+        els.visHeatTag.textContent = `${fmtNum(quote.thermal_output_kw ?? quote.kw_th, 2)} kW heat`;
+      }
+      if (els.visSiteName) {
+        els.visSiteName.textContent = quote.assigned_site_name || "Swiss Heat Sink";
+      }
+      if (els.visSiteWait) {
+        els.visSiteWait.textContent =
+          quote.wait_time_min === 0 ? "Instant allocation" : `${quote.wait_time_min} min Spot window`;
+      }
+      const vSrc = siteVideoFor(quote.assigned_site_id, quote.sink_type);
+      if (els.visSiteVideo && els.visSiteVideo.getAttribute("src") !== vSrc) {
+        els.visSiteVideo.setAttribute("src", vSrc);
+        els.visSiteVideo.load();
+      }
+      if (els.visSiteVideo && isOpened && activeSubtab === "book") {
+        els.visSiteVideo.play().catch(() => {});
+      }
+    }
+  }
 
   let isOpened = false;
   let pollTimer = null;
@@ -163,7 +301,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
             : g.calorgrid?.spot_chf_per_gpu_hr;
         opts.push({
           value: g.gpu_id,
-          label: `${g.name} (${g.vram_gb} GB · CHF ${Number(rate ?? 0).toFixed(2)}/GPU-h)`,
+          label: `${g.name.replace(/^NVIDIA\s+/, "")} (${g.vram_gb} GB) - CHF ${Number(rate ?? 0).toFixed(2)}/h`,
         });
       }
     } else {
@@ -174,7 +312,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
             : s.calorgrid?.spot_chf_per_server_hr;
         opts.push({
           value: s.server_model_id,
-          label: `${s.name} (${s.electrical_kw} kW_e · CHF ${Number(rate ?? 0).toFixed(2)}/srv-h)`,
+          label: `${s.name} (${s.electrical_kw} kW) - CHF ${Number(rate ?? 0).toFixed(2)}/h`,
         });
       }
     }
@@ -201,20 +339,20 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
           value: "",
           text:
             state.tier === "on_demand"
-              ? "Auto-Route (Best Year-Round / Summer Heat Sink)"
-              : "Auto-Route (Cheapest Thermal-Matched Building)",
+              ? "Auto-route (best year-round sink)"
+              : "Auto-route (cheapest thermal window)",
         })
       );
       for (const s of telemetryData.sites) {
         const sinkTag = s.is_year_round_sink
-          ? "Year-Round"
+          ? "Year-round"
           : s.is_summer_sink
             ? "Summer"
             : "Building";
         frag.appendChild(
           domEl("option", {
             value: s.site_id,
-            text: `${s.name} (${s.canton} · ${sinkTag} · ${Number(s.thermal_headroom_kw).toFixed(1)} kW room)`,
+            text: `${s.name} (${s.canton}, ${sinkTag})`,
           })
         );
       }
@@ -224,7 +362,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     if (els.siteFilterSelect) {
       const prevF = telemetrySiteFilter;
       const frag2 = document.createDocumentFragment();
-      frag2.appendChild(domEl("option", { value: "", text: `All ${telemetryData.sites.length} Fleet Sites` }));
+      frag2.appendChild(domEl("option", { value: "", text: `All ${telemetryData.sites.length} fleet sites` }));
       for (const s of telemetryData.sites) {
         frag2.appendChild(
           domEl("option", {
@@ -244,25 +382,25 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     const azureCount = cs.azure_live_gpus_cached ?? 0;
     const badgeInfo =
       azureCount > 0 && !cs.loaded_from_disk
-        ? { text: `Azure Live (${azureCount} SKUs)`, cls: "is-live" }
+        ? { text: `Azure Live API (${azureCount} SKUs)`, cls: "is-live" }
         : azureCount > 0
           ? { text: `Cached Live (${azureCount} SKUs)`, cls: "is-cached" }
-          : { text: "Pinned Local Matrix", cls: "is-pinned" };
+          : { text: "Pinned cloud matrix", cls: "is-pinned" };
 
     els.pricingMeta.replaceChildren(
       domEl("span", { className: `cc-source-badge ${badgeInfo.cls}`, text: badgeInfo.text }),
       domEl("span", {
         className: "cc-meta-item",
-        text: `FX 1 USD = ${Number(pricingData.fx_chf_per_usd).toFixed(4)} CHF (${pricingData.fx_as_of || "2026-11-20"})`,
+        text: `1 USD = ${Number(pricingData.fx_chf_per_usd).toFixed(3)} CHF`,
       }),
       domEl("span", {
         className: "cc-meta-item",
-        text: `Spot discount: ${Math.round((1 - (pricingData.spot_price_ratio ?? 0.5)) * 100)}% off On-Demand`,
+        text: `Spot is ${Math.round((1 - (pricingData.spot_price_ratio ?? 0.5)) * 100)}% off On-Demand`,
       }),
       cs.last_refresh_utc
         ? domEl("span", {
             className: "cc-meta-item",
-            text: `Refreshed ${formatAsOfShort(cs.last_refresh_utc)}`,
+            text: `Updated ${formatAsOfShort(cs.last_refresh_utc)}`,
           })
         : null
     );
@@ -271,20 +409,18 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
   function renderComparisonTables() {
     if (!pricingData) return;
 
-    // 1. GPU Comparison Table
+    // 1. Clean 6-column GPU Comparison Table (responsive stacked cards on mobile via data-label!)
     if (els.gpuTableHost) {
-      const table = domEl("table", { className: "cc-table" });
+      const table = domEl("table", { className: "cc-table cc-table-responsive" });
       table.appendChild(
         domEl("thead", {}, [
           domEl("tr", {}, [
-            domEl("th", { text: "GPU Model" }),
-            domEl("th", { text: "CalorGrid On-Demand" }),
-            domEl("th", { text: "CalorGrid Spot" }),
-            domEl("th", { text: "AWS EC2" }),
-            domEl("th", { text: "Azure" }),
-            domEl("th", { text: "Lambda / GCP" }),
-            domEl("th", { text: "Savings" }),
-            domEl("th", { text: "Source / As Of" }),
+            domEl("th", { text: "GPU model" }),
+            domEl("th", { className: "is-num", text: "On-Demand" }),
+            domEl("th", { className: "is-num", text: "Spot (-50%)" }),
+            domEl("th", { className: "is-num", text: "AWS EC2" }),
+            domEl("th", { className: "is-num", text: "Lambda / Azure" }),
+            domEl("th", { className: "is-num", text: "Savings" }),
           ]),
         ])
       );
@@ -297,18 +433,23 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
         const az = prov.azure || {};
         const lam = prov.lambda || {};
         const gcp = prov.gcp || {};
-        const lamOrGcp =
-          lam.on_demand_usd_per_gpu_hr !== null && lam.on_demand_usd_per_gpu_hr !== undefined
-            ? `Lambda ${fmtUsd(lam.on_demand_usd_per_gpu_hr)}/h`
-            : gcp.on_demand_usd_per_gpu_hr !== null && gcp.on_demand_usd_per_gpu_hr !== undefined
-              ? `GCP ${fmtUsd(gcp.on_demand_usd_per_gpu_hr)}/h`
-              : "N/A";
 
-        // Pick Azure source if live/cached, else AWS/fallback
-        const repSrc = az.source && az.source !== "unavailable" ? az.source : aws.source || "pinned_fallback";
-        const repAsOf = az.source && az.source !== "unavailable" ? az.as_of : aws.as_of;
-        const badge = sourceBadgeMeta(repSrc);
+        let altPrimary = "-";
+        let altSub = "";
+        if (lam.on_demand_usd_per_gpu_hr != null) {
+          altPrimary = `Lambda ${fmtUsd(lam.on_demand_usd_per_gpu_hr)}`;
+          if (az.on_demand_usd_per_gpu_hr != null && az.offer_status !== "proxy_gb200") {
+            altSub = `Azure ${fmtUsd(az.on_demand_usd_per_gpu_hr)}`;
+          } else if (gcp.on_demand_usd_per_gpu_hr != null) {
+            altSub = `GCP ${fmtUsd(gcp.on_demand_usd_per_gpu_hr)}`;
+          }
+        } else if (az.on_demand_usd_per_gpu_hr != null) {
+          altPrimary = `Azure ${fmtUsd(az.on_demand_usd_per_gpu_hr)}`;
+          if (az.spot_usd_per_gpu_hr != null) altSub = `Spot ${fmtUsd(az.spot_usd_per_gpu_hr)}`;
+        }
+
         const isSel = state.unitMode === "gpu" && state.gpuOrSku === g.gpu_id;
+        const shortGpuName = g.name.replace(/^NVIDIA\s+/, "");
 
         const tr = domEl(
           "tr",
@@ -317,52 +458,49 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
             dataset: { gpuId: g.gpu_id },
           },
           [
-            domEl("td", {}, [
-              domEl("strong", { text: g.name }),
-              domEl("div", {
-                className: "cc-cell-sub",
-                text: `${g.vram_gb} GB · ${(Number(g.typical_kw_per_gpu) * 1000).toFixed(0)} W typ · ${g.supply_temp_c} C`,
-              }),
+            domEl("td", { className: "cc-td-model", attrs: { "data-label": "GPU" } }, [
+              domEl("div", { className: "cc-hw-cell" }, [
+                domEl("img", {
+                  className: "cc-hw-thumb",
+                  attrs: { src: hwImgFor(g.gpu_id), alt: shortGpuName, loading: "lazy" },
+                }),
+                domEl("div", { className: "cc-hw-meta" }, [
+                  domEl("strong", { text: shortGpuName }),
+                  domEl("div", {
+                    className: "cc-cell-sub",
+                    text: `${g.vram_gb} GB, ${(Number(g.typical_kw_per_gpu) * 1000).toFixed(0)} W, ${g.supply_temp_c}°C`,
+                  }),
+                ]),
+              ]),
             ]),
-            domEl("td", {}, [
+            domEl("td", { className: "is-num", attrs: { "data-label": "On-Demand" } }, [
               domEl("strong", { className: "cc-price-main", text: `${fmtChf(cg.on_demand_chf_per_gpu_hr)}/h` }),
               domEl("div", { className: "cc-cell-sub", text: `${fmtUsd(cg.on_demand_usd_per_gpu_hr)}/h` }),
             ]),
-            domEl("td", {}, [
+            domEl("td", { className: "is-num", attrs: { "data-label": "Spot (-50%)" } }, [
               domEl("strong", { className: "cc-price-spot", text: `${fmtChf(cg.spot_chf_per_gpu_hr)}/h` }),
               domEl("div", { className: "cc-cell-sub", text: `${fmtUsd(cg.spot_usd_per_gpu_hr)}/h` }),
             ]),
-            domEl("td", {}, [
+            domEl("td", { className: "is-num", attrs: { "data-label": "AWS EC2" } }, [
               domEl("span", {
-                text: aws.on_demand_usd_per_gpu_hr !== null ? `${fmtUsd(aws.on_demand_usd_per_gpu_hr)}/h` : "N/A",
+                text: aws.on_demand_usd_per_gpu_hr != null ? `${fmtUsd(aws.on_demand_usd_per_gpu_hr)}/h` : "-",
               }),
-              aws.spot_usd_per_gpu_hr !== null
+              aws.spot_usd_per_gpu_hr != null
                 ? domEl("div", { className: "cc-cell-sub", text: `Spot ${fmtUsd(aws.spot_usd_per_gpu_hr)}` })
                 : null,
             ]),
-            domEl("td", {}, [
-              domEl("span", {
-                text: az.on_demand_usd_per_gpu_hr !== null ? `${fmtUsd(az.on_demand_usd_per_gpu_hr)}/h` : "N/A",
-              }),
-              az.spot_usd_per_gpu_hr !== null
-                ? domEl("div", { className: "cc-cell-sub", text: `Spot ${fmtUsd(az.spot_usd_per_gpu_hr)}` })
-                : null,
+            domEl("td", { className: "is-num", attrs: { "data-label": "Lambda / Azure" } }, [
+              domEl("span", { text: altPrimary }),
+              altSub ? domEl("div", { className: "cc-cell-sub", text: altSub }) : null,
             ]),
-            domEl("td", { text: lamOrGcp }),
-            domEl("td", {}, [
-              g.on_demand_savings_vs_cloud_pct !== null
+            domEl("td", { className: "is-num", attrs: { "data-label": "Savings" } }, [
+              g.on_demand_savings_vs_cloud_pct != null
                 ? domEl("span", {
                     className: "cc-savings-pill",
-                    text: `-${g.on_demand_savings_vs_cloud_pct}% OD / -${g.spot_savings_vs_cloud_pct}% Spot`,
+                    text: `-${Math.round(g.on_demand_savings_vs_cloud_pct)}%`,
+                    title: `-${g.on_demand_savings_vs_cloud_pct}% On-Demand / -${g.spot_savings_vs_cloud_pct}% Spot vs cloud`,
                   })
-                : domEl("span", { className: "cc-cell-sub", text: "CalorGrid Exclusive" }),
-            ]),
-            domEl("td", {}, [
-              domEl("span", { className: `cc-source-badge ${badge.cls}`, text: badge.text }),
-              domEl("div", {
-                className: "cc-cell-sub",
-                text: `${formatAsOfShort(repAsOf)} · FX ${Number(pricingData.fx_chf_per_usd).toFixed(3)}`,
-              }),
+                : domEl("span", { className: "cc-cell-sub", text: "Exclusive" }),
             ]),
           ]
         );
@@ -378,19 +516,18 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       els.gpuTableHost.replaceChildren(table);
     }
 
-    // 2. Full Server SKU Comparison Table (All 4 SKUs)
+    // 2. Clean 6-column Full Server SKU Comparison Table
     if (els.skuTableHost) {
-      const table = domEl("table", { className: "cc-table" });
+      const table = domEl("table", { className: "cc-table cc-table-responsive" });
       table.appendChild(
         domEl("thead", {}, [
           domEl("tr", {}, [
-            domEl("th", { text: "Server SKU (Full Node)" }),
-            domEl("th", { text: "Power & Heat" }),
-            domEl("th", { text: "CalorGrid On-Demand" }),
-            domEl("th", { text: "CalorGrid Spot" }),
-            domEl("th", { text: "Cloud Equivalent (AWS / Azure)" }),
-            domEl("th", { text: "Savings vs Cloud" }),
-            domEl("th", { text: "Source" }),
+            domEl("th", { text: "Server node" }),
+            domEl("th", { className: "is-num", text: "Heat out" }),
+            domEl("th", { className: "is-num", text: "On-Demand" }),
+            domEl("th", { className: "is-num", text: "Spot (-50%)" }),
+            domEl("th", { className: "is-num", text: "Cloud equiv." }),
+            domEl("th", { className: "is-num", text: "Savings" }),
           ]),
         ])
       );
@@ -398,9 +535,8 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       for (const s of pricingData.server_sku_comparisons || []) {
         const cg = s.calorgrid || {};
         const cb = s.cloud_baseline || {};
-        const badge = sourceBadgeMeta(cb.source || "pinned_fallback");
         const isSel = state.unitMode === "server" && state.gpuOrSku === s.server_model_id;
-        const thKw = (Number(s.typical_kw) * Number(s.eta)).toFixed(2);
+        const thKw = (Number(s.typical_kw) * Number(s.eta)).toFixed(1);
 
         const tr = domEl(
           "tr",
@@ -409,45 +545,49 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
             dataset: { serverModelId: s.server_model_id },
           },
           [
-            domEl("td", {}, [
-              domEl("strong", { text: s.name }),
-              domEl("div", {
-                className: "cc-cell-sub",
-                text: s.gpu_count > 0 ? `${s.gpu_count}x ${s.gpu_model}` : "CPU / Edge Compute Node",
-              }),
+            domEl("td", { className: "cc-td-model", attrs: { "data-label": "Server" } }, [
+              domEl("div", { className: "cc-hw-cell" }, [
+                domEl("img", {
+                  className: "cc-hw-thumb",
+                  attrs: { src: hwImgFor(s.server_model_id), alt: s.name, loading: "lazy" },
+                }),
+                domEl("div", { className: "cc-hw-meta" }, [
+                  domEl("strong", { text: s.name }),
+                  domEl("div", {
+                    className: "cc-cell-sub",
+                    text: s.gpu_count > 0 ? `${s.gpu_count}× ${s.gpu_model}` : "CPU / edge node",
+                  }),
+                ]),
+              ]),
             ]),
-            domEl("td", {}, [
-              domEl("span", { text: `${s.typical_kw} kW_e typ (${s.electrical_kw} max)` }),
-              domEl("div", { className: "cc-cell-sub", text: `${thKw} kW_th @ ${s.supply_temp_c} C` }),
+            domEl("td", { className: "is-num", attrs: { "data-label": "Heat" } }, [
+              domEl("span", { text: `${thKw} kW` }),
+              domEl("div", { className: "cc-cell-sub", text: `${s.supply_temp_c}°C water` }),
             ]),
-            domEl("td", {}, [
+            domEl("td", { className: "is-num", attrs: { "data-label": "On-Demand" } }, [
               domEl("strong", { className: "cc-price-main", text: `${fmtChf(cg.on_demand_chf_per_server_hr)}/h` }),
               domEl("div", { className: "cc-cell-sub", text: `${fmtUsd(cg.on_demand_usd_per_server_hr)}/h` }),
             ]),
-            domEl("td", {}, [
+            domEl("td", { className: "is-num", attrs: { "data-label": "Spot (-50%)" } }, [
               domEl("strong", { className: "cc-price-spot", text: `${fmtChf(cg.spot_chf_per_server_hr)}/h` }),
               domEl("div", { className: "cc-cell-sub", text: `${fmtUsd(cg.spot_usd_per_server_hr)}/h` }),
             ]),
-            domEl("td", {}, [
+            domEl("td", { className: "is-num", attrs: { "data-label": "Cloud equiv." } }, [
               domEl("span", {
-                text: cb.aws_on_demand_usd_per_hr !== null ? `AWS ${fmtUsd(cb.aws_on_demand_usd_per_hr)}/h` : "N/A",
+                text: cb.aws_on_demand_usd_per_hr != null ? `AWS ${fmtUsd(cb.aws_on_demand_usd_per_hr)}/h` : "-",
               }),
               domEl("div", {
                 className: "cc-cell-sub",
-                text: cb.aws_instance ? `${cb.aws_instance}` : "",
+                text: cb.aws_instance ? cb.aws_instance.split(" ")[0] : "",
               }),
             ]),
-            domEl("td", {}, [
-              s.on_demand_savings_vs_cloud_pct !== null
+            domEl("td", { className: "is-num", attrs: { "data-label": "Savings" } }, [
+              s.on_demand_savings_vs_cloud_pct != null
                 ? domEl("span", {
                     className: "cc-savings-pill",
-                    text: `-${s.on_demand_savings_vs_cloud_pct}% OD / -${s.spot_savings_vs_cloud_pct}% Spot`,
+                    text: `-${Math.round(s.on_demand_savings_vs_cloud_pct)}%`,
                   })
-                : domEl("span", { className: "cc-cell-sub", text: "--" }),
-            ]),
-            domEl("td", {}, [
-              domEl("span", { className: `cc-source-badge ${badge.cls}`, text: badge.text }),
-              domEl("div", { className: "cc-cell-sub", text: formatAsOfShort(cb.as_of) }),
+                : domEl("span", { className: "cc-cell-sub", text: "-" }),
             ]),
           ]
         );
@@ -503,6 +643,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       card.addEventListener("click", () => {
         state.preferredSiteId = sk.site_id;
         syncFormState();
+        setSubtab("book");
         requestQuote().catch(() => {});
       });
       grid.appendChild(card);
@@ -515,7 +656,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     if (errorDetail) {
       els.quoteResult.replaceChildren(
         domEl("div", { className: "cc-quote-error" }, [
-          domEl("strong", { text: "Thermal Headroom / Capacity Constraint" }),
+          domEl("strong", { text: "Capacity or thermal headroom limit" }),
           domEl("p", { text: errorDetail }),
         ])
       );
@@ -524,67 +665,60 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     }
     if (!quote) {
       els.quoteResult.replaceChildren(
-        domEl("div", { className: "cc-quote-empty", text: "Configure GPU or server capacity above to generate a live scheduler quote." })
+        domEl("div", { className: "cc-quote-empty", text: "Select hardware above to compute a live quote." })
       );
       if (els.bookBtn) els.bookBtn.disabled = true;
       return;
     }
 
+    updateVisualStage(quote);
     if (els.bookBtn) els.bookBtn.disabled = false;
     const waitTxt =
-      quote.wait_time_min === 0 ? "0 min (Instant)" : `${quote.wait_time_min} min (Thermal Window)`;
-    const slotsTxt = Array.isArray(quote.assigned_gpu_slots)
-      ? quote.assigned_gpu_slots
-          .slice(0, 8)
-          .map((s) => (s.slot_index >= 0 ? `${s.server_id}#gpu${s.slot_index}` : s.server_id))
-          .join(", ") + (quote.assigned_gpu_slots.length > 8 ? ` (+${quote.assigned_gpu_slots.length - 8} more)` : "")
-      : "--";
+      quote.wait_time_min === 0 ? "0 min (instant)" : `${quote.wait_time_min} min (thermal window)`;
+    const saveBadge =
+      quote.cloud_savings_pct !== null && quote.cloud_savings_pct !== undefined
+        ? domEl("span", {
+            className: "cc-savings-pill",
+            text: `Save ${Math.round(quote.cloud_savings_pct)}% vs cloud`,
+          })
+        : null;
 
     const children = [
-      domEl("div", { className: "cc-quote-kpis" }, [
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Assigned Swiss Site" }),
-          domEl("strong", { text: quote.assigned_site_name }),
-          domEl("small", { text: `Sink: ${quote.sink_type} · ${quote.assigned_server_ids?.join(", ") || ""}` }),
+      domEl("div", { className: "cc-quote-ledger" }, [
+        domEl("div", { className: "cc-quote-total-row" }, [
+          domEl("div", {}, [
+            domEl("strong", { className: "cc-quote-price", text: fmtChf(quote.total_cost_chf) }),
+            domEl("span", {
+              className: "cc-quote-usd",
+              text: `${fmtUsd(quote.total_cost_usd)} (${fmtChf(quote.unit_rate_chf_per_hr)}/h)`,
+            }),
+          ]),
+          saveBadge,
         ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Estimated Wait" }),
-          domEl("strong", { text: waitTxt }),
-          domEl("small", {
-            text: quote.tier === "on_demand" ? "Year-round thermal sink" : "Interruptible Spot window",
-          }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Thermal Heat Output" }),
-          domEl("strong", {
-            className: "accent-heat",
-            text: `${fmtNum(quote.thermal_output_kw ?? quote.kw_th, 2)} kW_th`,
-          }),
-          domEl("small", {
-            text: `${fmtNum(quote.total_heat_kwh, 1)} kWh total recovered (${fmtNum(quote.kw_e, 2)} kW_e)`,
-          }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Exact Quote Cost" }),
-          domEl("strong", { text: `${fmtChf(quote.total_cost_chf)} (${fmtUsd(quote.total_cost_usd)})` }),
-          domEl("small", {
-            text:
-              quote.cloud_savings_pct !== null && quote.cloud_savings_pct !== undefined
-                ? `Save ${quote.cloud_savings_pct}% vs ${quote.cloud_benchmark_provider || "Cloud"}`
-                : `Rate ${fmtChf(quote.unit_rate_chf_per_hr)}/hr`,
-          }),
+        domEl("div", { className: "cc-quote-rows" }, [
+          domEl("div", { className: "cc-quote-line" }, [
+            domEl("span", { text: "Assigned Swiss site" }),
+            domEl("strong", { text: quote.assigned_site_name }),
+          ]),
+          domEl("div", { className: "cc-quote-line" }, [
+            domEl("span", { text: "Allocation time" }),
+            domEl("strong", { text: waitTxt }),
+          ]),
+          domEl("div", { className: "cc-quote-line" }, [
+            domEl("span", { text: "Useful heat delivered" }),
+            domEl("strong", {
+              className: "accent-heat",
+              text: `${fmtNum(quote.thermal_output_kw ?? quote.kw_th, 2)} kW (${fmtNum(quote.total_heat_kwh, 1)} kWh)`,
+            }),
+          ]),
         ]),
       ]),
-      domEl("div", {
-        className: "cc-quote-slots",
-        text: `Allocated slots: ${slotsTxt} · Quote expires ${formatAsOfShort(quote.expires_at)}`,
-      }),
     ];
 
     if (Array.isArray(quote.warnings) && quote.warnings.length > 0) {
       const warnBox = domEl("div", { className: "cc-quote-warnings" });
       for (const w of quote.warnings) {
-        warnBox.appendChild(domEl("div", { text: `Warning: ${w}` }));
+        warnBox.appendChild(domEl("div", { text: w }));
       }
       children.push(warnBox);
     }
@@ -625,28 +759,28 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
 
     if (els.fleetSummaryHost) {
       els.fleetSummaryHost.replaceChildren(
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Active GPUs / Total" }),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Active GPUs" }),
           domEl("strong", { text: `${sum.active_gpus ?? 0} / ${sum.total_gpus ?? 0}` }),
           domEl("small", { text: `${fmtNum(sum.fleet_utilization_pct, 1)}% fleet utilization` }),
         ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Live Power -> Heat" }),
-          domEl("strong", { className: "accent-heat", text: `${fmtNum(sum.total_kw_th, 1)} kW_th` }),
-          domEl("small", { text: `${fmtNum(sum.total_kw_e, 1)} kW_e across ${sum.total_servers} servers` }),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Live heat output" }),
+          domEl("strong", { className: "accent-heat", text: `${fmtNum(sum.total_kw_th, 1)} kW` }),
+          domEl("small", { text: `${fmtNum(sum.total_kw_e, 1)} kW electrical across ${sum.total_servers} servers` }),
         ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Scheduler Jobs" }),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Scheduler jobs" }),
           domEl("strong", { text: `${sum.active_jobs_count ?? 0} running` }),
           domEl("small", {
-            text: `${sum.queued_jobs_count ?? 0} queued · ${fmtNum(sum.backfill_kw_e, 1)} kW backfill`,
+            text: `${sum.queued_jobs_count ?? 0} queued, ${fmtNum(sum.backfill_kw_e, 1)} kW backfill`,
           }),
         ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Thermal Headroom" }),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Thermal headroom" }),
           domEl("strong", { text: `${fmtNum(sum.total_thermal_headroom_kw, 1)} kW` }),
           domEl("small", {
-            text: `Clock ${formatAsOfShort(telemetryData.simulation_clock_utc)} · Dump ${sum.total_dumped_kwh ?? 0} kWh`,
+            text: `${sum.total_dumped_kwh ?? 0} kWh wasted heat`,
           }),
         ])
       );
@@ -728,7 +862,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
               domEl("strong", { text: `${srv.server_id} (${srv.server_name})` }),
               domEl("span", {
                 className: `hl-proc-pill ${srv.status === "running" ? "is-run" : "is-stop"}`,
-                text: `${srv.status} · ${fmtNum(srvUtil, 0)}% · ${fmtNum(srv.kw_e, 2)} kW_e -> ${fmtNum(srv.kw_th, 2)} kW_th`,
+                text: `${fmtNum(srvUtil, 0)}% load · ${fmtNum(srv.kw_th, 2)} kW heat`,
               }),
             ]),
           ]);
@@ -750,6 +884,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     els.unitModeBtns.forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.ccUnitMode === state.unitMode);
     });
+    setCatalogView(state.unitMode);
     populateSkuOptions();
     populateSiteSelects();
     if (els.qtyInput && Number(els.qtyInput.value) !== state.quantity) {
@@ -763,6 +898,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     }
     if (els.workloadSelect) els.workloadSelect.value = state.workloadType;
     renderComparisonTables();
+    updateVisualStage(latestQuote);
   }
 
   async function requestQuote() {
@@ -943,6 +1079,18 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
 
   els.hostSwitchBtn?.addEventListener("click", () => {
     if (onOpenTab) onOpenTab("configure");
+  });
+
+  els.subtabBtns.forEach((btn) => {
+    btn.addEventListener("click", () => setSubtab(btn.dataset.ccSubtab));
+  });
+
+  els.catalogBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.unitMode = btn.dataset.ccCatalog;
+      syncFormState();
+      requestQuote().catch(() => {});
+    });
   });
 
   if (els.workloadSelect) {

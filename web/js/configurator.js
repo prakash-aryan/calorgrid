@@ -8,7 +8,7 @@ import {
   fmtChf,
   fmtNum,
   renderLogFeed,
-} from "./telemetry_logs.js?v=20261121m";
+} from "./telemetry_logs.js?v=20261121n";
 
 function buildStudioEnvironment(renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1772,64 +1772,29 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     }
   }
 
-  function buildHostBreakdownNodes(hostHorizon, opHorizon, horizonLabel, digits = 0) {
-    if (!hostHorizon || !opHorizon) return [];
+  function buildHeatSplitBar(hostHorizon) {
+    if (!hostHorizon) return [];
     const cgPct = hostHorizon.calorgrid_heat_share_pct;
     const defPct = hostHorizon.default_heater_share_pct;
-    const cgPctTxt = cgPct !== null && cgPct !== undefined ? `${cgPct.toFixed(1)}%` : "--%";
-    const defPctTxt = defPct !== null && defPct !== undefined ? `${defPct.toFixed(1)}%` : "--%";
+    const cgPctTxt = cgPct !== null && cgPct !== undefined ? `${cgPct.toFixed(0)}%` : "--%";
+    const defPctTxt = defPct !== null && defPct !== undefined ? `${defPct.toFixed(0)}%` : "--%";
     const barCgW = cgPct !== null && cgPct !== undefined ? Math.max(0, Math.min(100, cgPct)) : 0;
     const barDefW = defPct !== null && defPct !== undefined ? Math.max(0, Math.min(100, defPct)) : 0;
 
     return [
       domEl("div", { className: "cg-split-meta" }, [
         domEl("span", {
-          text: `CalorGrid Heat: ${fmtNum(hostHorizon.calorgrid_heat_kwh, 1)} kWh (${cgPctTxt})`,
+          className: "cg-split-cg",
+          text: `CalorGrid ${fmtNum(hostHorizon.calorgrid_heat_kwh, 0)} kWh (${cgPctTxt})`,
         }),
         domEl("span", {
-          text: `${hostHorizon.heater_label}: ${fmtNum(hostHorizon.default_heater_heat_kwh, 1)} kWh (${defPctTxt})`,
+          className: "cg-split-def",
+          text: `${hostHorizon.heater_label.replace(/\s*\([^)]*\)/, "")} ${fmtNum(hostHorizon.default_heater_heat_kwh, 0)} kWh (${defPctTxt})`,
         }),
       ]),
       domEl("div", { className: "cg-split-bar" }, [
         domEl("div", { className: "cg-split-seg is-cg", style: { width: `${barCgW}%` } }),
         domEl("div", { className: "cg-split-seg is-def", style: { width: `${barDefW}%` } }),
-      ]),
-      domEl("div", { className: "cg-ledger-grid" }, [
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: `Baseline Heating Bill (${horizonLabel})` }),
-          domEl("strong", { text: fmtChf(hostHorizon.baseline_heating_bill_chf, digits) }),
-          domEl("small", {
-            text: `100% ${hostHorizon.heater_label} (${fmtNum(hostHorizon.building_heat_demand_kwh, 1)} kWh)`,
-          }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Remaining Backup Heater Cost" }),
-          domEl("strong", { text: fmtChf(hostHorizon.backup_heater_cost_chf, digits) }),
-          domEl("small", {
-            text: `DHW preheat cap ${hostHorizon.dhw_preheat_cap_pct}% · Keep existing heater`,
-          }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Host Heating-Bill Savings" }),
-          domEl("strong", {
-            className: "accent-hosted",
-            text: `+${fmtChf(hostHorizon.heating_bill_savings_chf, digits)}`,
-          }),
-          domEl("small", { text: "Saves on heating bill (not electricity bill)" }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "CalorGrid Operating Cost" }),
-          domEl("strong", { text: fmtChf(opHorizon.calorgrid_operating_cost_chf, digits) }),
-          domEl("small", {
-            text: `Paid by CalorGrid (Server elec CHF 0 + HW CHF 0 to host)`,
-          }),
-        ]),
-      ]),
-      domEl("div", { className: "cg-host-promise" }, [
-        domEl("strong", { text: "Building Host Guarantee: " }),
-        domEl("span", {
-          text: `Keep your existing heating system (${hostHorizon.heater_label}). Server hardware is CHF ${Math.round(hostHorizon.host_server_hardware_chf)} and server electricity is CHF ${Math.round(hostHorizon.host_server_electricity_chf)} on your bill (paid directly by CalorGrid).`,
-        }),
       ]),
     ];
   }
@@ -1914,41 +1879,40 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
 
     const kpisEl = document.getElementById("cfg-live-kpis");
     if (kpisEl) {
-      const paybackTxt = fin.host_payback_years ? `${fin.host_payback_years} yr payback` : "Instant savings";
+      const paybackTxt = fin.host_payback_years ? `${fin.host_payback_years} yr payback` : "Instant payback";
       const boilerDetail = fin.has_existing_boiler
-        ? `Existing heater CHF 0 + CHF ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in`
-        : `Boiler CHF ${Math.round(fin.boiler_cost_chf).toLocaleString()} (save ${Math.round(fin.boiler_discount_chf).toLocaleString()}) + ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in`;
+        ? `Tie-in only (CHF ${Math.round(fin.tie_in_chf).toLocaleString()})`
+        : `Boiler CHF ${Math.round(fin.boiler_cost_chf).toLocaleString()} + ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in`;
+      const baselineYr = hostLedger ? Math.round(hostLedger.baseline_heating_bill_chf) : 0;
+      const backupYr = hostLedger ? Math.round(hostLedger.backup_heater_cost_chf) : 0;
+      const opCostYr = opLedger ? Math.round(opLedger.calorgrid_operating_cost_chf) : 0;
       kpisEl.replaceChildren(
-        domEl("div", { className: "cfg-kpi" }, [
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Annual heating saved" }),
+          domEl("strong", { className: "accent-hosted", text: `+CHF ${Math.round(fin.host_annual_heat_savings_chf).toLocaleString()}/yr` }),
+          domEl("small", { text: `${paybackTxt}, ${(sz.co2_avoided_kg_yr / 1000).toFixed(1)} t CO2 avoided` }),
+        ]),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Remaining backup bill" }),
+          domEl("strong", { text: `CHF ${backupYr.toLocaleString()}/yr` }),
+          domEl("small", { text: `Down from CHF ${baselineYr.toLocaleString()}/yr baseline` }),
+        ]),
+        domEl("div", { className: "cg-metric-cell" }, [
           domEl("span", { text: "Your upfront cost" }),
           domEl("strong", { text: `CHF ${Math.round(fin.host_upfront_chf).toLocaleString()}` }),
           domEl("small", { text: boilerDetail }),
         ]),
-        domEl("div", { className: "cfg-kpi" }, [
+        domEl("div", { className: "cg-metric-cell" }, [
           domEl("span", { text: "Servers & server power" }),
           domEl("strong", { className: "accent-hosted", text: "CHF 0" }),
-          domEl("small", { text: "Hardware & electricity paid by CalorGrid" }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Heat output" }),
-          domEl("strong", { className: "accent-heat", text: `${sz.peak_water_kw.toFixed(1)} kW` }),
-          domEl("small", {
-            text: `${mdl.supply_temp_c} C · ${sz.annual_heat_covered_pct.toFixed(0)}% annual (${sz.annual_useful_heat_mwh} MWh)`,
-          }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Annual heating-bill savings" }),
-          domEl("strong", { text: `+CHF ${Math.round(fin.host_annual_heat_savings_chf).toLocaleString()}/yr` }),
-          domEl("small", { text: `${paybackTxt} · ${(sz.co2_avoided_kg_yr / 1000).toFixed(1)} t CO2` }),
+          domEl("small", { text: `CalorGrid pays CHF ${opCostYr.toLocaleString()}/yr opex` }),
         ])
       );
     }
 
     const cfgBreakdownEl = document.getElementById("cfg-host-breakdown");
-    if (cfgBreakdownEl && hostLedger && opLedger) {
-      cfgBreakdownEl.replaceChildren(
-        ...buildHostBreakdownNodes(hostLedger, opLedger, "Annual", 0)
-      );
+    if (cfgBreakdownEl && hostLedger) {
+      cfgBreakdownEl.replaceChildren(...buildHeatSplitBar(hostLedger));
     }
 
     if (activePane === "configure" && cfgViewMode === "basement") {
@@ -2067,7 +2031,7 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const tempSlider = document.getElementById("hl-indoor-slider");
     const tempOut = document.getElementById("hl-indoor-readout");
     if (tempSlider && Number(tempSlider.value) !== state.indoorTargetC) tempSlider.value = String(state.indoorTargetC);
-    if (tempOut) tempOut.textContent = `${hl.indoor_target_c.toFixed(1)} C`;
+    if (tempOut) tempOut.textContent = `${hl.indoor_target_c.toFixed(1)} °C`;
 
     document.querySelectorAll("[data-hl-preset]").forEach((btn) => {
       btn.classList.toggle("is-active", Number(btn.dataset.hlPreset) === state.heatTargetPct);
@@ -2086,45 +2050,41 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
       hl3dBadge.textContent = `${hl.active_servers} of ${hl.installed_servers} Heating · ${hl.live_water_kw} kW (${hl.supply_temp_c} C) · Tank ${hl.tank_soc_pct}%`;
     }
 
-    // Live Cost & Thermal Ledger cards for tomorrow
+    // Unified Tomorrow (per-day) Cost & Thermal Ledger - explicit /day + annual equivalent
     const kpiEl = document.getElementById("hl-live-kpis");
     if (kpiEl) {
-      const sign = hl.tomorrow_net_chf >= 0 ? "+" : "";
-      const cgTomorrow = hl.calorgrid_heat_kwh ?? hl.delivered_kwh;
-      const defTomorrow = hl.default_heater_heat_kwh ?? 0;
+      const annualSavings = latestQuote.host_ledger?.heating_bill_savings_chf ?? 0;
+      const baseDay = hostTom ? hostTom.baseline_heating_bill_chf : 0;
+      const backupDay = hostTom ? hostTom.backup_heater_cost_chf : 0;
+      const saveDay = hostTom ? hostTom.heating_bill_savings_chf : hl.tomorrow_heat_credit_chf;
+      const opDay = opTom?.calorgrid_operating_cost_chf ?? hl.tomorrow_elec_chf;
       kpiEl.replaceChildren(
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Heating now" }),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Heating bill saved (tomorrow)" }),
+          domEl("strong", { className: "accent-hosted", text: `+CHF ${saveDay.toFixed(2)}/day` }),
+          domEl("small", { text: `~CHF ${Math.round(annualSavings).toLocaleString()}/yr annual savings` }),
+        ]),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Backup heater bill (tomorrow)" }),
+          domEl("strong", { text: `CHF ${backupDay.toFixed(2)}/day` }),
+          domEl("small", { text: `Down from CHF ${baseDay.toFixed(2)}/day baseline` }),
+        ]),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Live heat output" }),
           domEl("strong", { className: "accent-heat", text: `${hl.live_water_kw.toFixed(1)} kW` }),
-          domEl("small", { text: `${hl.supply_temp_c} C · ${hl.live_flow_l_min.toFixed(1)} L/min` }),
+          domEl("small", { text: `${hl.supply_temp_c}°C supply, tank ${hl.tank_soc_pct}%` }),
         ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "CalorGrid vs Default Heater" }),
-          domEl("strong", { text: `${fmtNum(cgTomorrow, 1)} vs ${fmtNum(defTomorrow, 1)} kWh` }),
-          domEl("small", { text: `Tank ${hl.tank_soc_pct}% · Keep existing heater` }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "CalorGrid Operating Cost" }),
-          domEl("strong", {
-            text: fmtChf(opTom?.calorgrid_operating_cost_chf ?? hl.tomorrow_elec_chf, 2),
-          }),
-          domEl("small", {
-            text: `Paid by CalorGrid · Compute rev ${fmtChf(hl.tomorrow_compute_rev_chf, 2)}`,
-          }),
-        ]),
-        domEl("div", { className: "cfg-kpi" }, [
-          domEl("span", { text: "Host Heating-Bill Savings" }),
-          domEl("strong", { className: "accent-hosted", text: `+CHF ${hl.tomorrow_heat_credit_chf.toFixed(2)}` }),
-          domEl("small", { text: `Heating bill saved · Operator net ${sign}CHF ${hl.tomorrow_net_chf.toFixed(2)}` }),
+        domEl("div", { className: "cg-metric-cell" }, [
+          domEl("span", { text: "Server power (paid by CalorGrid)" }),
+          domEl("strong", { text: `CHF ${opDay.toFixed(2)}/day` }),
+          domEl("small", { text: "CHF 0.00 on your electricity bill" }),
         ])
       );
     }
 
     const hlBreakdownEl = document.getElementById("hl-host-breakdown");
-    if (hlBreakdownEl && hostTom && opTom) {
-      hlBreakdownEl.replaceChildren(
-        ...buildHostBreakdownNodes(hostTom, opTom, "Tomorrow", 2)
-      );
+    if (hlBreakdownEl && hostTom) {
+      hlBreakdownEl.replaceChildren(...buildHeatSplitBar(hostTom));
     }
 
     // 24-hour tomorrow forecast bar chart (demand vs server heat)
@@ -2167,26 +2127,24 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
               : "is-stop";
         const lbl =
           p.status === "RUNNING"
-            ? `Running · ${p.cpu_pct ?? 0}% · ${p.elec_kw ?? 0} kW_e -> ${p.heat_kw} kW_th`
+            ? `${p.cpu_pct ?? 0}% load · ${p.heat_kw} kW heat`
             : p.status === "FIBER_OFFLOAD"
-              ? "Shared Over Fiber"
-              : `Paused (${p.elec_kw ?? 0} kW_e)`;
+              ? "Shared over fiber"
+              : "Standby";
 
         const srcBadge = domEl("span", {
           className: `hl-src-badge ${p.source === "live_pid" ? "is-live-pid" : "is-sim"}`,
-          text: p.source === "live_pid" ? "LIVE PID" : "SIM",
+          text: p.source === "live_pid" ? "Live PID" : "Simulated",
         });
 
         const rowBox = domEl("div", { className: "hl-proc-card" }, [
           domEl("div", { className: "hl-proc-row" }, [
             domEl("div", { className: "hl-proc-main" }, [
               domEl("strong", {}, [
-                `Unit #${p.unit} · ${p.process} `,
-                domEl("code", { text: `PID ${p.pid}` }),
-                " ",
+                `Unit ${p.unit} (${p.process}) `,
                 srcBadge,
               ]),
-              domEl("span", { text: `${p.workload} (${p.category})` }),
+              domEl("span", { text: `${p.workload} - PID ${p.pid}` }),
             ]),
             domEl("span", { className: `hl-proc-pill ${cls}`, text: lbl }),
           ]),
@@ -2402,8 +2360,27 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
   document.getElementById("hl-indoor-slider")?.addEventListener("input", (e) => {
     state.indoorTargetC = Number(e.target.value);
     const out = document.getElementById("hl-indoor-readout");
-    if (out) out.textContent = `${state.indoorTargetC.toFixed(1)} C`;
+    if (out) out.textContent = `${state.indoorTargetC.toFixed(1)} °C`;
     scheduleQuoteRefresh();
+  });
+
+  // Wire HeatLedger right-panel sub-tabs (Overview / Servers & GPUs / Logs)
+  const hlSubtabBtns = Array.from(document.querySelectorAll("[data-hl-subtab]"));
+  const hlSubtabPanes = Array.from(document.querySelectorAll("[data-hl-pane]"));
+  function setHlSubtab(tab) {
+    hlSubtabBtns.forEach((b) => {
+      const act = b.dataset.hlSubtab === tab;
+      b.classList.toggle("is-active", act);
+      b.setAttribute("aria-selected", act ? "true" : "false");
+    });
+    hlSubtabPanes.forEach((p) => {
+      p.hidden = p.dataset.hlPane !== tab;
+    });
+    if (tab === "servers") refreshSiteTelemetry().catch(() => {});
+    if (tab === "logs") refreshAppLogs().catch(() => {});
+  }
+  hlSubtabBtns.forEach((b) => {
+    b.addEventListener("click", () => setHlSubtab(b.dataset.hlSubtab));
   });
   document.querySelectorAll("[data-hl-preset]").forEach((btn) => {
     btn.addEventListener("click", async () => {
