@@ -2,8 +2,8 @@ import { createCockpitScene } from "./scene.js?v=20261121n";
 import { createProvenanceController } from "./provenance.js?v=20261121n";
 import { createWorkerRackOverlay } from "./worker_rack.js?v=20261121n";
 import { createSwissNetworkController } from "./swiss_network.js?v=20261121n";
-import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121n";
-import { createComputeCustomerController } from "./compute_customer.js?v=20261121n";
+import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121r";
+import { createComputeCustomerController } from "./compute_customer.js?v=20261121r";
 import { initHud } from "./hud.js?v=20261121n";
 
 const canvasEl = document.getElementById("canvas-3d");

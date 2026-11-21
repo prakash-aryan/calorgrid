@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121q">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121s">
   <script type="importmap">
   {
     "imports": {
@@ -436,24 +436,26 @@
 
     <div class="sn-body">
       <div class="sn-map-pane">
-        <div class="sn-map-toolbar">
-          <div class="sn-year-scrubber" role="group" aria-label="Month of year">
-            <span class="sn-scrubber-lbl">Season</span>
-            <input type="range" id="sn-month-slider" class="cg-slider sn-month-slider" min="1" max="12" step="1" value="7" aria-label="Select month from January to December">
-            <strong id="sn-month-label">Jul (29°C)</strong>
-            <div class="sn-year-ticks">
-              <button type="button" data-sn-season="jan" data-doy="15" data-hour="8">Jan</button>
-              <button type="button" data-sn-season="apr" data-doy="105" data-hour="14">Apr</button>
-              <button type="button" class="is-active" data-sn-season="jul" data-doy="196" data-hour="14">Jul</button>
-              <button type="button" data-sn-season="oct" data-doy="288" data-hour="14">Oct</button>
+        <div class="sn-map-stage">
+          <div id="swiss-map-svg-host" class="sn-map-host"></div>
+
+          <!-- Integrated clickable season selector floating cleanly inside the map -->
+          <div class="sn-map-overlay-ctrl">
+            <div class="sn-season-pills" role="group" aria-label="Season">
+              <button type="button" data-sn-season="jan" data-doy="15" data-hour="8">Winter</button>
+              <button type="button" data-sn-season="apr" data-doy="105" data-hour="14">Spring</button>
+              <button type="button" class="is-active" data-sn-season="jul" data-doy="196" data-hour="14">Summer</button>
+              <button type="button" data-sn-season="oct" data-doy="288" data-hour="14">Autumn</button>
+            </div>
+            <span class="sn-map-temp-tag" id="sn-month-label">Jul · 29°C</span>
+            <input type="range" id="sn-month-slider" min="1" max="12" step="1" value="7" hidden aria-hidden="true">
+            <div class="sn-pill-group sn-desktop-only sn-map-strategy" role="group" aria-label="Scheduler">
+              <button type="button" class="sn-pill is-active" data-sn-strategy="smart">Smart</button>
+              <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
             </div>
           </div>
-          <div class="sn-pill-group sn-desktop-only" role="group" aria-label="Scheduler">
-            <button type="button" class="sn-pill is-active" data-sn-strategy="smart">Smart</button>
-            <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
-          </div>
         </div>
-        <div id="swiss-map-svg-host" class="sn-map-host"></div>
+
         <div class="sn-map-footer">
           <div class="sn-map-legend">
             <span><i style="background:#d9480f"></i>Heating</span>
@@ -772,7 +774,7 @@
             <div class="app-card cc-booking-card" data-testid="compute-quote-panel">
               <div class="cc-visual-stage" id="cc-visual-stage" data-testid="cc-visual-stage">
                 <div class="cc-vis-hw">
-                  <img id="cc-vis-hw-img" src="/img/hardware/gpu_h100.jpg" alt="Selected GPU hardware" loading="eager">
+                  <img id="cc-vis-hw-img" src="/img/hardware/gpu_h100_sxm.jpg" alt="Selected GPU hardware" loading="eager">
                   <div class="cc-vis-caption">
                     <strong id="cc-vis-hw-name">H100 SXM 80GB</strong>
                     <span id="cc-vis-hw-spec">750 W · 45°C liquid</span>
@@ -955,6 +957,6 @@
     Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
   </footer>
 
-  <script type="module" src="/js/main.js?v=20261121n"></script>
+  <script type="module" src="/js/main.js?v=20261121r"></script>
 </body>
 </html>

@@ -123,10 +123,12 @@ export function renderLogFeed(hostEl, payload, activeCategory, onCategoryChange,
     const countNum = cat === "" ? payload?.total_buffered ?? entries.length : counts[cat] ?? 0;
     const btn = domEl("button", {
       type: "button",
-      className: `cg-log-pill${activeCategory === cat ? " is-active" : ""}`,
-      text: `${label} (${countNum})`,
+      className: `cg-log-tab${activeCategory === cat ? " is-active" : ""}`,
       dataset: { logCat: cat },
-    });
+    }, [
+      domEl("span", { text: label }),
+      domEl("small", { text: String(countNum) }),
+    ]);
     btn.addEventListener("click", () => {
       if (onCategoryChange) onCategoryChange(cat);
     });
@@ -135,7 +137,7 @@ export function renderLogFeed(hostEl, payload, activeCategory, onCategoryChange,
 
   const refreshBtn = domEl("button", {
     type: "button",
-    className: "sn-btn-ghost cg-log-refresh",
+    className: "cg-log-refresh-link",
     text: "Refresh",
   });
   refreshBtn.addEventListener("click", () => {
@@ -144,7 +146,7 @@ export function renderLogFeed(hostEl, payload, activeCategory, onCategoryChange,
 
   const metaBar = domEl("div", { className: "cg-log-meta" }, [
     domEl("span", {
-      text: `Showing ${entries.length} entries (${totalLogged} total logged in session)`,
+      text: `${entries.length} recent events (${totalLogged} recorded)`,
     }),
     refreshBtn,
   ]);
@@ -160,22 +162,18 @@ export function renderLogFeed(hostEl, payload, activeCategory, onCategoryChange,
   } else {
     for (const item of entries) {
       const cat = item.category || "analysis_task";
-      const badgeTxt = LOG_CATEGORY_BADGE[cat] || cat.toUpperCase();
-      const sitePart = item.site_id ? ` · ${item.site_id}` : "";
+      const badgeTxt = LOG_CATEGORY_BADGE[cat] || cat;
       const metricStr = summarizeMetrics(item.metrics);
       const row = domEl("div", { className: `cg-log-row level-${item.level || "info"}` }, [
-        domEl("div", { className: "cg-log-row-head" }, [
-          domEl("span", { className: `cg-log-cat cat-${cat}`, text: badgeTxt }),
-          domEl("span", { className: "cg-log-evt", text: `${item.event_type || "event"}${sitePart}` }),
-          domEl("span", {
-            className: "cg-log-ts",
-            text: `#${item.seq_id ?? "-"} · ${formatShortUtc(item.timestamp_utc)} UTC`,
-          }),
+        domEl("span", {
+          className: "cg-log-ts",
+          text: formatShortUtc(item.timestamp_utc),
+        }),
+        domEl("span", { className: `cg-log-cat cat-${cat}`, text: badgeTxt }),
+        domEl("div", { className: "cg-log-body" }, [
+          domEl("div", { className: "cg-log-summary", text: item.summary || item.event_type || "" }),
+          metricStr ? domEl("div", { className: "cg-log-metrics", text: metricStr }) : null,
         ]),
-        domEl("div", { className: "cg-log-summary", text: item.summary || "" }),
-        metricStr
-          ? domEl("div", { className: "cg-log-metrics", text: metricStr })
-          : null,
       ]);
       listEl.appendChild(row);
     }

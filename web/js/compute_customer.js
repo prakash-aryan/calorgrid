@@ -5,7 +5,7 @@ import {
   fmtNum,
   fmtUsd,
   renderLogFeed,
-} from "./telemetry_logs.js?v=20261121n";
+} from "./telemetry_logs.js?v=20261121r";
 
 const WORKLOAD_LABELS = {
   llm_inference: "LLM inference",
@@ -16,15 +16,15 @@ const WORKLOAD_LABELS = {
 };
 
 const HW_IMG_MAP = {
-  b200_sxm_180gb: "/img/hardware/gpu_b200.jpg",
-  h100_sxm_80gb: "/img/hardware/gpu_h100.jpg",
-  h100_nvl_94gb: "/img/hardware/gpu_h100.jpg",
+  b200_sxm_180gb: "/img/hardware/gpu_b200_board.jpg",
+  h100_sxm_80gb: "/img/hardware/gpu_h100_sxm.jpg",
+  h100_nvl_94gb: "/img/hardware/gpu_h100_nvl.jpg",
   a100_sxm_80gb: "/img/hardware/gpu_a100.jpg",
-  rtx_pro_4500_blackwell: "/img/hardware/gpu_a100.jpg",
-  hydronode_1kw: "/img/hardware/server_hydronode.jpg",
-  ocp_winterfell_3kw: "/img/hardware/server_hydronode.jpg",
-  b200_ai_10kw: "/img/hardware/gpu_b200.jpg",
-  edge_micro_250w: "/img/hardware/server_hydronode.jpg",
+  rtx_pro_4500_blackwell: "/img/hardware/gpu_rtx_pro_4500.jpg",
+  hydronode_1kw: "/img/hardware/server_ocp_liquid.jpg",
+  ocp_winterfell_3kw: "/img/hardware/server_ocp_liquid.jpg",
+  b200_ai_10kw: "/img/hardware/server_b200_rack.jpg",
+  edge_micro_250w: "/img/hardware/server_ocp_liquid.jpg",
 };
 
 const SITE_VIDEO_MAP = {
@@ -49,7 +49,7 @@ const SITE_VIDEO_MAP = {
 };
 
 function hwImgFor(id) {
-  return HW_IMG_MAP[id] || "/img/hardware/gpu_h100.jpg";
+  return HW_IMG_MAP[id] || "/img/hardware/gpu_h100_sxm.jpg";
 }
 
 function siteVideoFor(siteId, sinkType = "") {
@@ -608,37 +608,48 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     if (!els.summerSinksHost || !pricingData?.summer_sinks) return;
     const grid = domEl("div", { className: "cc-sink-grid" });
     for (const sk of pricingData.summer_sinks) {
+      const vSrc = siteVideoFor(sk.site_id, sk.sink_type || sk.name);
+      const vid = domEl("video", {
+        className: "cc-sink-media",
+        attrs: {
+          src: vSrc,
+          autoplay: "",
+          muted: "",
+          loop: "",
+          playsinline: "",
+          preload: "metadata",
+        },
+      });
+      vid.muted = true;
       const card = domEl("article", { className: "cc-sink-card" }, [
-        domEl("div", { className: "cc-sink-head" }, [
-          domEl("strong", { text: sk.name }),
-          domEl("span", {
-            className: `cc-sink-tag ${sk.w45_compliant ? "is-w45" : "is-warn"}`,
-            text: `${sk.supply_temp_c} C · ${sk.w45_compliant ? "W45 OK" : "Alpine"}`,
-          }),
-        ]),
-        domEl("div", { className: "cc-sink-metrics" }, [
-          domEl("div", {}, [
-            domEl("span", { text: "Annual / Summer Util" }),
-            domEl("strong", { text: `${sk.annual_utilisation_pct}% / ${sk.summer_utilisation_pct}%` }),
-          ]),
-          domEl("div", {}, [
-            domEl("span", { text: "Heat Wasted" }),
-            domEl("strong", { text: `${sk.dumped_kwh} kWh` }),
-          ]),
-          domEl("div", {}, [
-            domEl("span", { text: "Break-Even (8x B200)" }),
-            domEl("strong", {
-              text: `${fmtChf(sk.break_even_chf_per_gpu_hr, 2)}/GPU-h (${fmtUsd(sk.break_even_usd_per_gpu_hr, 2)})`,
+        domEl("div", { className: "cc-sink-thumb" }, [vid]),
+        domEl("div", { className: "cc-sink-body" }, [
+          domEl("div", { className: "cc-sink-head" }, [
+            domEl("strong", { text: sk.name }),
+            domEl("span", {
+              className: `cc-sink-spec ${sk.w45_compliant ? "is-w45" : ""}`,
+              text: `${sk.supply_temp_c}°C, ${sk.w45_compliant ? "W45" : "Alpine"}`,
             }),
           ]),
-          domEl("div", {}, [
-            domEl("span", { text: "2-Tier On-Demand BE" }),
-            domEl("strong", {
-              text: `${fmtChf(sk.two_tier_on_demand_breakeven_chf_per_gpu_hr, 2)}/GPU-h (${sk.tariff_code})`,
-            }),
+          domEl("div", { className: "cc-sink-ledger" }, [
+            domEl("div", { className: "cc-sink-row" }, [
+              domEl("span", { text: "Annual / summer util." }),
+              domEl("strong", { text: `${sk.annual_utilisation_pct}% / ${sk.summer_utilisation_pct}%` }),
+            ]),
+            domEl("div", { className: "cc-sink-row" }, [
+              domEl("span", { text: "Heat wasted" }),
+              domEl("strong", { text: `${sk.dumped_kwh} kWh` }),
+            ]),
+            domEl("div", { className: "cc-sink-row" }, [
+              domEl("span", { text: "Break-even (8x B200)" }),
+              domEl("strong", {
+                text: `${fmtChf(sk.break_even_chf_per_gpu_hr, 2)}/GPU-h`,
+              }),
+            ]),
           ]),
+          domEl("p", { className: "cc-sink-note", text: sk.notes || "" }),
+          domEl("div", { className: "cc-sink-cta", text: "Route quote to this sink" }),
         ]),
-        domEl("p", { className: "cc-sink-note", text: sk.notes || "" }),
       ]);
       card.addEventListener("click", () => {
         state.preferredSiteId = sk.site_id;
@@ -786,6 +797,13 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       );
     }
 
+    const siteNameById = new Map((telemetryData.sites || []).map((s) => [s.site_id, s.name]));
+    const tierLabelMap = {
+      on_demand: "On-Demand",
+      spot: "Spot",
+      backfill: "Backfill",
+    };
+
     if (els.activeJobsHost) {
       const jobs = Array.isArray(telemetryData.active_jobs) ? telemetryData.active_jobs : [];
       const filteredJobs = telemetrySiteFilter
@@ -798,22 +816,24 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       } else {
         const list = domEl("div", { className: "cc-jobs-list" });
         for (const j of filteredJobs.slice(0, 12)) {
+          const siteLabel = siteNameById.get(j.site_id) || j.site_id.replace(/_/g, " ");
+          const skuShort = String(j.gpu_or_sku || "").replace(/_/g, " ").toUpperCase();
           list.appendChild(
             domEl("div", { className: "cc-job-row" }, [
               domEl("div", { className: "cc-job-main" }, [
-                domEl("strong", { text: `${j.job_name} (${j.job_id})` }),
+                domEl("strong", { text: j.job_name || j.job_id }),
                 domEl("span", {
-                  text: `${j.site_id} · ${j.quantity}x ${j.gpu_or_sku} · ${j.remaining_hours}h left`,
+                  text: `${siteLabel} (${j.quantity}x ${skuShort}, ${j.remaining_hours}h left)`,
                 }),
               ]),
               domEl("div", { className: "cc-job-right" }, [
                 domEl("span", {
                   className: `cc-job-tier tier-${j.tier}`,
-                  text: `${j.tier.toUpperCase()} · ${j.status}`,
+                  text: `${tierLabelMap[j.tier] || j.tier}, ${j.status}`,
                 }),
                 domEl("span", {
                   className: "cc-job-kw",
-                  text: `${fmtNum(j.kw_e, 2)} kW_e / ${fmtNum(j.kw_th, 2)} kW_th`,
+                  text: `${fmtNum(j.kw_th, 2)} kW heat`,
                 }),
               ]),
             ])
@@ -830,22 +850,32 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
         : sites;
 
       const grid = domEl("div", { className: "cc-telemetry-grid" });
-      for (const site of filteredSites) {
-        const siteCard = domEl("div", { className: "cc-site-tel-card" }, [
-          domEl("div", { className: "cc-site-tel-head" }, [
-            domEl("div", {}, [
+      filteredSites.forEach((site, idx) => {
+        const gpuPct = site.gpus_total > 0 ? Math.round((site.gpus_busy / site.gpus_total) * 100) : 0;
+        const details = domEl("details", { className: "cc-site-tel-card" });
+        if (idx < 3 || filteredSites.length === 1) details.open = true;
+
+        details.appendChild(
+          domEl("summary", { className: "cc-site-tel-head" }, [
+            domEl("div", { className: "cc-site-tel-title" }, [
               domEl("strong", { text: site.name }),
               domEl("span", {
                 className: "cc-cell-sub",
-                text: `${site.city} (${site.canton}) · Indoor ${site.indoor_temp_c} C / Target ${site.target_temp_c} C · Tank ${site.tank_soc_pct}%`,
+                text: `${site.city} (${site.canton}), indoor ${site.indoor_temp_c}°C, tank ${site.tank_soc_pct}%`,
               }),
             ]),
-            domEl("span", {
-              className: "cc-site-tel-stat",
-              text: `${fmtNum(site.kw_th, 2)} kW_th · ${site.gpus_busy}/${site.gpus_total} GPUs · Room ${fmtNum(site.thermal_headroom_kw, 1)} kW`,
-            }),
-          ]),
-        ]);
+            domEl("div", { className: "cc-site-tel-right" }, [
+              domEl("span", {
+                className: "cc-site-tel-stat",
+                text: `${fmtNum(site.kw_th, 1)} kW heat`,
+              }),
+              domEl("span", {
+                className: "cc-cell-sub",
+                text: `${site.gpus_busy}/${site.gpus_total} GPUs (${gpuPct}%), ${fmtNum(site.thermal_headroom_kw, 1)} kW room`,
+              }),
+            ]),
+          ])
+        );
 
         const srvList = domEl("div", { className: "cc-srv-list" });
         for (const srv of site.servers || []) {
@@ -859,10 +889,10 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
                 : rawUtil;
           const srvBlock = domEl("div", { className: "cc-srv-item" }, [
             domEl("div", { className: "cc-srv-head" }, [
-              domEl("strong", { text: `${srv.server_id} (${srv.server_name})` }),
+              domEl("strong", { text: srv.server_name || srv.server_id }),
               domEl("span", {
                 className: `hl-proc-pill ${srv.status === "running" ? "is-run" : "is-stop"}`,
-                text: `${fmtNum(srvUtil, 0)}% load · ${fmtNum(srv.kw_th, 2)} kW heat`,
+                text: `${fmtNum(srvUtil, 0)}% load, ${fmtNum(srv.kw_th, 2)} kW heat`,
               }),
             ]),
           ]);
@@ -870,9 +900,9 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
           if (slotsEl) srvBlock.appendChild(slotsEl);
           srvList.appendChild(srvBlock);
         }
-        siteCard.appendChild(srvList);
-        grid.appendChild(siteCard);
-      }
+        details.appendChild(srvList);
+        grid.appendChild(details);
+      });
       els.fleetSitesHost.replaceChildren(grid);
     }
   }
