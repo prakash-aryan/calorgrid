@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121o">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121p">
   <script type="importmap">
   {
     "imports": {
@@ -53,17 +53,13 @@
       <span class="health-badge" data-testid="api-health-badge" hidden>Live</span>
 
       <nav class="app-top-tabs" data-testid="app-top-tabs" aria-label="Primary App Views">
-        <div class="nav-group-host">
-          <button type="button" class="app-tab-btn is-active" data-app-tab="explore">Explore</button>
-          <button type="button" class="app-tab-btn" data-app-tab="configure">Configure</button>
-          <button type="button" class="app-tab-btn" data-app-tab="heatledger">HeatLedger</button>
-        </div>
-        <span class="nav-divider" aria-hidden="true"></span>
+        <button type="button" class="app-tab-btn is-active" data-app-tab="explore">Explore</button>
+        <button type="button" class="app-tab-btn" data-app-tab="configure">Configure</button>
+        <button type="button" class="app-tab-btn" data-app-tab="heatledger">HeatLedger</button>
         <button type="button" class="app-tab-btn app-tab-compute" data-app-tab="compute" data-testid="tab-compute-gpus">Compute &amp; GPUs</button>
       </nav>
 
       <div class="mobile-header-actions">
-        <button type="button" class="btn-order-compact" data-app-tab="compute" aria-label="Book GPUs and compute capacity">Book GPUs</button>
         <button type="button" class="btn-toggle atlas-only-mobile" data-testid="toggle-mobile-controls" aria-expanded="false" aria-label="Toggle simulation filters">Filters</button>
         <button type="button" class="btn-switch atlas-only-mobile" data-testid="toggle-panels-mobile" aria-pressed="false" aria-label="Toggle info panels">
           <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
@@ -427,29 +423,12 @@
   <section class="swiss-network-overlay" data-testid="swiss-network-overlay" hidden>
     <div class="sn-topbar">
       <div class="sn-title-group">
-        <h2>Swiss Thermal-Compute Network</h2>
-        <p class="sn-subtitle">Fourteen Swiss buildings and heat sinks sharing live server warmth over fiber.</p>
+        <h2>Swiss thermal-compute network</h2>
+        <p class="sn-subtitle">Liquid-cooled servers inside 14 Swiss buildings turn compute into low-cost heat with zero waste.</p>
       </div>
-      <div class="sn-controls">
-        <div class="sn-year-scrubber" role="group" aria-label="Month of year">
-          <div class="sn-year-head">
-            <span>Month</span>
-            <strong id="sn-month-label">Jul (29 C)</strong>
-          </div>
-          <input type="range" id="sn-month-slider" class="cg-slider sn-month-slider" min="1" max="12" step="1" value="7" aria-label="Select month from January to December">
-          <div class="sn-year-ticks">
-            <button type="button" data-sn-season="jan" data-doy="15" data-hour="8">Jan</button>
-            <button type="button" data-sn-season="apr" data-doy="105" data-hour="14">Apr</button>
-            <button type="button" class="is-active" data-sn-season="jul" data-doy="196" data-hour="14">Jul</button>
-            <button type="button" data-sn-season="oct" data-doy="288" data-hour="14">Oct</button>
-          </div>
-        </div>
-        <div class="sn-pill-group sn-desktop-only" role="group" aria-label="Scheduler">
-          <button type="button" class="sn-pill is-active" data-sn-strategy="smart">Smart</button>
-          <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
-        </div>
-        <button type="button" class="sn-btn-primary sn-desktop-only" id="sn-order-server-btn">Get heating</button>
-        <button type="button" class="sn-btn-dark sn-desktop-only" id="sn-book-compute-btn" data-testid="sn-book-compute-btn">Book GPUs</button>
+      <div class="sn-hero-ctas">
+        <button type="button" class="sn-btn-outline" id="sn-order-server-btn">Configure heating</button>
+        <button type="button" class="sn-btn-dark" id="sn-book-compute-btn" data-testid="sn-book-compute-btn">Book GPUs</button>
       </div>
     </div>
 
@@ -457,15 +436,34 @@
 
     <div class="sn-body">
       <div class="sn-map-pane">
-        <div id="swiss-map-svg-host" class="sn-map-host"></div>
-        <div class="sn-map-legend">
-          <span><i style="background:#d9480f"></i>Heating</span>
-          <span><i style="background:#0284c7"></i>Receiving</span>
-          <span><i style="background:#64748b"></i>Sharing</span>
+        <div class="sn-map-toolbar">
+          <div class="sn-year-scrubber" role="group" aria-label="Month of year">
+            <span class="sn-scrubber-lbl">Season</span>
+            <input type="range" id="sn-month-slider" class="cg-slider sn-month-slider" min="1" max="12" step="1" value="7" aria-label="Select month from January to December">
+            <strong id="sn-month-label">Jul (29°C)</strong>
+            <div class="sn-year-ticks">
+              <button type="button" data-sn-season="jan" data-doy="15" data-hour="8">Jan</button>
+              <button type="button" data-sn-season="apr" data-doy="105" data-hour="14">Apr</button>
+              <button type="button" class="is-active" data-sn-season="jul" data-doy="196" data-hour="14">Jul</button>
+              <button type="button" data-sn-season="oct" data-doy="288" data-hour="14">Oct</button>
+            </div>
+          </div>
+          <div class="sn-pill-group sn-desktop-only" role="group" aria-label="Scheduler">
+            <button type="button" class="sn-pill is-active" data-sn-strategy="smart">Smart</button>
+            <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
+          </div>
         </div>
-        <div class="sn-flows-bar sn-desktop-only">
-          <span class="sn-flows-label">Fiber routes</span>
-          <div id="swiss-active-flows" class="sn-flows-list"></div>
+        <div id="swiss-map-svg-host" class="sn-map-host"></div>
+        <div class="sn-map-footer">
+          <div class="sn-map-legend">
+            <span><i style="background:#d9480f"></i>Heating</span>
+            <span><i style="background:#0284c7"></i>Receiving</span>
+            <span><i style="background:#64748b"></i>Sharing</span>
+          </div>
+          <div class="sn-flows-bar sn-desktop-only">
+            <span class="sn-flows-label">Fiber routes</span>
+            <div id="swiss-active-flows" class="sn-flows-list"></div>
+          </div>
         </div>
       </div>
 
@@ -476,7 +474,7 @@
             <button type="button" class="sn-pill is-active" data-sn-filter="all">All (14)</button>
             <button type="button" class="sn-pill" data-sn-filter="homes">Homes (7)</button>
             <button type="button" class="sn-pill" data-sn-filter="farms">Farms (3)</button>
-            <button type="button" class="sn-pill" data-sn-filter="sinks">Pools &amp; Civic (4)</button>
+            <button type="button" class="sn-pill" data-sn-filter="sinks">Pools &amp; civic (4)</button>
           </div>
           <div id="swiss-node-roster" class="sn-roster-list"></div>
         </div>

@@ -6031,3 +6031,598 @@ body:not(.app-mode-atlas) .cockpit-header {
     display: none;
   }
 }
+
+
+/* ============================================================================
+   UN-SLOPPED ARCHITECTURAL LANDING PAGE, SEAMLESS NAVBAR & MULTI-DESKTOP SCALE
+   Zero navbar logo shadow, unified flat nav tabs, zero pastel highlight pills,
+   flat hairline telemetry strip, integrated map toolbar, 1024px-1920px fluid!
+   ============================================================================ */
+
+/* 1. Seamless flat navbar: ZERO shadow on header or CalorGrid button, unified underline tabs */
+body:not(.app-mode-atlas) .cockpit-header {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border-bottom: 1px solid var(--cg-line) !important;
+  box-shadow: none !important;
+  height: 56px;
+  min-height: 56px;
+  padding: 0 24px;
+  justify-content: space-between;
+}
+body:not(.app-mode-atlas) .brand-cluster {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  justify-content: space-between;
+  gap: 24px;
+}
+.brand-home-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+  border-radius: 0 !important;
+  gap: 9px;
+}
+.brand-home-btn:hover {
+  background: transparent !important;
+  opacity: 0.82;
+}
+.brand-mark,
+.brand-mark svg {
+  box-shadow: none !important;
+  filter: none !important;
+  background: transparent !important;
+  width: 28px;
+  height: 28px;
+}
+.brand-home-btn .brand-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.brand-home-btn .brand-sub {
+  display: none !important;
+}
+
+.app-top-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  height: 56px;
+  margin-left: 0;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+.app-tab-btn,
+.app-tab-btn.app-tab-compute {
+  position: relative;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--cg-muted) !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: none !important;
+  transition: color 140ms ease;
+}
+.app-tab-btn:hover,
+.app-tab-btn.app-tab-compute:hover {
+  color: var(--cg-ink) !important;
+  background: transparent !important;
+}
+.app-tab-btn.is-active,
+.app-tab-btn.app-tab-compute.is-active {
+  color: var(--cg-ink) !important;
+  font-weight: 600;
+  background: transparent !important;
+}
+.app-tab-btn.is-active::after,
+.app-tab-btn.app-tab-compute.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--cg-ink);
+}
+.app-tab-btn.app-tab-compute.is-active::after {
+  background: var(--cg-accent);
+}
+
+/* 2. ZERO AI-SLOP PASTEL HIGHLIGHT PILLS & TINT WASHES ACROSS ALL PAGES */
+.cc-savings-pill,
+.cc-source-badge,
+.cfg-model-price.is-hosted,
+.subtle-tag,
+.hl-proc-pill,
+.sn-state-pill,
+.sn-roster-pill,
+.hl-src-badge {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.cc-savings-pill {
+  color: var(--cg-save) !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cc-source-badge {
+  color: var(--cg-muted) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+.cc-source-badge.is-live {
+  color: var(--cg-save) !important;
+}
+.cfg-model-price.is-hosted {
+  color: var(--cg-save) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+}
+.subtle-tag {
+  color: var(--cg-muted) !important;
+  font-size: 12px;
+  font-weight: 500;
+}
+.sn-state-pill,
+.sn-roster-pill {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.hl-proc-pill {
+  font-family: var(--font-sans) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--cg-ink) !important;
+}
+.hl-proc-pill.is-run {
+  color: var(--cg-save) !important;
+}
+.hl-src-badge {
+  font-family: var(--font-sans) !important;
+  font-size: 11px !important;
+  color: var(--cg-muted) !important;
+  margin-left: 4px;
+}
+
+/* Replace peach/orange highlight washes with clean architectural ink accent */
+.cc-clickable-row.is-selected {
+  background: #f6f6f3 !important;
+}
+.cc-clickable-row.is-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--cg-ink);
+}
+.sn-roster-row {
+  border: none !important;
+  border-bottom: 1px solid var(--cg-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 10px 8px 10px 10px !important;
+}
+.sn-roster-row:last-child {
+  border-bottom: none !important;
+}
+.sn-roster-row:hover {
+  background: var(--cg-subtle) !important;
+}
+.sn-roster-row.is-selected {
+  background: #f5f5f2 !important;
+  box-shadow: inset 3px 0 0 var(--cg-ink);
+}
+.cfg-model-card {
+  background: var(--cg-surface) !important;
+  border: 1px solid var(--cg-line) !important;
+  box-shadow: none !important;
+}
+.cfg-model-card.is-selected {
+  background: #f8f8f5 !important;
+  border: 1.5px solid var(--cg-ink) !important;
+  box-shadow: none !important;
+}
+.cfg-model-tags span {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--cg-muted) !important;
+}
+.cfg-model-tags span + span::before {
+  content: " / ";
+  color: var(--cg-line-strong);
+}
+
+/* Flatten nested gray boxes inside white cards (weather, fit note, visual stage) */
+.hl-weather-card,
+.cfg-fit-banner {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--cg-line) !important;
+  border-bottom: 1px solid var(--cg-line) !important;
+  border-radius: 0 !important;
+  padding: 9px 0 !important;
+}
+.cc-visual-stage {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--cg-line) !important;
+  border-radius: 0 !important;
+  padding: 0 0 12px !important;
+}
+
+/* 3. DRASTICALLY IMPROVED LANDING PAGE (Explore — Desktop & Mobile) */
+.swiss-network-overlay {
+  top: 56px;
+  padding: 16px 24px 30px;
+  gap: 12px;
+}
+.swiss-network-overlay > * {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.sn-topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sn-title-group h2 {
+  font-size: 24px;
+  line-height: 1.15;
+  margin: 0;
+}
+.sn-title-group .sn-subtitle {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+}
+.sn-hero-ctas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sn-hero-ctas .sn-btn-outline,
+.sn-hero-ctas .sn-btn-dark {
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+
+/* Flat architectural hairline KPI strip (replaces 5 bulky boxes!) */
+.sn-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0 !important;
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-line);
+  border-radius: 12px;
+  padding: 10px 0;
+}
+.sn-kpi {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 2px 16px !important;
+  gap: 2px;
+}
+.sn-kpi + .sn-kpi {
+  border-left: 1px solid var(--cg-line) !important;
+}
+.sn-kpi-label {
+  font-size: 11.5px;
+  color: var(--cg-muted);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.sn-kpi-val {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.sn-kpi-sub {
+  font-size: 11px;
+  color: var(--cg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Map Card with Integrated Clean Season Toolbar */
+.sn-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 28vw, 390px);
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+.sn-map-pane {
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden;
+  min-height: 0;
+}
+.sn-map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cg-line);
+  background: var(--cg-surface);
+  flex-wrap: wrap;
+}
+.sn-year-scrubber {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 12px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  min-width: 0;
+  flex: 1;
+}
+.sn-scrubber-lbl {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cg-muted);
+  white-space: nowrap;
+}
+.sn-year-scrubber .sn-month-slider {
+  flex: 1;
+  max-width: 180px;
+  min-width: 90px;
+}
+.sn-year-scrubber strong {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cg-ink);
+  min-width: 72px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sn-year-ticks {
+  display: inline-flex !important;
+  gap: 2px;
+  margin-top: 0 !important;
+}
+.sn-year-ticks button {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--cg-muted);
+  cursor: pointer;
+}
+.sn-year-ticks button.is-active {
+  background: var(--cg-ink);
+  color: #ffffff;
+}
+.sn-map-host {
+  flex: 1;
+  min-height: 360px;
+  border-radius: 0 !important;
+}
+.sn-map-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--cg-line);
+  background: var(--cg-surface);
+}
+.sn-map-legend {
+  padding: 0 !important;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.sn-flows-bar {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+.sn-flow-chip {
+  background: var(--cg-subtle);
+  border: 1px solid var(--cg-line);
+  padding: 3px 9px;
+  font-size: 11.5px;
+}
+
+/* Unified Architectural Right Sidebar on Landing Page */
+.sn-side-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0 !important;
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-line);
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 0;
+}
+.sn-detail-card {
+  border: none !important;
+  border-bottom: 1px solid var(--cg-line) !important;
+  border-radius: 0 !important;
+  padding: 14px 16px !important;
+  flex: none;
+}
+.sn-roster-wrap {
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 10px 14px 12px !important;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sn-roster-filters {
+  border-bottom: 1px solid var(--cg-line);
+  padding-bottom: 8px;
+  gap: 4px;
+}
+.sn-roster-filters .sn-pill {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--cg-muted);
+}
+.sn-roster-filters .sn-pill.is-active {
+  background: var(--cg-ink);
+  color: #ffffff;
+}
+
+/* 4. FLUID DESKTOP RESPONSIVENESS (1080px - 1440px - 1920px) */
+.app-split-shell {
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(350px, 34vw, 440px);
+  gap: 16px;
+}
+.cc-shell {
+  max-width: 1440px;
+}
+@media (max-width: 1240px) and (min-width: 1081px) {
+  .swiss-network-overlay {
+    padding: 12px 16px 26px;
+  }
+  .sn-kpi {
+    padding: 2px 10px !important;
+  }
+  .sn-kpi-val {
+    font-size: 15.5px;
+  }
+  .sn-year-ticks {
+    display: none !important;
+  }
+  .cc-main-grid {
+    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+    gap: 14px;
+  }
+  .cc-table {
+    font-size: 12px;
+  }
+  .cc-hw-thumb {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* 5. CLEAN MOBILE LAYOUT (<= 1080px) — MAP FIRST, ZERO TOP-BAR "BOOK GPUS" CLUTTER */
+@media (max-width: 1080px) {
+  body:not(.app-mode-atlas) .cockpit-header {
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 0 14px !important;
+  }
+  .swiss-network-overlay {
+    top: 52px;
+    bottom: 64px;
+    padding: 12px 12px 24px;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .sn-topbar {
+    order: 1;
+    gap: 10px;
+  }
+  .sn-title-group h2 {
+    font-size: 20px;
+  }
+  .sn-title-group .sn-subtitle {
+    font-size: 13px;
+  }
+  .sn-hero-ctas {
+    order: 4;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .sn-hero-ctas button {
+    width: 100%;
+    min-height: 44px;
+  }
+  .sn-kpi-strip {
+    order: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 8px 0;
+  }
+  .sn-kpi {
+    padding: 2px 10px !important;
+  }
+  .sn-kpi-val {
+    font-size: 14.5px;
+  }
+  .sn-body {
+    order: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .sn-map-pane {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .sn-map-host {
+    height: 320px;
+    min-height: 320px;
+  }
+  .sn-map-toolbar {
+    padding: 10px 12px;
+  }
+  .sn-year-scrubber {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sn-year-scrubber .sn-month-slider {
+    max-width: none;
+  }
+  .sn-year-ticks {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .sn-year-ticks button {
+    min-height: 36px;
+    text-align: center;
+    background: var(--cg-subtle);
+  }
+  .sn-side-pane {
+    overflow: visible;
+  }
+  .sn-roster-wrap {
+    padding: 10px 12px !important;
+  }
+  .app-split-shell {
+    display: flex !important;
+    flex-direction: column;
+  }
+}

@@ -713,7 +713,7 @@ export function createSwissNetworkController({
           <h3>${n.name}</h3>
           <div class="sn-detail-arch">${n.archetype}</div>
         </div>
-        <span class="sn-state-pill" style="color:${badge.color};background:${badge.bg}">${badge.text}</span>
+        <span class="sn-state-pill" style="color:${badge.color}">${badge.text}</span>
       </div>
       <div class="sn-detail-thumb">
         <video src="${rtxUrl}" autoplay muted loop playsinline preload="auto"></video>
@@ -757,7 +757,7 @@ export function createSwissNetworkController({
               <span>${n.city} (${n.canton}), ${n.servers_installed} servers, ${n.live.heat_generated_kw.toFixed(1)} kW</span>
             </div>
             <div class="sn-roster-right">
-              <span class="sn-roster-pill" style="color:${badge.color};background:${badge.bg}">${badge.text}</span>
+              <span class="sn-roster-pill" style="color:${badge.color}">${badge.text}</span>
             </div>
           </button>
         `;
@@ -812,7 +812,7 @@ export function createSwissNetworkController({
           <strong>${node.name}</strong>
           <span>${node.archetype} · ${node.city}, ${node.canton}</span>
         </div>
-        <span class="sn-state-pill" style="color:${badge.color};background:${badge.bg}">${badge.text}</span>
+        <span class="sn-state-pill" style="color:${badge.color}">${badge.text}</span>
       </div>
       <div class="sn-tb-hardware">
         <strong>${hwText}</strong>
