@@ -11,10 +11,11 @@ hydroponic greenhouses, fruit dryers, commercial laundries, hospitals and alpine
 
 from __future__ import annotations
 
+import copy
 import math
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
+from typing import Any, Literal
 
 from digitalheat.config import (
     DEFAULT_COMPUTING_PRICE_CHF_PER_SERVER_H,
@@ -25,6 +26,7 @@ from digitalheat.config import (
     TANK_TEMP_SPREAD_K,
 )
 from digitalheat.data_loader import load_weather_zurich
+from digitalheat.telemetry_log import log_event
 
 
 @dataclass(frozen=True)
@@ -480,6 +482,324 @@ SWISS_FLEET_NODES: tuple[SwissTwinNode, ...] = (
 NODE_BY_ID: dict[str, SwissTwinNode] = {n.node_id: n for n in SWISS_FLEET_NODES}
 
 
+@dataclass(frozen=True)
+class CanonicalSiteSpec:
+    """Unified site metadata across 14 Swiss Twin nodes and 4 Verbund/industrial sinks."""
+
+    site_id: str
+    name: str
+    city: str
+    canton: str
+    region: str
+    category: str
+    lat: float
+    lon: float
+    elevation_m: int
+    climate_base: Literal["basel", "davos"]
+    temp_offset_c: float
+    base_heating_ua_kw_per_k: float
+    dhw_daily_kwh: float
+    tank_capacity_kwh: float
+    target_supply_c: int
+    tariff_chf_per_kwh: float
+    sink_type: str
+    process_base_kw: float
+    process_summer_kw: float
+    active_months: tuple[int, ...]
+    is_summer_sink: bool
+    is_year_round_sink: bool
+    heater_type: Literal["heat_pump", "gas_boiler", "electric_backup"]
+    verbund_scene_id: str | None = None
+    workload_primary: str = "llm_batch"
+    summary: str = ""
+
+
+_ALL_MONTHS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+_WINTER_MONTHS: tuple[int, ...] = (1, 2, 3, 4, 10, 11, 12)
+_SUMMER_MONTHS: tuple[int, ...] = (5, 6, 7, 8, 9)
+
+
+def _node_to_canonical(node: SwissTwinNode) -> CanonicalSiteSpec:
+    if node.node_id == "basel_st_jakob":
+        return CanonicalSiteSpec(
+            site_id=node.node_id,
+            name=node.name,
+            city=node.city,
+            canton=node.canton,
+            region=node.region,
+            category=node.category,
+            lat=node.lat,
+            lon=node.lon,
+            elevation_m=node.elevation_m,
+            climate_base="basel",
+            temp_offset_c=node.temp_offset_c,
+            base_heating_ua_kw_per_k=node.base_heating_ua_kw_per_k,
+            dhw_daily_kwh=node.dhw_daily_kwh,
+            tank_capacity_kwh=node.tank_capacity_kwh,
+            target_supply_c=node.target_supply_c,
+            tariff_chf_per_kwh=0.25267,
+            sink_type=node.process_sink_type,
+            process_base_kw=node.process_base_kw,
+            process_summer_kw=node.process_summer_kw,
+            active_months=_SUMMER_MONTHS,
+            is_summer_sink=True,
+            is_year_round_sink=False,
+            heater_type="gas_boiler",
+            verbund_scene_id="basel_pool_st_jakob",
+            workload_primary=node.workload_primary,
+            summary=node.summary,
+        )
+    if node.node_id == "basel_erdsonde":
+        return CanonicalSiteSpec(
+            site_id=node.node_id,
+            name=node.name,
+            city=node.city,
+            canton=node.canton,
+            region=node.region,
+            category=node.category,
+            lat=node.lat,
+            lon=node.lon,
+            elevation_m=node.elevation_m,
+            climate_base="basel",
+            temp_offset_c=node.temp_offset_c,
+            base_heating_ua_kw_per_k=node.base_heating_ua_kw_per_k,
+            dhw_daily_kwh=node.dhw_daily_kwh,
+            tank_capacity_kwh=node.tank_capacity_kwh,
+            target_supply_c=node.target_supply_c,
+            tariff_chf_per_kwh=0.29128,
+            sink_type=node.process_sink_type,
+            process_base_kw=node.process_base_kw,
+            process_summer_kw=7.5,
+            active_months=_ALL_MONTHS,
+            is_summer_sink=True,
+            is_year_round_sink=True,
+            heater_type="heat_pump",
+            verbund_scene_id="basel_erdsonde",
+            workload_primary=node.workload_primary,
+            summary=node.summary,
+        )
+    if node.node_id == "davos_alpine":
+        return CanonicalSiteSpec(
+            site_id=node.node_id,
+            name=node.name,
+            city=node.city,
+            canton=node.canton,
+            region=node.region,
+            category=node.category,
+            lat=node.lat,
+            lon=node.lon,
+            elevation_m=node.elevation_m,
+            climate_base="davos",
+            temp_offset_c=node.temp_offset_c,
+            base_heating_ua_kw_per_k=node.base_heating_ua_kw_per_k,
+            dhw_daily_kwh=node.dhw_daily_kwh,
+            tank_capacity_kwh=node.tank_capacity_kwh,
+            target_supply_c=node.target_supply_c,
+            tariff_chf_per_kwh=node.tariff_chf_per_kwh,
+            sink_type=node.process_sink_type,
+            process_base_kw=node.process_base_kw,
+            process_summer_kw=node.process_summer_kw,
+            active_months=_WINTER_MONTHS,
+            is_summer_sink=False,
+            is_year_round_sink=False,
+            heater_type="gas_boiler",
+            verbund_scene_id="davos_alpine",
+            workload_primary=node.workload_primary,
+            summary=node.summary,
+        )
+
+    is_year_round_proc = node.process_sink_type in (
+        "dairy_pasteurisation",
+        "greenhouse_rootzone",
+        "commercial_laundry",
+        "hospital_24_7",
+    )
+    is_summer_proc = is_year_round_proc or node.process_sink_type == "agricultural_drying"
+    return CanonicalSiteSpec(
+        site_id=node.node_id,
+        name=node.name,
+        city=node.city,
+        canton=node.canton,
+        region=node.region,
+        category=node.category,
+        lat=node.lat,
+        lon=node.lon,
+        elevation_m=node.elevation_m,
+        climate_base="davos" if node.climate_base == "davos" else "basel",
+        temp_offset_c=node.temp_offset_c,
+        base_heating_ua_kw_per_k=node.base_heating_ua_kw_per_k,
+        dhw_daily_kwh=node.dhw_daily_kwh,
+        tank_capacity_kwh=node.tank_capacity_kwh,
+        target_supply_c=node.target_supply_c,
+        tariff_chf_per_kwh=node.tariff_chf_per_kwh,
+        sink_type=node.process_sink_type,
+        process_base_kw=node.process_base_kw,
+        process_summer_kw=node.process_summer_kw,
+        active_months=_ALL_MONTHS if is_summer_proc else _WINTER_MONTHS,
+        is_summer_sink=is_summer_proc,
+        is_year_round_sink=is_year_round_proc,
+        heater_type="gas_boiler",
+        verbund_scene_id=None,
+        workload_primary=node.workload_primary,
+        summary=node.summary,
+    )
+
+
+_EXTRA_VERBUND_SITES: tuple[CanonicalSiteSpec, ...] = (
+    CanonicalSiteSpec(
+        site_id="sole_uno",
+        name="Sole Uno Wellness Thermal Bath",
+        city="Rheinfelden",
+        canton="AG",
+        region="Nordwestschweiz",
+        category="spa",
+        lat=47.5540,
+        lon=7.7980,
+        elevation_m=280,
+        climate_base="basel",
+        temp_offset_c=0.0,
+        base_heating_ua_kw_per_k=0.35,
+        dhw_daily_kwh=48.0,
+        tank_capacity_kwh=220.0,
+        target_supply_c=34,
+        tariff_chf_per_kwh=0.25267,
+        sink_type="indoor_thermal_spa",
+        process_base_kw=22.0,
+        process_summer_kw=24.0,
+        active_months=_ALL_MONTHS,
+        is_summer_sink=True,
+        is_year_round_sink=True,
+        heater_type="gas_boiler",
+        verbund_scene_id="sole_uno",
+        workload_primary="llm_batch",
+        summary=(
+            "Year-round indoor thermal saltwater bath absorbing 34-45 C server heat 365 days/yr."
+        ),
+    ),
+    CanonicalSiteSpec(
+        site_id="ara_basel_biogas",
+        name="ARA Basel ProRheno Biogas Digester",
+        city="Basel",
+        canton="BS",
+        region="Nordwestschweiz",
+        category="biogas",
+        lat=47.5845,
+        lon=7.5880,
+        elevation_m=248,
+        climate_base="basel",
+        temp_offset_c=0.2,
+        base_heating_ua_kw_per_k=0.10,
+        dhw_daily_kwh=12.0,
+        tank_capacity_kwh=260.0,
+        target_supply_c=42,
+        tariff_chf_per_kwh=0.25267,
+        sink_type="biogas_digester",
+        process_base_kw=28.0,
+        process_summer_kw=28.0,
+        active_months=_ALL_MONTHS,
+        is_summer_sink=True,
+        is_year_round_sink=True,
+        heater_type="gas_boiler",
+        verbund_scene_id="ara_basel_biogas",
+        workload_primary="llm_batch",
+        summary="Constant 24/7 mesophilic wastewater digester heating at 37-42 C on C6 tariff.",
+    ),
+    CanonicalSiteSpec(
+        site_id="hotel_laundry_dhw",
+        name="Basel Commercial Laundry & Hotel DHW",
+        city="Basel",
+        canton="BS",
+        region="Nordwestschweiz",
+        category="commercial",
+        lat=47.5495,
+        lon=7.5890,
+        elevation_m=256,
+        climate_base="basel",
+        temp_offset_c=0.0,
+        base_heating_ua_kw_per_k=0.30,
+        dhw_daily_kwh=60.0,
+        tank_capacity_kwh=140.0,
+        target_supply_c=60,
+        tariff_chf_per_kwh=0.26014,
+        sink_type="commercial_laundry",
+        process_base_kw=11.0,
+        process_summer_kw=12.0,
+        active_months=_ALL_MONTHS,
+        is_summer_sink=True,
+        is_year_round_sink=True,
+        heater_type="gas_boiler",
+        verbund_scene_id="hotel_laundry_dhw",
+        workload_primary="archive_ocr",
+        summary="Commercial hotel hot-water and laundry preheat loop (45-60 C).",
+    ),
+    CanonicalSiteSpec(
+        site_id="brewery_dairy_cip",
+        name="Baselbiet Brewery & Dairy CIP",
+        city="Liestal",
+        canton="BL",
+        region="Nordwestschweiz",
+        category="industrial",
+        lat=47.4840,
+        lon=7.7340,
+        elevation_m=327,
+        climate_base="basel",
+        temp_offset_c=-0.3,
+        base_heating_ua_kw_per_k=0.25,
+        dhw_daily_kwh=32.0,
+        tank_capacity_kwh=120.0,
+        target_supply_c=62,
+        tariff_chf_per_kwh=0.26014,
+        sink_type="cip_preheat",
+        process_base_kw=9.0,
+        process_summer_kw=11.0,
+        active_months=_ALL_MONTHS,
+        is_summer_sink=True,
+        is_year_round_sink=False,
+        heater_type="gas_boiler",
+        verbund_scene_id="brewery_dairy_cip",
+        workload_primary="iiif_embeddings",
+        summary="Mon-Sat 06:00-18:00 brewery and dairy CIP preheat sink.",
+    ),
+)
+
+CANONICAL_SITES: dict[str, CanonicalSiteSpec] = {
+    **{n.node_id: _node_to_canonical(n) for n in SWISS_FLEET_NODES},
+    **{s.site_id: s for s in _EXTRA_VERBUND_SITES},
+}
+
+SITE_ALIASES: dict[str, str] = {
+    "basel_pool_st_jakob": "basel_st_jakob",
+    "municipal_pool": "basel_st_jakob",
+    "house_basel": "basel_klingental",
+    "house_borehole": "basel_erdsonde",
+    "alpine_chalet": "davos_alpine",
+    "dairy_farm": "emmental_dairy",
+    "glasshouse_farm": "thurgau_greenhouse",
+    "commercial_bakery": "lucerne_bakery",
+    "hospital_wing": "stgallen_hospital",
+    "basel_ref": "basel_klingental",
+    "basel_mfh": "basel_klingental",
+    "riehen_sfh": "riehen_villa",
+    "liestal_mfh": "brewery_dairy_cip",
+    "aarau_pool": "sole_uno",
+    "zurich_mfh": "zurich_oerlikon",
+    "davos_hotel": "davos_alpine",
+    "stmoritz_sfh": "davos_alpine",
+    "zermatt_hotel": "davos_alpine",
+    "lugano_mfh": "lugano_lakeside",
+}
+
+
+def resolve_site_id(raw_id: str) -> str:
+    """Resolve a canonical site ID or known alias; raise ValueError on unknown IDs."""
+    key = raw_id.strip()
+    if key in CANONICAL_SITES:
+        return key
+    if key in SITE_ALIASES:
+        return SITE_ALIASES[key]
+    raise ValueError(f"Unknown site_id '{raw_id}'")
+
+
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     r_km = 6371.0
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -832,6 +1152,21 @@ def _compute_annual_fleet_cache(strategy: str) -> dict[str, Any]:
         ),
     }
 
+    log_event(
+        "simulation_run",
+        "swiss_fleet_8760h_simulated",
+        f"Simulated 8,760h Swiss 14-node fleet ({strategy}, {tot_installed} servers)",
+        source_module="fleet",
+        metrics={
+            "strategy": strategy,
+            "total_nodes": fleet_annual["total_nodes"],
+            "total_servers": tot_installed,
+            "annual_dumped_kwh": fleet_annual["annual_dumped_kwh"],
+            "annual_migrated_srv_h": fleet_annual["annual_migrated_srv_h"],
+            "annual_utilisation_pct": fleet_annual["annual_utilisation_pct"],
+        },
+    )
+
     return {
         "strategy": strategy,
         "n_hours": n_hours,
@@ -857,8 +1192,8 @@ def get_swiss_fleet_snapshot(
     nodes_out = []
     live_gen = live_dem = live_dump = live_active = live_elec = live_mig_kw = 0.0
     for n in SWISS_FLEET_NODES:
-        live = snap["nodes"][n.node_id]
-        ann = cache["annual_by_node"][n.node_id]
+        live = copy.deepcopy(snap["nodes"][n.node_id])
+        ann = copy.deepcopy(cache["annual_by_node"][n.node_id])
         live_gen += live["heat_generated_kw"]
         live_dem += live["heat_demand_kw"]
         live_dump += live["heat_dumped_kw"]
@@ -913,8 +1248,8 @@ def get_swiss_fleet_snapshot(
             "active_flows_count": len(snap["flows"]),
             "hourly_elec_chf": round(live_elec, 2),
         },
-        "fleet_annual": cache["fleet_annual"],
+        "fleet_annual": copy.deepcopy(cache["fleet_annual"]),
         "baseline_dumped_kwh": baseline_cache["fleet_annual"]["annual_dumped_kwh"],
         "nodes": nodes_out,
-        "flows": snap["flows"],
+        "flows": copy.deepcopy(snap["flows"]),
     }
