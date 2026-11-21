@@ -175,7 +175,7 @@ function renderEcon() {
   const loss = S.filter(s => s.breakeven_chf_per_server_h > lo).map(s => s.n);
   const sens = [];
   $('#payoff-card').innerHTML = `<div class="verdict"><h3>Verdict for the reference house</h3>
-    <p>With ${h.servers} servers, computing pays off if DigitalHeat sells a server-hour for at least <b>CHF ${fmt(h.breakeven_chf_per_server_h, 2)}</b>. The market for four Blackwell-class GPUs is CHF ${fmt(lo, 2)}–${fmt(hi, 2)}. <span class="pill ${h.breakeven_chf_per_server_h <= lo ? 'ok' : h.breakeven_chf_per_server_h <= mid ? 'mid' : 'no'}">${h.pays_off_verdict}</span></p>
+    <p>With ${h.servers} servers, computing pays off if CalorGrid sells a server-hour for at least <b>CHF ${fmt(h.breakeven_chf_per_server_h, 2)}</b>. The market for four Blackwell-class GPUs is CHF ${fmt(lo, 2)}–${fmt(hi, 2)}. <span class="pill ${h.breakeven_chf_per_server_h <= lo ? 'ok' : h.breakeven_chf_per_server_h <= mid ? 'mid' : 'no'}">${h.pays_off_verdict}</span></p>
     <h3>When it does not pay off</h3><ul>
       <li><b>Too many servers.</b> Above ${Math.min(...loss.filter(n => n > cheapest.n))} servers, break-even rises above the low market price, because the extra servers sit idle all summer.</li>
       <li><b>Low summer demand at the house.</b> July heat demand is only 12 kWh/day (hot water), enough for about 15 server-hours a day. Without fleet migration, ${h.servers} servers would be ${pct(1 - 15 / (24 * h.servers), 0)} idle in summer.</li>
@@ -387,7 +387,7 @@ async function renderMap() {
       scales: { x: yAxis('', { grace: '10%' }), y: xAxis({ ticks: { font: { size: 11 } } }) } } });
   const best = [...S].sort((a, b) => a.breakeven - b.breakeven), ref = S.find(s => s.key === 'basel_ref');
   const g = R.heat_grid, cold = g.filter(p => p.summer_heating_days >= 30);
-  $('#map-insights').innerHTML = `<h3 style="margin-top:14px">What the map tells DigitalHeat</h3><ul>
+  $('#map-insights').innerHTML = `<h3 style="margin-top:14px">What the map tells CalorGrid</h3><ul>
     <li><b>Basel has the most expensive power in the fleet</b> (${fmt(ref.price_rp, 2)} Rp vs ${fmt(Math.min(...S.map(s => s.price_rp)), 2)} Rp in ${S.reduce((a, b) => a.price_rp < b.price_rp ? a : b).name.replace(/ \(.*\)/, '')}).</li>
     <li><b>Best sites:</b> ${best.slice(0, 3).map(s => `${s.name.replace(/ \(.*\)/, '')} (CHF ${fmt(s.breakeven, 2)}/h)`).join(', ')}. They need heat all year, and power is cheap. The reference house breaks even at CHF ${fmt(ref.breakeven, 2)}/h.</li>
     <li><b>${cold.length} of ${g.length}</b> scored locations still need heating on 30+ summer days, mostly in Graubünden and Valais. That's room for summer computing beyond today's fleet.</li></ul>`;
@@ -401,7 +401,7 @@ function drawGrid() {
     return `<circle class="gridpt" cx="${x}" cy="${y}" r="${3 + 6 * v}" fill="${c}" opacity="${0.25 + 0.6 * v}"><title>${p.canton}, ${fmt(p.elev)} m: ${p.heating_days} heating days, ${p.summer_heating_days} in summer, mean ${fmt(p.mean_c, 1)} °C</title></circle>`; }).join('');
   $('#map-legend').innerHTML = `<span><span class="ramp">${RAMP.filter((_, i) => i % 2 === 0).map(c => `<i style="background:${c}"></i>`).join('')}</span>
     ${mapLayer === 'summer' ? 'summer days (Jun–Aug) that still need heating: 0 → 92' : 'heating days per year: 0 → 365'}</span>
-    <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="${C.sla}"/></svg> DigitalHeat site (size = servers, glow = computing this month)</span>
+    <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="${C.sla}"/></svg> CalorGrid site (size = servers, glow = computing this month)</span>
     <span><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="${C.accent}"/></svg> reference house</span>`;
 }
 

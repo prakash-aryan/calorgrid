@@ -48,18 +48,16 @@ def get_manifest(data_dir: Path | None = None) -> dict:
     return manifest
 
 
-def verify_manifest(data_dir: Path | None = None) -> dict[str, bool]:
-    """Verify SHA-256 digests and byte sizes for all pinned local data files."""
-    base = _resolve_data_dir(data_dir)
-    manifest = get_manifest(base)
-    files = manifest.get("files")
-    if not isinstance(files, dict) or not files:
-        raise DatasetIntegrityError("Manifest contains no pinned file entries")
+def _verify_manifest_section(
+    base: Path, entries: object, section_name: str
+) -> dict[str, bool]:
+    if not isinstance(entries, dict) or not entries:
+        raise DatasetIntegrityError(f"Manifest '{section_name}' must be a non-empty object")
 
     results: dict[str, bool] = {}
-    for filename, meta in files.items():
+    for filename, meta in entries.items():
         if not isinstance(filename, str) or not filename:
-            raise DatasetIntegrityError("Manifest contains invalid pinned filename")
+            raise DatasetIntegrityError(f"Manifest '{section_name}' contains invalid filename")
         if not isinstance(meta, dict):
             raise DatasetIntegrityError(
                 f"Invalid manifest entry for {filename}: expected JSON object, "
@@ -104,6 +102,29 @@ def verify_manifest(data_dir: Path | None = None) -> dict[str, bool]:
                 f"SHA-256 mismatch for {filename}: expected {expected_sha}, got {digest}"
             )
         results[filename] = True
+    return results
+
+
+def verify_manifest(
+    data_dir: Path | None = None,
+    include_catalogs: bool = False,
+) -> dict[str, bool]:
+    """Verify SHA-256 digests and byte sizes for all pinned local data files."""
+    base = _resolve_data_dir(data_dir)
+    manifest = get_manifest(base)
+    files = manifest.get("files")
+    if not isinstance(files, dict) or not files:
+        raise DatasetIntegrityError("Manifest contains no pinned file entries")
+
+    results = _verify_manifest_section(base, files, section_name="files")
+
+    if "catalog_files" in manifest:
+        catalog_results = _verify_manifest_section(
+            base, manifest.get("catalog_files"), section_name="catalog_files"
+        )
+        if include_catalogs:
+            return {**results, **catalog_results}
+
     return results
 
 
@@ -236,3 +257,8 @@ def load_mlperf_summary(data_dir: Path | None = None, verify: bool = True) -> di
 def load_elcom_tariffs(data_dir: Path | None = None, verify: bool = True) -> dict:
     """Load pinned ElCom 2026 IWB Basel electricity tariffs JSON."""
     return _load_verified_json("elcom_basel_2026.json", data_dir=data_dir, verify=verify)
+
+
+def load_hardware_catalog(data_dir: Path | None = None, verify: bool = True) -> dict:
+    """Load pinned unified server and GPU hardware catalog JSON."""
+    return _load_verified_json("hardware_catalog.json", data_dir=data_dir, verify=verify)

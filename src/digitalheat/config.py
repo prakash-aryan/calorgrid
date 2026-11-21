@@ -1,4 +1,4 @@
-"""Physical, thermal, economic and schema definitions for DigitalHeat."""
+"""Physical, thermal, economic and schema definitions for CalorGrid."""
 
 from pathlib import Path
 from typing import Literal
@@ -169,7 +169,7 @@ class HourlySimulationRow(BaseModel):
 
 
 class KpiReport(BaseModel):
-    """Seven mandatory DigitalHeat KPIs plus supporting accounting fields."""
+    """Seven mandatory CalorGrid KPIs plus supporting accounting fields."""
 
     servers_per_house: int
     heat_demand_covered_share: float

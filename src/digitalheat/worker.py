@@ -1,4 +1,4 @@
-"""Real local CPU worker runner and live SIGSTOP/SIGCONT manager for DigitalHeat."""
+"""Real local CPU worker runner and live SIGSTOP/SIGCONT manager for CalorGrid."""
 
 from __future__ import annotations
 
@@ -1024,7 +1024,7 @@ atexit.register(shutdown_default_worker_manager)
 
 
 def _subprocess_main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="DigitalHeat isolated CPU worker subprocess")
+    parser = argparse.ArgumentParser(description="CalorGrid isolated CPU worker subprocess")
     parser.add_argument(
         "--job-type",
         required=True,

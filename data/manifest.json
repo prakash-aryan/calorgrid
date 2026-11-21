@@ -43,6 +43,16 @@
       "notes": "2026 IWB Basel (municipality 2701, operator 624) H4 and C2-C6 tariffs"
     }
   },
+  "catalog_files": {
+    "hardware_catalog.json": {
+      "sha256": "dc70a3d41f12fad21c9a52f0eabcafdc219aaa5b96d062d80f251d002d76292f",
+      "bytes": 13332,
+      "source_url": "local://digitalheat/data/hardware_catalog.json",
+      "retrieved_utc": "2026-11-21T18:20:00Z",
+      "license": "CC BY 4.0 / Apache-2.0 (Derived from HEATWISE, MLPerf v5.0/v5.1/v6.1, NVIDIA specs)",
+      "notes": "Unified 4 server_models and 5 gpu_products hardware catalog"
+    }
+  },
   "upstream_sources": {
     "heatwise_zenodo_zip": {
       "url": "https://zenodo.org/api/records/23237930/files/HEATWISE_OCP_zenodo_package.zip/content",

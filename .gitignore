@@ -5,8 +5,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
-dist/
-build/
+/dist/
+/build/
+.wrangler/
 .env
 .env.*
 *.log

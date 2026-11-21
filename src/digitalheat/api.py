@@ -1,4 +1,4 @@
-"""Versioned FastAPI v1 JSON contract and static asset server for DigitalHeat."""
+"""Versioned FastAPI v1 JSON contract and static asset server for CalorGrid."""
 
 from __future__ import annotations
 
@@ -847,7 +847,7 @@ async def lifespan(app_instance: FastAPI):
 
 
 app = FastAPI(
-    title="DigitalHeat 3D Digital Twin & Reference Scheduler API",
+    title="CalorGrid 3D Digital Twin & Reference Scheduler API",
     version=API_VERSION,
     lifespan=lifespan,
 )
@@ -1349,7 +1349,7 @@ else:
     @app.get("/", include_in_schema=False)
     def root_index() -> dict:
         return {
-            "service": "DigitalHeat API",
+            "service": "CalorGrid API",
             "version": API_VERSION,
             "docs": "/docs",
             "health": "/api/v1/health",

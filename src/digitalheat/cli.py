@@ -1,4 +1,4 @@
-"""Command-line interface for DigitalHeat server, simulation and dataset verification."""
+"""Command-line interface for CalorGrid server, simulation and dataset verification."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def _cmd_simulate(strategy: str, servers: int, site: str, as_json: bool) -> int:
 
     k = res.kpis
     print(
-        f"DigitalHeat Annual Simulation ({res.strategy}, site={res.site}, "
+        f"CalorGrid Annual Simulation ({res.strategy}, site={res.site}, "
         f"servers={k.servers_per_house})"
     )
     print(
@@ -154,15 +154,15 @@ def _bounded_int(min_val: int, max_val: int, arg_name: str):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="digitalheat", description="DigitalHeat CLI")
+    parser = argparse.ArgumentParser(prog="digitalheat", description="CalorGrid CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    serve_p = sub.add_parser("serve", help="Run the DigitalHeat FastAPI server")
+    serve_p = sub.add_parser("serve", help="Run the CalorGrid FastAPI server")
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=_bounded_int(1, 65535, "--port"), default=8000)
     serve_p.add_argument("--reload", action="store_true")
 
-    sim_p = sub.add_parser("simulate", help="Run the 8,760h annual DigitalHeat simulation")
+    sim_p = sub.add_parser("simulate", help="Run the 8,760h annual CalorGrid simulation")
     sim_p.add_argument(
         "--strategy",
         default="smart",

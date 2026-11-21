@@ -11,6 +11,7 @@ from digitalheat.data_loader import (
     DatasetIntegrityError,
     get_manifest,
     load_elcom_tariffs,
+    load_hardware_catalog,
     load_heatwise_summary,
     load_mlperf_summary,
     load_weather_zurich,
@@ -160,3 +161,64 @@ def test_manifest_rejects_corrupt_and_malformed_structures(tmp_path: Path) -> No
         manifest_path.write_text(json.dumps(payload), encoding="utf-8")
         with pytest.raises(DatasetIntegrityError):
             verify_manifest(bad_dir)
+
+
+def test_hardware_catalog_schema_and_b200_reconciliation() -> None:
+    results_all = verify_manifest(DATA_DIR, include_catalogs=True)
+    assert len(results_all) == 6
+    assert results_all["hardware_catalog.json"] is True
+
+    catalog = load_hardware_catalog()
+    server_models = catalog["server_models"]
+    gpu_products = catalog["gpu_products"]
+    assert len(server_models) == 4
+    assert len(gpu_products) == 5
+
+    server_by_id = {entry["id"]: entry for entry in server_models}
+    assert set(server_by_id) == {
+        "hydronode_1kw",
+        "ocp_winterfell_3kw",
+        "b200_ai_10kw",
+        "edge_micro_250w",
+    }
+
+    b200_server = server_by_id["b200_ai_10kw"]
+    assert b200_server["idle_kw"] == pytest.approx(1.20, abs=1e-6)
+    assert b200_server["min_active_kw"] == pytest.approx(7.47, abs=1e-6)
+    assert b200_server["typical_kw"] == pytest.approx(9.44, abs=1e-6)
+    assert b200_server["max_kw"] == pytest.approx(10.40, abs=1e-6)
+
+    gpu_by_id = {entry["id"]: entry for entry in gpu_products}
+    assert set(gpu_by_id) == {
+        "b200_sxm_180gb",
+        "h100_nvl_94gb",
+        "h100_sxm_80gb",
+        "a100_sxm_80gb",
+        "rtx_pro_4500_blackwell",
+    }
+
+    b200_gpu = gpu_by_id["b200_sxm_180gb"]
+    assert b200_gpu["node_power_kw"]["idle_kw"] == pytest.approx(1.20, abs=1e-6)
+    assert b200_gpu["node_power_kw"]["min_active_kw"] == pytest.approx(7.47, abs=1e-6)
+    assert b200_gpu["node_power_kw"]["typical_kw"] == pytest.approx(9.44, abs=1e-6)
+    assert b200_gpu["node_power_kw"]["max_kw"] == pytest.approx(10.40, abs=1e-6)
+
+
+def test_hardware_catalog_detects_tampering_and_missing(tmp_path: Path) -> None:
+    tampered_dir = tmp_path / "data"
+    shutil.copytree(DATA_DIR, tampered_dir)
+
+    cat_path = tampered_dir / "hardware_catalog.json"
+    raw = bytearray(cat_path.read_bytes())
+    raw[-5] ^= 0x01
+    cat_path.write_bytes(bytes(raw))
+
+    with pytest.raises(DatasetIntegrityError, match="SHA-256 mismatch"):
+        verify_manifest(tampered_dir, include_catalogs=True)
+    with pytest.raises(DatasetIntegrityError, match="SHA-256 mismatch"):
+        load_hardware_catalog(data_dir=tampered_dir)
+
+    cat_path.unlink()
+    with pytest.raises(DatasetIntegrityError, match="Missing pinned dataset file"):
+        verify_manifest(tampered_dir)
+
