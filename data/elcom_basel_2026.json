@@ -1,0 +1,63 @@
+{
+  "source": "ElCom / LINDAS Swiss Electricity Tariffs 2026 (municipality 2701 Basel, operator 624 IWB, product standard)",
+  "query_endpoint": "https://lindas.admin.ch/query",
+  "retrieved_utc": "2026-11-20T23:38:54Z",
+  "vat_rate": 0.081,
+  "notes": "LINDAS/ElCom observations report total tariff in Rp/kWh (100 Rp = 1 CHF) excluding 8.1% Swiss VAT across both H4 (0.3325 CHF/kWh excl. VAT; 0.35943 CHF/kWh incl. VAT) and commercial/industrial C2-C6. Case benchmark pins H4 at 0.3325 CHF/kWh.",
+  "categories": {
+    "H4": {
+      "total_rp_per_kwh": 33.25,
+      "total_chf_per_kwh": 0.3325,
+      "energy_rp_per_kwh": 10.892,
+      "gridusage_rp_per_kwh": 11.414,
+      "charge_rp_per_kwh": 7.443,
+      "aidfee_rp_per_kwh": 2.3,
+      "metering_rp_per_kwh": null
+    },
+    "C2": {
+      "total_rp_per_kwh": 32.745,
+      "total_chf_per_kwh": 0.32745,
+      "energy_rp_per_kwh": 10.03,
+      "gridusage_rp_per_kwh": 13.109,
+      "charge_rp_per_kwh": 7.127,
+      "aidfee_rp_per_kwh": 2.3,
+      "metering_rp_per_kwh": null
+    },
+    "C3": {
+      "total_rp_per_kwh": 32.427,
+      "total_chf_per_kwh": 0.32427,
+      "energy_rp_per_kwh": 9.393,
+      "gridusage_rp_per_kwh": 13.571,
+      "charge_rp_per_kwh": 6.977,
+      "aidfee_rp_per_kwh": 2.3,
+      "metering_rp_per_kwh": null
+    },
+    "C4": {
+      "total_rp_per_kwh": 29.128,
+      "total_chf_per_kwh": 0.29128,
+      "energy_rp_per_kwh": 9.095,
+      "gridusage_rp_per_kwh": 11.2,
+      "charge_rp_per_kwh": 6.477,
+      "aidfee_rp_per_kwh": 2.3,
+      "metering_rp_per_kwh": null
+    },
+    "C5": {
+      "total_rp_per_kwh": 26.014,
+      "total_chf_per_kwh": 0.26014,
+      "energy_rp_per_kwh": 9.095,
+      "gridusage_rp_per_kwh": 8.67,
+      "charge_rp_per_kwh": 5.786,
+      "aidfee_rp_per_kwh": 2.3,
+      "metering_rp_per_kwh": null
+    },
+    "C6": {
+      "total_rp_per_kwh": 25.267,
+      "total_chf_per_kwh": 0.25267,
+      "energy_rp_per_kwh": 8.919,
+      "gridusage_rp_per_kwh": 8.236,
+      "charge_rp_per_kwh": 5.757,
+      "aidfee_rp_per_kwh": 2.3,
+      "metering_rp_per_kwh": null
+    }
+  }
+}

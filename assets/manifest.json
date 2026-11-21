@@ -1,0 +1,472 @@
+{
+  "assets": {
+    "context_neighborhood": {
+      "file": "glb/context_neighborhood.glb",
+      "label": "Basel Reference Site (Klingental 15 & Mittlere Bruecke)",
+      "provenance_category": "geodata_cad_blueprint",
+      "lv95_origin": {
+        "E0": 2611430.949,
+        "N0": 1267910.222,
+        "Z0": 250.118
+      },
+      "wgs84": {
+        "lat": 47.561804,
+        "lon": 7.590508
+      },
+      "radius_m": 280.0,
+      "cutaway_uuid": "7C71C414-5FE4-494C-983C-DC302CF5C16F",
+      "cutaway_box": [
+        -4.5,
+        4.5,
+        -5.0,
+        5.0
+      ],
+      "nodes": [
+        "cutaway_house_roof",
+        "cutaway_house_walls",
+        "neighborhood_buildings_roofs",
+        "neighborhood_buildings_walls",
+        "osm_roads",
+        "osm_water_pools",
+        "terrain_ground"
+      ],
+      "bounds": [
+        [
+          -280.586,
+          -11.874,
+          -282.58
+        ],
+        [
+          306.773,
+          36.624,
+          284.215
+        ]
+      ],
+      "bytes": 840012,
+      "budget_bytes": 5242880,
+      "sha256": "a7bc3930e53818c2bfdfa1d066db64c151b4373df9e3c7da8472d55035663b90"
+    },
+    "verbund_st_jakob": {
+      "file": "glb/verbund_st_jakob.glb",
+      "label": "Gartenbad St. Jakob Basel",
+      "provenance_category": "geodata_cad_blueprint",
+      "lv95_origin": {
+        "E0": 2613717.387,
+        "N0": 1265314.221,
+        "Z0": 258.611
+      },
+      "wgs84": {
+        "lat": 47.5384131,
+        "lon": 7.6208085
+      },
+      "radius_m": 220.0,
+      "cutaway_uuid": null,
+      "cutaway_box": null,
+      "nodes": [
+        "neighborhood_buildings_roofs",
+        "neighborhood_buildings_walls",
+        "osm_roads",
+        "osm_water_pools",
+        "terrain_ground"
+      ],
+      "bounds": [
+        [
+          -220.0,
+          -4.376,
+          -222.355
+        ],
+        [
+          220.0,
+          25.327,
+          220.0
+        ]
+      ],
+      "bytes": 649816,
+      "budget_bytes": 1572864,
+      "sha256": "07ae7545427279682770116b467f59888fd9fc1a9ae1a03c454d01c117fbdf6a"
+    },
+    "verbund_sole_uno": {
+      "file": "glb/verbund_sole_uno.glb",
+      "label": "Sole Uno Rheinfelden",
+      "provenance_category": "geodata_cad_blueprint",
+      "lv95_origin": {
+        "E0": 2627202.167,
+        "N0": 1267510.276,
+        "Z0": 273.265
+      },
+      "wgs84": {
+        "lat": 47.5577448,
+        "lon": 7.800038
+      },
+      "radius_m": 200.0,
+      "cutaway_uuid": null,
+      "cutaway_box": null,
+      "nodes": [
+        "neighborhood_buildings_roofs",
+        "neighborhood_buildings_walls",
+        "osm_roads",
+        "osm_water_pools",
+        "terrain_ground"
+      ],
+      "bounds": [
+        [
+          -200.0,
+          -13.461,
+          -200.0
+        ],
+        [
+          201.084,
+          17.393,
+          204.456
+        ]
+      ],
+      "bytes": 690620,
+      "budget_bytes": 1572864,
+      "sha256": "60f90f74b9ef190a1b8f025ac79ae66c775b723237207ee7c282d1f547a77dba"
+    },
+    "verbund_ara_basel": {
+      "file": "glb/verbund_ara_basel.glb",
+      "label": "ARA Basel / ProRheno",
+      "provenance_category": "geodata_cad_blueprint",
+      "lv95_origin": {
+        "E0": 2612116.517,
+        "N0": 1270255.073,
+        "Z0": 253.964
+      },
+      "wgs84": {
+        "lat": 47.5828809,
+        "lon": 7.5996807
+      },
+      "radius_m": 250.0,
+      "cutaway_uuid": null,
+      "cutaway_box": null,
+      "nodes": [
+        "neighborhood_buildings_roofs",
+        "neighborhood_buildings_walls",
+        "osm_roads",
+        "osm_water_pools",
+        "terrain_ground"
+      ],
+      "bounds": [
+        [
+          -273.904,
+          -12.275,
+          -260.727
+        ],
+        [
+          250.0,
+          56.63,
+          296.411
+        ]
+      ],
+      "bytes": 812112,
+      "budget_bytes": 1572864,
+      "sha256": "384c4d1659249dad7e2633dcca8fee284d69b30493ddd15ce39e3d793185c8e6"
+    },
+    "verbund_davos": {
+      "file": "glb/verbund_davos.glb",
+      "label": "Davos Eau-la-la Alpine Profile",
+      "provenance_category": "geodata_cad_blueprint",
+      "lv95_origin": {
+        "E0": 2782577.164,
+        "N0": 1186042.934,
+        "Z0": 1544.032
+      },
+      "wgs84": {
+        "lat": 46.8005013,
+        "lon": 9.8306546
+      },
+      "radius_m": 200.0,
+      "cutaway_uuid": null,
+      "cutaway_box": null,
+      "nodes": [
+        "neighborhood_buildings_roofs",
+        "neighborhood_buildings_walls",
+        "osm_roads",
+        "osm_water_pools",
+        "terrain_ground"
+      ],
+      "bounds": [
+        [
+          -202.934,
+          -9.194,
+          -202.806
+        ],
+        [
+          203.661,
+          52.658,
+          201.164
+        ]
+      ],
+      "bytes": 531840,
+      "budget_bytes": 1572864,
+      "sha256": "339372a449cc9aeee0c9c706767da400fcf31e9510883fe49d5ef4f089c7efc9"
+    },
+    "house_bim_shell": {
+      "file": "glb/house_bim_shell.glb",
+      "label": "Open Reference IFC 4.3 House & Basement Shell",
+      "provenance_category": "geodata_cad_blueprint",
+      "disclaimer": "Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence",
+      "scale": 1.45,
+      "cutaway_groups": [
+        "shell_roof",
+        "shell_walls_front",
+        "shell_walls_rear_side",
+        "shell_slabs",
+        "shell_interior",
+        "shell_hvac_chimney"
+      ],
+      "child_mesh_count": 29,
+      "nodes": [
+        "arch__IfcFurniture__kitchen__116",
+        "arch__IfcSlab__floor__53",
+        "arch__IfcSlab__house_roof_slab_left__261",
+        "arch__IfcSlab__house_roof_slab_right__285",
+        "arch__IfcWall__house_outer_wall_house_left__201",
+        "arch__IfcWall__house_outer_wall_house_right_back__182",
+        "arch__IfcWall__house_outer_wall_house_right_front__158",
+        "arch__IfcWall__plumbing_wall__228",
+        "basement__IfcSlab__cellar_floor",
+        "basement__IfcWall__cellar_wall_back",
+        "basement__IfcWall__cellar_wall_front",
+        "basement__IfcWall__cellar_wall_left",
+        "basement__IfcWall__cellar_wall_right",
+        "hvac__IfcAirTerminal__chimney_cover__63",
+        "hvac__IfcAirTerminal__house_fireplace_cap__99",
+        "hvac__IfcDuctSegment__building_element__81",
+        "shell_hvac_chimney",
+        "shell_interior",
+        "shell_roof",
+        "shell_slabs",
+        "shell_walls_front",
+        "shell_walls_rear_side",
+        "struct__IfcBeam__girder__175",
+        "struct__IfcBeam__girder__197",
+        "struct__IfcBeam__girder__213",
+        "struct__IfcBeam__girder__229",
+        "struct__IfcBeam__girder__245",
+        "struct__IfcBeam__girder__261",
+        "struct__IfcChimney__house_chimney__131",
+        "struct__IfcDiscreteAccessory__beam_shoe__276",
+        "struct__IfcDiscreteAccessory__beam_shoe__292",
+        "struct__IfcWall__house_inner_wall__147",
+        "struct__IfcWall__house_outer_wall_house_back__69",
+        "struct__IfcWall__house_outer_wall_house_front__93",
+        "struct__IfcWall__house_outer_wall_house_front_right__112"
+      ],
+      "bounds": [
+        [
+          -4.495,
+          -3.45,
+          -4.785
+        ],
+        [
+          4.495,
+          8.265,
+          4.785
+        ]
+      ],
+      "basement_interior_bounds": {
+        "x": [
+          -3.77,
+          3.77
+        ],
+        "y": [
+          -3.2,
+          -0.362
+        ],
+        "z": [
+          -4.06,
+          1.45
+        ],
+        "size_m": [
+          7.54,
+          2.838,
+          5.51
+        ]
+      },
+      "bytes": 25220,
+      "budget_bytes": 1048576,
+      "sha256": "e3a3e374c486bff65e94c89e74f6ddba32d68b2c7d160ab01441fc9267822bbe"
+    },
+    "hardware_server_rack": {
+      "file": "glb/hardware_server_rack.glb",
+      "label": "Vertiv 16OCP ORV3 Compute Rack",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "Vertiv (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.5408,
+          0.0002,
+          -0.3
+        ],
+        [
+          0.541,
+          2.2899,
+          0.3
+        ]
+      ],
+      "extents_m": [
+        1.0818,
+        2.2898,
+        0.6
+      ],
+      "bytes": 181152,
+      "sha256": "ea92415f39fa4f8dfcd7c408d8512c9f51cc31bc5ef2e4dfece3a1d672f6d753"
+    },
+    "hardware_cdu_exchanger": {
+      "file": "glb/hardware_cdu_exchanger.glb",
+      "label": "Vertiv Liebert XDU1350 Coolant Distribution Unit",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "Vertiv (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.6269,
+          0.0,
+          -0.45
+        ],
+        [
+          0.6269,
+          2.1222,
+          0.45
+        ]
+      ],
+      "extents_m": [
+        1.2538,
+        2.1222,
+        0.9
+      ],
+      "bytes": 254100,
+      "sha256": "b88d12e5f2ffb9dd5e208bf8bfad50d9531fb40b3a0b06527f39c3a7ef142606"
+    },
+    "hardware_power_panel": {
+      "file": "glb/hardware_power_panel.glb",
+      "label": "Vertiv NVD RPP 1200-480V Power Distribution Panel",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "Vertiv (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.3159,
+          0.0,
+          -0.5793
+        ],
+        [
+          0.3159,
+          2.4795,
+          0.5793
+        ]
+      ],
+      "extents_m": [
+        0.6318,
+        2.4795,
+        1.1586
+      ],
+      "bytes": 318760,
+      "sha256": "d04a15b43bb8997282617fd2dcbc65d3f9761efb48109b7f2c413b4c79ee70a9"
+    },
+    "hardware_buffer_tank": {
+      "file": "glb/hardware_buffer_tank.glb",
+      "label": "Stainless Steel Buffer Vessel (1,000 L)",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "NVIDIA (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.6324,
+          0.0,
+          -0.556
+        ],
+        [
+          0.6325,
+          1.2967,
+          0.5561
+        ]
+      ],
+      "extents_m": [
+        1.2649,
+        1.2967,
+        1.1121
+      ],
+      "bytes": 381372,
+      "sha256": "02195b5708aa11794ac948200c3adad3620ecc36b3f49cf602e3da8dddaa5f62"
+    },
+    "hardware_piping": {
+      "file": "glb/hardware_piping.glb",
+      "label": "Hydronic Manifold & Process Piping",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "NVIDIA (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.5449,
+          0.0,
+          -3.5011
+        ],
+        [
+          0.5449,
+          0.684,
+          3.5019
+        ]
+      ],
+      "extents_m": [
+        1.0898,
+        0.684,
+        7.003
+      ],
+      "bytes": 191004,
+      "sha256": "1f31dcb83d10f3bf02879328745ddfffaa37bf988623a8789aa695b24feb8d34"
+    },
+    "hardware_valve_3way": {
+      "file": "glb/hardware_valve_3way.glb",
+      "label": "Industrial Valve Assembly",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "ForgeCAD (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.3498,
+          0.0,
+          -0.1
+        ],
+        [
+          0.35,
+          0.7458,
+          0.1
+        ]
+      ],
+      "extents_m": [
+        0.6998,
+        0.7458,
+        0.2
+      ],
+      "bytes": 426944,
+      "sha256": "4c438b6a85e56ec5b2f8038dfb14fb21164d363f496c506fe434ecb47a4b75bd"
+    },
+    "hardware_basement_enclosure": {
+      "file": "glb/hardware_basement_enclosure.glb",
+      "label": "Concrete Basement Plant-Room Enclosure",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "NVIDIA (CC BY 4.0)",
+      "bounds": [
+        [
+          -3.5,
+          0.001,
+          -2.5998
+        ],
+        [
+          3.5,
+          2.6812,
+          2.6001
+        ]
+      ],
+      "extents_m": [
+        7.0,
+        2.6802,
+        5.1999
+      ],
+      "bytes": 245620,
+      "sha256": "695a4bd6bd59f9cb90e37d2de60ce56752672b5d48de7973450ae08481af414f"
+    }
+  },
+  "coordinate_frame": {
+    "threejs": "Y-up meters, 1 unit = 1 m",
+    "basel_lv95_epsg": "EPSG:2056"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "sources": {
+    "swisstopo": {
+      "datasets": [
+        "swissBUILDINGS3D 3.0",
+        "swissALTI3D 2 m DEM",
+        "swissimage-dop10"
+      ],
+      "attribution": "(c) swisstopo",
+      "license": "swisstopo Open Government Data (OGD) terms of use"
+    },
+    "openstreetmap": {
+      "datasets": [
+        "Overpass API overpass.osm.ch"
+      ],
+      "attribution": "(c) OpenStreetMap contributors, ODbL",
+      "license": "ODbL 1.0"
+    },
+    "buildingsmart_ifc": {
+      "datasets": [
+        "Building-Architecture.ifc",
+        "Building-Structural.ifc",
+        "Building-Hvac.ifc"
+      ],
+      "attribution": "(C) buildingSMART International Ltd.",
+      "license": "CC BY 4.0",
+      "disclaimer": "Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence"
+    },
+    "nvidia_simready": {
+      "datasets": [
+        "nvidia/simready-assets (ibcTank_steel_stainless_a01, pipe_plastic_gray_b08)",
+        "NVIDIA SimReady basement enclosure (environment_floor_a01, structure_wall_straight_a01, structure_wall_column_a01)"
+      ],
+      "attribution": "NVIDIA Corporation",
+      "license": "CC BY 4.0"
+    },
+    "vertiv_simready": {
+      "datasets": [
+        "Vertiv/simready-assets (16OCP_ORV3_racks_Computer_racks, XDU1350, NVD_RPP_1200_480_XT210_FA)"
+      ],
+      "attribution": "Vertiv",
+      "license": "CC BY 4.0"
+    },
+    "forgecad_simready": {
+      "datasets": [
+        "ForgeCAD/simready-assets (gate_valve)"
+      ],
+      "attribution": "ForgeCAD",
+      "license": "CC BY 4.0"
+    }
+  },
+  "mandatory_notices": [
+    "(c) OpenStreetMap contributors, ODbL",
+    "(c) swisstopo",
+    "Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence",
+    "SimReady 3D hardware assets: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)"
+  ]
+}
