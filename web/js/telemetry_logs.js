@@ -197,13 +197,14 @@ export function buildGpuSlotsElement(gpuSlots) {
     const util = utilNum.toFixed(0);
     const hKw = Number(gs.kw_th ?? gs.heat_kw ?? 0).toFixed(2);
     const jobLbl = gs.job_name || (isBusy ? "Active workload" : "Idle");
-    const shortId = (gs.gpu_id || `GPU ${gs.slot_index}`).replace(/_/g, " ");
+    const slotNum = gs.slot_index !== undefined && gs.slot_index !== null ? gs.slot_index : 0;
+    const shortId = `GPU ${slotNum}`;
 
     const row = domEl("div", { className: `hl-gpu-chip ${cls}` }, [
       domEl("div", { className: "hl-gpu-chip-top" }, [
         domEl("strong", { text: shortId }),
         domEl("span", { className: "hl-gpu-job", text: jobLbl }),
-        domEl("span", { className: "hl-gpu-util", text: `${util}% · ${hKw} kW heat` }),
+        domEl("span", { className: "hl-gpu-util", text: `${util}% · ${hKw} kW` }),
       ]),
       domEl("div", { className: "hl-gpu-bar" }, [
         domEl("div", { className: "hl-gpu-bar-fill", style: { width: `${utilNum}%` } }),

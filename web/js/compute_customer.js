@@ -5,7 +5,7 @@ import {
   fmtNum,
   fmtUsd,
   renderLogFeed,
-} from "./telemetry_logs.js?v=20261121r";
+} from "./telemetry_logs.js?v=20261121v";
 
 const WORKLOAD_LABELS = {
   llm_inference: "LLM inference",

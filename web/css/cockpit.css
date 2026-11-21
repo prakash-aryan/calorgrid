@@ -7289,3 +7289,674 @@ body:not(.app-mode-atlas) .brand-cluster {
     right: 8px !important;
   }
 }
+
+/* ============================================================================
+   BESPOKE SWISS CUSTOM SELECT (MOBILE BOTTOM SHEET + DESKTOP POPOVER)
+   + UN-SLOPPED MOBILE COMPUTE PAGE (compact Apple/Stripe pricing rows)
+   ============================================================================ */
+.cg-select-wrap {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+.cg-select-wrap.is-compact {
+  width: auto;
+  min-width: 170px;
+  max-width: 240px;
+  flex-shrink: 0;
+}
+.cg-native-select-sr {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+.cg-select-trigger {
+  appearance: none;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--cg-line-strong);
+  background: var(--cg-surface);
+  color: var(--cg-ink);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.cg-select-wrap.is-compact .cg-select-trigger {
+  min-height: 34px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  background: var(--cg-subtle);
+}
+.cg-select-trigger:hover {
+  border-color: var(--cg-ink);
+}
+.cg-select-trigger.is-open {
+  border-color: var(--cg-ink);
+  background: var(--cg-surface);
+}
+.cg-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cg-select-chevron {
+  flex-shrink: 0;
+  color: var(--cg-muted);
+  display: inline-flex;
+  align-items: center;
+  transition: transform 150ms ease;
+}
+.cg-select-trigger.is-open .cg-select-chevron {
+  transform: rotate(180deg);
+  color: var(--cg-ink);
+}
+
+/* Backdrop + Desktop Popover / Mobile Bottom Sheet */
+.cg-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(20, 20, 19, 0.34);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.cg-sheet-backdrop.is-visible {
+  opacity: 1;
+}
+.cg-sheet {
+  position: fixed;
+  z-index: 1210;
+  background: #ffffff;
+  color: var(--cg-ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Desktop Floating Popover */
+.cg-sheet.is-popover {
+  border: 1px solid var(--cg-line-strong);
+  border-radius: 11px;
+  box-shadow: 0 12px 32px rgba(20, 20, 19, 0.14);
+  max-height: 300px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.cg-sheet.is-popover.is-visible {
+  opacity: 1;
+  transform: none;
+}
+.cg-sheet-backdrop:has(+ .cg-sheet.is-popover) {
+  background: transparent;
+}
+
+/* Mobile Slide-Up Bottom Sheet (<= 1080px) */
+.cg-sheet:not(.is-popover) {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 76vh;
+  border-radius: 18px 18px 0 0;
+  border-top: 1px solid var(--cg-line);
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+  transform: translateY(100%);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cg-sheet:not(.is-popover).is-visible {
+  transform: translateY(0);
+}
+.cg-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d4d3cb;
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+.cg-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px 12px;
+  border-bottom: 1px solid var(--cg-line);
+  flex-shrink: 0;
+}
+.cg-sheet-head strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--cg-ink);
+}
+.cg-sheet-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #14537c;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 4px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.cg-sheet-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0;
+}
+.cg-sheet-opt {
+  appearance: none;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--cg-line);
+  background: #ffffff;
+  color: var(--cg-ink);
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 13px 18px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.cg-sheet.is-popover .cg-sheet-opt {
+  font-size: 13px;
+  padding: 9px 13px;
+  min-height: 36px;
+  border-bottom: none;
+}
+.cg-sheet-opt:last-child {
+  border-bottom: none;
+}
+.cg-sheet-opt:hover {
+  background: var(--cg-subtle);
+}
+.cg-sheet-opt.is-selected {
+  background: #f5f5f2;
+  font-weight: 600;
+}
+.cg-sheet-opt-label {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+.cg-sheet-opt-check {
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cg-ink);
+  width: 18px;
+  text-align: right;
+}
+
+/* Remove redundant Recalculate button clutter; keep Step Sim quiet & subtle */
+#cc-quote-btn {
+  display: none !important;
+}
+.cc-secondary-actions {
+  display: flex !important;
+  justify-content: center;
+  margin-top: 2px;
+}
+#cc-tick-btn {
+  appearance: none;
+  border: none !important;
+  background: transparent !important;
+  color: var(--cg-muted) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  min-height: 28px !important;
+  padding: 4px 10px !important;
+}
+#cc-tick-btn:hover {
+  color: var(--cg-ink) !important;
+}
+
+/* UN-SLOPPED MOBILE COMPUTE PAGE (<= 760px) */
+@media (max-width: 1080px) {
+  .cg-select-trigger {
+    min-height: 44px;
+    font-size: 15px;
+    padding: 9px 12px;
+  }
+  .cg-select-wrap.is-compact {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .cc-shell {
+    padding: 12px 12px 28px !important;
+    gap: 12px !important;
+  }
+  .cc-topbar-copy h2 {
+    font-size: 20px !important;
+  }
+  .cc-topbar-copy .sn-subtitle {
+    font-size: 12.5px !important;
+  }
+  .cc-booking-card {
+    padding: 14px !important;
+    gap: 12px !important;
+  }
+  /* Sleek compact segmented switches on mobile (not fat stacked pill boxes!) */
+  .cc-switch-stack {
+    gap: 6px !important;
+  }
+  .cc-seg-full {
+    padding: 2px !important;
+    border-radius: 9px !important;
+  }
+  .cc-seg-full .seg-btn {
+    min-height: 36px !important;
+    padding: 6px 8px !important;
+    font-size: 12.5px !important;
+  }
+  .cc-visual-stage {
+    grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr) !important;
+    padding-bottom: 12px !important;
+  }
+  .cc-vis-hw img,
+  .cc-vis-site video {
+    aspect-ratio: 16 / 10 !important;
+  }
+  .cc-vis-caption strong {
+    font-size: 11.5px !important;
+  }
+  .cc-vis-caption span {
+    font-size: 10.5px !important;
+  }
+  #cc-tick-btn {
+    display: none !important;
+  }
+
+  /* Compact 3-column Stripe/Apple mobile pricing rows (instead of 220px tall 5-row cards!) */
+  .cc-table-responsive tr {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px 8px !important;
+    padding: 12px 6px !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid var(--cg-line) !important;
+  }
+  .cc-table-responsive tr.is-selected {
+    padding-left: 10px !important;
+    box-shadow: inset 3px 0 0 var(--cg-ink) !important;
+  }
+  .cc-table-responsive td.cc-td-model {
+    grid-column: 1 / 3 !important;
+    padding-bottom: 2px !important;
+  }
+  /* Put Savings cleanly top-right beside the GPU name! */
+  .cc-table-responsive td:last-child {
+    grid-column: 3 / 4 !important;
+    grid-row: 1 !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+  }
+  .cc-table-responsive td:last-child::before {
+    display: none !important;
+  }
+  /* Hide the 5th column (secondary Lambda/Azure) on narrow phones so row 2 is a crisp 3-col: On-Demand | Spot | AWS */
+  .cc-table-responsive td:nth-child(5) {
+    display: none !important;
+  }
+  .cc-table-responsive td:nth-child(2),
+  .cc-table-responsive td:nth-child(3),
+  .cc-table-responsive td:nth-child(4) {
+    grid-row: 2 !important;
+  }
+  .cc-table-responsive td:not(.cc-td-model)::before {
+    font-size: 10.5px !important;
+    color: var(--cg-muted) !important;
+  }
+  .cc-table-responsive td strong {
+    font-size: 13px !important;
+  }
+  .cc-table-responsive td .cc-cell-sub {
+    font-size: 10.5px !important;
+  }
+  .cc-hw-thumb {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  .cc-hw-meta strong {
+    font-size: 13px !important;
+  }
+  .cc-pricing-meta {
+    font-size: 11px !important;
+    gap: 6px 10px !important;
+  }
+}
+
+/* ============================================================================
+   GLOBAL PRECISION ALIGNMENT, ZERO-CLIPPING & NEUTRAL GRAY SWISS MAP LAYER
+   ============================================================================ */
+
+/* 1. Pure neutral warm-gray 3D Swiss map background (zero blue sky tint) */
+.sn-map-host {
+  background: #eaeae6 !important;
+}
+
+/* 2. Footer attribution: block layout so text-overflow ellipsis never clips both ends on 1280px */
+.attribution-footer {
+  display: block !important;
+  line-height: 28px !important;
+  text-align: center !important;
+  padding: 0 20px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 3. Explore fiber routes bar: smooth right fade so scrolling chips never chop mid-character */
+.sn-flows-list {
+  -webkit-mask-image: linear-gradient(to right, #000000 90%, transparent 100%);
+  mask-image: linear-gradient(to right, #000000 90%, transparent 100%);
+  padding-right: 24px;
+}
+
+/* 4. Configure 2x2 server cards on desktop: clean stacked spec lines, zero orphan leading slash */
+@media (min-width: 1081px) {
+  .cfg-model-tags {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+  .cfg-model-tags span + span::before {
+    content: none !important;
+  }
+}
+
+/* 5. Compute desktop topbar: equalize heights and hairline borders across tabs, Refresh & Heat view */
+.cc-topbar-right {
+  align-items: center !important;
+  gap: 8px !important;
+}
+.cc-subtabs {
+  height: 38px;
+  align-items: center;
+}
+.cc-subtabs .subtab-btn {
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cc-refresh-btn,
+.cc-host-switch {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--cg-line-strong) !important;
+  background: var(--cg-surface) !important;
+  color: var(--cg-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.cc-refresh-btn:hover,
+.cc-host-switch:hover {
+  border-color: var(--cg-ink) !important;
+  background: var(--cg-subtle) !important;
+}
+
+/* 6. Visual stage: seamless dark studio fill for NVIDIA H100 SXM photo + clean 2-line site caption */
+.cc-vis-hw img[src*="gpu_h100_sxm"],
+.cc-hw-thumb[src*="gpu_h100_sxm"] {
+  background: #000000 !important;
+  padding: 0 !important;
+  border-color: #1f1f1d !important;
+}
+.cc-vis-caption strong {
+  white-space: normal !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.24;
+}
+.cc-quote-line span {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cc-quote-line strong {
+  min-width: 0;
+  text-align: right;
+  line-height: 1.3;
+}
+
+/* 7. Live Fleet: crisp expandable disclosure chevron & clean desktop scrollbar clearance */
+.cc-site-tel-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.cc-site-tel-title .cc-cell-sub {
+  padding-left: 14px;
+}
+.cc-site-tel-title strong {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.cc-site-tel-title strong::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 1.6px solid var(--cg-muted);
+  border-bottom: 1.6px solid var(--cg-muted);
+  transform: rotate(-45deg);
+  transition: transform 140ms ease;
+  flex-shrink: 0;
+  margin-left: 1px;
+}
+.cc-site-tel-card[open] .cc-site-tel-title strong::before {
+  transform: rotate(45deg);
+  border-color: var(--cg-ink);
+}
+.cc-jobs-list,
+.cc-telemetry-grid {
+  padding-right: 4px;
+}
+.hl-gpu-chip-top strong {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+}
+.hl-gpu-job {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-gpu-util {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 8. MOBILE PRECISION OVERRIDES (<= 1080px & <= 760px): ZERO CLIPPING, ZERO FLOAT, ZERO SCROLL TRAPS */
+@media (max-width: 1080px) {
+  .cc-refresh-btn,
+  .cc-host-switch {
+    display: none !important;
+  }
+  /* Razor-sharp 2x2 Swiss crosshair metric grid (kills stray left border on cell #3!) */
+  .cg-flat-metrics.cg-flat-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    border-top: 1px solid var(--cg-line) !important;
+    border-bottom: 1px solid var(--cg-line) !important;
+  }
+  .cg-flat-metrics.cg-flat-4 .cg-metric-cell,
+  .cg-flat-metrics.cg-flat-4 .cg-metric-cell + .cg-metric-cell {
+    border-left: none !important;
+    border-bottom: 1px solid var(--cg-line) !important;
+    padding: 12px 12px 12px 0 !important;
+  }
+  .cg-flat-metrics.cg-flat-4 .cg-metric-cell:nth-child(2n) {
+    border-left: 1px solid var(--cg-line) !important;
+    padding: 12px 0 12px 14px !important;
+  }
+  .cg-flat-metrics.cg-flat-4 .cg-metric-cell:nth-last-child(-n+2) {
+    border-bottom: none !important;
+  }
+
+  /* Kill nested scroll traps on mobile Live Fleet & Logs */
+  .cc-jobs-list,
+  .cc-telemetry-grid,
+  .cg-log-list {
+    max-height: none !important;
+    overflow-y: visible !important;
+    padding-right: 0 !important;
+  }
+
+  /* Unified smooth single-page mobile scroll on Configure & HeatLedger (no cramped inner scroll box!) */
+  .configurator-overlay,
+  .heatledger-overlay {
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: clip !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .configurator-overlay .app-split-shell,
+  .heatledger-overlay .app-split-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 10px 12px 28px !important;
+    gap: 12px !important;
+  }
+  .configurator-overlay .app-panel-col,
+  .heatledger-overlay .app-panel-col {
+    flex: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  .stage-floating-badge {
+    border-radius: 8px !important;
+    padding: 4px 8px !important;
+    font-size: 10.5px !important;
+    max-width: calc(100% - 20px) !important;
+    line-height: 1.25 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Explore mobile: crisp single-line roster filters (zero cut-off on 390px/360px) */
+  .sn-roster-filters {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    gap: 6px !important;
+  }
+  .sn-roster-filters .sn-pill {
+    min-height: 34px !important;
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+  }
+  .sn-kpi {
+    padding: 2px 8px !important;
+  }
+  .sn-kpi-val {
+    font-size: 14px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Compute Pricing mobile: remove double left bar & align ALL savings cleanly to right edge */
+  .cc-table-responsive tr.is-selected td:first-child {
+    box-shadow: none !important;
+  }
+  .cc-table-responsive td:last-child {
+    align-items: flex-end !important;
+    text-align: right !important;
+  }
+  .cc-table-responsive td:last-child .cc-savings-pill {
+    align-self: flex-end !important;
+    text-align: right !important;
+  }
+
+  /* Live Fleet mobile: zero floating mid-column text in Active Jobs & Per-Site cards! */
+  .cc-job-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 5px !important;
+    padding: 11px 0 !important;
+  }
+  .cc-job-right {
+    width: 100% !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+  .cc-site-tel-head {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+  .cc-site-tel-right {
+    width: 100% !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    text-align: left !important;
+    gap: 8px !important;
+    padding-left: 12px;
+  }
+  .cc-site-tel-right .cc-cell-sub {
+    margin-top: 0 !important;
+    text-align: right;
+  }
+  .cc-srv-head {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+  .cc-srv-head .hl-proc-pill {
+    font-size: 11.5px !important;
+  }
+
+  /* Logs mobile: wrap category tabs cleanly so ALL categories are visible (zero cut-off "Bo"!) */
+  .cg-log-filters {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    gap: 2px 14px !important;
+    padding-bottom: 6px !important;
+  }
+  .cg-log-tab {
+    padding: 6px 2px 7px !important;
+    font-size: 12.5px !important;
+  }
+}

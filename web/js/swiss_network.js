@@ -264,37 +264,38 @@ export function createSwissNetworkController({
     mapControls.maxPolarAngle = 1.24;
     setDefaultCamera();
 
-    // Clean sunlit Alpine architectural lighting
-    const hemi = new THREE.HemisphereLight(0xf8fbff, 0x9fb0c4, 1.15);
+    // Clean neutral Swiss architectural lighting (pure warm gray, zero blue sky cast)
+    mapScene.fog = new THREE.Fog(0xeaeae6, 40, 82);
+    const hemi = new THREE.HemisphereLight(0xfafaf8, 0xc2c2bc, 1.15);
     mapScene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff9f0, 1.55);
+    const sun = new THREE.DirectionalLight(0xfffcf7, 1.55);
     sun.position.set(-22, 34, 18);
     mapScene.add(sun);
 
-    const rim = new THREE.DirectionalLight(0xdbeafe, 0.55);
+    const rim = new THREE.DirectionalLight(0xf4f4f0, 0.5);
     rim.position.set(24, 18, -22);
     mapScene.add(rim);
 
-    // Clean architectural ground plane resting right below Switzerland's minimum terrain elevation (y=0.576)
+    // Seamless neutral architectural gray table resting right below Switzerland's minimum terrain elevation (y=0.576)
     const tablePlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(92, 64),
+      new THREE.PlaneGeometry(180, 140),
       new THREE.MeshStandardMaterial({
-        color: 0xeef2f6,
-        roughness: 0.96,
+        color: 0xeaeae6,
+        roughness: 0.98,
         metalness: 0.0,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.92,
       })
     );
     tablePlane.rotation.x = -Math.PI / 2;
     tablePlane.position.y = 0.54;
     mapScene.add(tablePlane);
 
-    const grid = new THREE.GridHelper(60, 30, 0xd4dde8, 0xe2e8f0);
+    const grid = new THREE.GridHelper(72, 36, 0xd4d4ce, 0xe0e0da);
     grid.position.y = 0.55;
     grid.material.transparent = true;
-    grid.material.opacity = 0.30;
+    grid.material.opacity = 0.34;
     mapScene.add(grid);
 
     nodesGroup = new THREE.Group();
@@ -663,8 +664,8 @@ export function createSwissNetworkController({
     kpiHost.innerHTML = `
       <div class="sn-kpi">
         <span class="sn-kpi-label">Active Sites</span>
-        <strong class="sn-kpi-val">${fa.total_nodes} Sites · ${fa.total_cantons} Cantons</strong>
-        <span class="sn-kpi-sub">${fa.total_servers} servers (${Math.round(ls.servers_active)} heating now)</span>
+        <strong class="sn-kpi-val">${fa.total_nodes} Sites</strong>
+        <span class="sn-kpi-sub">${fa.total_cantons} cantons · ${fa.total_servers} servers (${Math.round(ls.servers_active)} heating)</span>
       </div>
       <div class="sn-kpi">
         <span class="sn-kpi-label">Live Heat Output</span>

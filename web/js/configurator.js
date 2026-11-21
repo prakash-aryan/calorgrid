@@ -8,7 +8,7 @@ import {
   fmtChf,
   fmtNum,
   renderLogFeed,
-} from "./telemetry_logs.js?v=20261121r";
+} from "./telemetry_logs.js?v=20261121v";
 
 function buildStudioEnvironment(renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);

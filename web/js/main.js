@@ -1,9 +1,10 @@
 import { createCockpitScene } from "./scene.js?v=20261121n";
 import { createProvenanceController } from "./provenance.js?v=20261121n";
 import { createWorkerRackOverlay } from "./worker_rack.js?v=20261121n";
-import { createSwissNetworkController } from "./swiss_network.js?v=20261121n";
-import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121r";
-import { createComputeCustomerController } from "./compute_customer.js?v=20261121r";
+import { createSwissNetworkController } from "./swiss_network.js?v=20261121v";
+import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121v";
+import { createComputeCustomerController } from "./compute_customer.js?v=20261121v";
+import { initCustomSelects } from "./custom_select.js?v=20261121v";
 import { initHud } from "./hud.js?v=20261121n";
 
 const canvasEl = document.getElementById("canvas-3d");
@@ -214,11 +215,13 @@ document.querySelectorAll("[data-app-tab]").forEach((btn) => {
 });
 
 window.CalorGridFleet = swissNetworkCtrl;
+const customSelects = initCustomSelects();
 window.CalorGridApp = {
   setTab: setAppTab,
   fleet: swissNetworkCtrl,
   configurator: configuratorCtrl,
   computeCustomer: computeCustomerCtrl,
+  syncSelects: () => customSelects.syncAll(),
 };
 
 // Lightweight health check on initial load so header dot turns Live immediately without downloading Basel GLBs
