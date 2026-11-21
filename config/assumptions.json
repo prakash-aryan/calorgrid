@@ -1,0 +1,76 @@
+{
+  "_comment": "Single source of truth. Every number used by the simulator, live demo and dashboard is read from this file. Change a value, rerun `make year`, and every KPI updates.",
+
+  "reference_house": {
+    "location": {"value": "Basel", "lat": 47.5584, "lon": 7.5733, "source": "DigitalHeat case"},
+    "weather_year": {"value": 2025, "source": "Open-Meteo historical weather API (ERA5-based archive), hourly temperature_2m, timezone Europe/Zurich"},
+    "heating_day_threshold_c": {"value": 12.0, "unit": "degC daily mean", "source": "DigitalHeat case: heating day = daily mean < 12 degC"},
+    "indoor_base_temp_c": {"value": 20.0, "unit": "degC", "source": "Swiss SIA 380/1-style degree-hour base (assumption)"},
+    "space_heating_kwh_year": {"value": 27000, "unit": "kWh/a", "source": "DigitalHeat case (~27,000 kWh over 206 heating days)"},
+    "design_peak_kw": {"value": 10.0, "unit": "kW", "source": "DigitalHeat case (~10 kW on a cold day) - used as a sanity check only"},
+    "hot_water_kwh_day": {"value": 12.0, "unit": "kWh/day", "source": "DigitalHeat case (year-round)"},
+    "hot_water_shape": {"value": "morning+evening peaks (SIA 385/2-like)", "source": "assumption; daily total fixed at 12 kWh"},
+    "setback_temp_c": {"value": 16.0, "unit": "degC", "source": "assumption: heating setback while the family is on holiday (frost/comfort protection)"},
+    "away_hot_water_share": {"value": 0.1, "unit": "-", "source": "assumption: only legionella / circulation losses while away"},
+    "tank_usable_kwh": {"value": 35.0, "unit": "kWh", "source": "DigitalHeat case (35 kWh usable, no losses)"},
+    "tank_loss_per_hour": {"value": 0.0, "unit": "fraction/h", "source": "DigitalHeat case: no losses"}
+  },
+
+  "server": {
+    "electric_kw": {"value": 1.0, "unit": "kW", "source": "DigitalHeat case (1 kW server)"},
+    "heat_recovery": {"value": 0.8, "unit": "-", "source": "DigitalHeat case (80% recoverable -> 19.2 kWh/day)"},
+    "reference_hardware": {"value": "HPE ProLiant DL345 Gen12, 1x AMD EPYC 9375F + 4x NVIDIA RTX PRO 4500 Blackwell (32 GB)", "source": "MLPerf Inference v6.1 results 6.1-0056 / 6.1-0114 (summary.xlsx). 4x200 W GPU + ~200 W host = ~1 kW class"},
+    "idle_kw": {"value": 0.0, "unit": "kW", "source": "assumption: paused servers are suspended (S3, a few W); counted as 0"},
+    "capex_chf": {"value": 12000, "unit": "CHF/server", "source": "assumption: 4x RTX PRO 4500 (~CHF 2,400 each, list price 2026) + 1U EPYC host (~CHF 2,400)"},
+    "lifetime_years": {"value": 5, "unit": "years", "source": "assumption: typical GPU server depreciation"},
+    "install_chf_per_house": {"value": 6000, "unit": "CHF/house", "source": "assumption: water-cooled rack, heat exchanger, hydraulic connection to the existing tank"},
+    "install_lifetime_years": {"value": 15, "unit": "years", "source": "assumption: hydraulics lifetime"},
+    "opex_chf_per_server_year": {"value": 250, "unit": "CHF/server/a", "source": "assumption: connectivity share, monitoring, maintenance"},
+    "dry_cooler_chf": {"value": 4500, "unit": "CHF/house", "source": "assumption: 10-15 kW dry cooler incl. installation - only needed by policies that dump heat"},
+    "dry_cooler_fan_kwh_per_kwh": {"value": 0.03, "unit": "kWh_el per kWh dumped", "source": "assumption: dry-cooler fan + pump energy (~3% of rejected heat)"},
+    "discount_rate": {"value": 0.04, "unit": "1/a", "source": "assumption: cost of capital for annuity of capex"}
+  },
+
+  "energy_prices": {
+    "electricity_chf_per_kwh": {"value": 0.3325, "unit": "CHF/kWh", "source": "ElCom 2026, IWB Industrielle Werke Basel, Basel (BFS 2701), category H4, total price 33.25 Rp/kWh, fetched from strompreis.elcom.admin.ch API"},
+    "heat_pump_cop": {"value": 2.5, "unit": "-", "source": "DigitalHeat case: heat value = electricity price / 2.5"},
+    "heat_value_chf_per_kwh": {"value": 0.133, "unit": "CHF/kWh_th", "source": "derived: 0.3325 / 2.5"}
+  },
+
+  "market": {
+    "gpu_rental_low_chf_per_server_h": {"value": 0.90, "unit": "CHF/server-h", "source": "4 consumer/prosumer Blackwell-class GPUs on spot marketplaces, ~USD 0.25-0.35 per GPU-h (vast.ai/runpod community-cloud, 2026 range)"},
+    "gpu_rental_high_chf_per_server_h": {"value": 2.40, "unit": "CHF/server-h", "source": "4x L4/RTX-6000-class on-demand, hyperscaler / Swiss sovereign cloud range ~USD 0.6-0.8 per GPU-h"},
+    "sovereign_premium": {"value": 0.15, "unit": "-", "source": "assumption: Swiss-hosted, data-stays-in-CH premium vs. offshore spot"}
+  },
+
+  "workload": {
+    "jobs_source": {"value": "Job durations, GPU share and the daily arrival shape are resampled from the Alibaba PAI GPU trace 2020 (pai_task_table, ~6,500 GPUs, Jul-Aug 2020). Throughput/energy per job: MLPerf Inference v6.1 for the reference server; own measurements for the laptop demo jobs.", "source": "see data/derived/"},
+    "demand_factor": {"value": 0.6, "unit": "x fleet heat-matched server-h/year", "source": "assumption: deadline (SLA) jobs sold = 60% of the fleet's yearly heat-matched capacity, flat over the year; sensitivity sweep 0.3-1.2 in results"},
+    "backfill": {"value": true, "source": "Best-effort spot work without deadline (e.g. public-archive embedding, evaluation sweeps, rendering) fills any remaining heat budget. Always available on GPU spot markets."},
+    "spot_price_ratio": {"value": 0.5, "unit": "x SLA price", "source": "assumption: spot/backfill sells at ~50% of on-demand (typical cloud spot discount 50-70%)"},
+    "max_slack_hours_default": {"value": 24, "unit": "h", "source": "assumption: batch SLAs 'next business day'"}
+  },
+
+  "regional": {
+    "electricity_by_site": {"value": "per municipality", "source": "ElCom 2026 H4 total price per BFS municipality, fetched live by scripts/fetch_data.py -> data/derived/elcom_sites_2026.json (Basel 33.25 ... Zermatt 22.32 Rp/kWh)"},
+    "price_weight": {"value": 0.0, "unit": "-", "source": "dispatcher tie-break towards cheaper electricity. Tested at 0.05: no fleet cost effect, because backfill fills every heat budget anyway, so each site's electricity use is set by its heat demand. Regional prices therefore matter for per-site economics (see map), not for routing."}
+  },
+
+  "reliability": {
+    "outages_per_site_year": {"value": 2, "unit": "1/a", "source": "assumption: residential internet / server faults (two events per site per year)"},
+    "outage_hours": {"value": 18, "unit": "h", "source": "assumption: until a technician / ISP restores service"}
+  },
+
+  "impact": {
+    "datacenter_pue": {"value": 1.56, "unit": "-", "source": "Uptime Institute Global Data Center Survey 2024: average PUE 1.56"},
+    "grid_co2_g_per_kwh": {"value": 128, "unit": "g CO2-eq/kWh", "source": "assumption: Swiss consumer electricity mix incl. imports (order of magnitude of KBOB / BAFU values)"}
+  },
+
+  "scheduler": {
+    "forecast_horizon_h": {"value": 36, "unit": "h", "source": "Open-Meteo forecast horizon used in practice is 7 days; we plan 36 h ahead"},
+    "forecast_error_sd_c": {"value": 1.5, "unit": "degC", "source": "assumption: typical day-ahead 2 m temperature RMSE at 24 h lead (MeteoSwiss verification order of magnitude)"},
+    "forecast_trust": {"value": 0.7, "unit": "-", "source": "tuned on 2025 (sweep 0.7/0.8/0.9): planning on 70% of forecast heat sink gives fewest rejections AND misses (less over-commitment cascade)"},
+    "admission_margin": {"value": 1.5, "unit": "x job work", "source": "tuned together with forecast_trust"},
+    "dump_allowed": {"value": false, "source": "Reference house has no dry cooler: heat that cannot be stored must not be produced (zero-dump policy). Set true to model a dry cooler."}
+  }
+}

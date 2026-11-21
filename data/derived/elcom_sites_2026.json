@@ -1,0 +1,65 @@
+{
+  "source": "ElCom strompreis.elcom.admin.ch GraphQL, 2026, H4, total",
+  "sites": {
+    "basel_ref": {
+      "bfs": "2701",
+      "operator": "IWB Industrielle Werke Basel",
+      "rp_per_kwh": 33.25,
+      "n_tariffs": 1
+    },
+    "basel_mfh": {
+      "bfs": "2701",
+      "operator": "IWB Industrielle Werke Basel",
+      "rp_per_kwh": 33.25,
+      "n_tariffs": 1
+    },
+    "riehen_sfh": {
+      "bfs": "2703",
+      "operator": "IWB Industrielle Werke Basel",
+      "rp_per_kwh": 33.25,
+      "n_tariffs": 1
+    },
+    "liestal_mfh": {
+      "bfs": "2829",
+      "operator": "EBL (Genossenschaft Elektra Baselland)",
+      "rp_per_kwh": 30.096,
+      "n_tariffs": 2
+    },
+    "aarau_pool": {
+      "bfs": "4001",
+      "operator": "Eniwa AG",
+      "rp_per_kwh": 27.173,
+      "n_tariffs": 1
+    },
+    "zurich_mfh": {
+      "bfs": "261",
+      "operator": "Elektrizit\u00e4tswerk der Stadt Z\u00fcrich",
+      "rp_per_kwh": 24.658,
+      "n_tariffs": 2
+    },
+    "davos_hotel": {
+      "bfs": "3851",
+      "operator": "EWD Elektrizit\u00e4tswerk Davos AG",
+      "rp_per_kwh": 23.511000000000003,
+      "n_tariffs": 2
+    },
+    "stmoritz_sfh": {
+      "bfs": "3787",
+      "operator": "St. Moritz Energie",
+      "rp_per_kwh": 26.977,
+      "n_tariffs": 1
+    },
+    "zermatt_hotel": {
+      "bfs": "6300",
+      "operator": "EWZ Elektrizit\u00e4tswerk Zermatt AG",
+      "rp_per_kwh": 22.32,
+      "n_tariffs": 1
+    },
+    "lugano_mfh": {
+      "bfs": "5192",
+      "operator": "Aziende Industriali di Lugano (AIL) SA",
+      "rp_per_kwh": 24.833,
+      "n_tariffs": 2
+    }
+  }
+}

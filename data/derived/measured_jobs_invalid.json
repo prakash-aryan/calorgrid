@@ -1,0 +1,30 @@
+{
+  "machine": "Apple M5 (arm64), CPU only, 4 threads",
+  "measured_at": "2026-11-21 00:26",
+  "idle_w": 55.781387096774196,
+  "method": "ioreg AppleSmartBattery PowerTelemetryData AccumulatedSystemLoad/SystemLoadAccumulatorCount (whole-system mean over the run window)",
+  "image_tag": {
+    "items": 1360,
+    "runtime_s": 125.81462907791138,
+    "model_load_s": 1.4509758949279785,
+    "mean_w": 23.618507936507935,
+    "items_per_s": 10.809553785337735,
+    "incremental_w": 0.1,
+    "j_per_item_incremental": 0.009251075667493483,
+    "j_per_item_system": 2.184966040739303,
+    "items_per_kwh": 389143936.2721585,
+    "items_per_kwh_system": 1647622.861352073
+  },
+  "embed": {
+    "items": 16736,
+    "runtime_s": 144.8349461555481,
+    "model_load_s": 3.4442508220672607,
+    "mean_w": 18.498986206896554,
+    "items_per_s": 115.55222302513975,
+    "incremental_w": 0.1,
+    "j_per_item_incremental": 0.0008654095731091546,
+    "j_per_item_system": 0.16009199756262485,
+    "items_per_kwh": 4159880028.9050303,
+    "items_per_kwh_system": 22487070.277149554
+  }
+}
