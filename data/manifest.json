@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0.0",
+  "generated_utc": "2026-11-20T23:38:54Z",
+  "files": {
+    "open_meteo_basel_2025_utc.csv": {
+      "sha256": "f251d8f9540fee28c2027725fea04d921457e0915bb5c49db9671e6d91c0a929",
+      "bytes": 274930,
+      "source_url": "https://archive-api.open-meteo.com/v1/archive?latitude=47.56&longitude=7.59&start_date=2024-12-31&end_date=2025-12-31&hourly=temperature_2m,shortwave_radiation,direct_normal_irradiance&timezone=UTC&format=csv",
+      "retrieved_utc": "2026-11-20T23:38:54Z",
+      "license": "CC BY 4.0 (Open-Meteo)",
+      "notes": "Padded 2024-12-31..2025-12-31 UTC for exact 8,760 Europe/Zurich 2025 hours"
+    },
+    "open_meteo_davos_2025_utc.csv": {
+      "sha256": "c80cde098105d007728bc0c628292e8c9a5b35545a1fc012f2b10cca3d1974fa",
+      "bytes": 275319,
+      "source_url": "https://archive-api.open-meteo.com/v1/archive?latitude=46.80&longitude=9.84&start_date=2024-12-31&end_date=2025-12-31&hourly=temperature_2m,shortwave_radiation,direct_normal_irradiance&timezone=UTC&format=csv",
+      "retrieved_utc": "2026-11-20T23:38:54Z",
+      "license": "CC BY 4.0 (Open-Meteo)",
+      "notes": "Padded 2024-12-31..2025-12-31 UTC for exact 8,760 Europe/Zurich 2025 hours"
+    },
+    "heatwise_summary.json": {
+      "sha256": "4879f9a32c82e8cc6167add2116c5a70708b8c1002a9f2889f68b47d0adf89a8",
+      "bytes": 23352,
+      "source_url": "https://zenodo.org/api/records/23237930/files/HEATWISE_OCP_zenodo_package.zip/content",
+      "retrieved_utc": "2026-11-20T23:38:54Z",
+      "license": "CC BY 4.0 (HEATWISE Zenodo 23237930)",
+      "notes": "Extracted summary of all 8 OCP cases (air Cases 1-5 and hybrid Cases 6-8)"
+    },
+    "mlperf_v51_offline_summary.json": {
+      "sha256": "7042afe4f1d2b51695db583d62d9b8284f8c3864d2ae27ad9916f86ccdf99759",
+      "bytes": 6495,
+      "source_url": "https://raw.githubusercontent.com/mlcommons/inference_results_v5.1/main/summary_results.json",
+      "retrieved_utc": "2026-11-20T23:38:54Z",
+      "license": "Apache-2.0 (MLCommons)",
+      "notes": "Extracted 11 audited Offline entries with has_power=true"
+    },
+    "elcom_basel_2026.json": {
+      "sha256": "730b3327bb1c5974a9408d134a0b20dbddd943473257eef206e415d9d6c8eee1",
+      "bytes": 2080,
+      "source_url": "https://lindas.admin.ch/query",
+      "retrieved_utc": "2026-11-20T23:38:54Z",
+      "license": "Open Government Data Switzerland (ElCom / LINDAS)",
+      "notes": "2026 IWB Basel (municipality 2701, operator 624) H4 and C2-C6 tariffs"
+    }
+  },
+  "upstream_sources": {
+    "heatwise_zenodo_zip": {
+      "url": "https://zenodo.org/api/records/23237930/files/HEATWISE_OCP_zenodo_package.zip/content",
+      "sha256": "ceaaadc266a2fa71657fe0c134e87ead8e82143421ddf0c01b6377ebf301eb03",
+      "bytes": 1392579,
+      "license": "CC BY 4.0"
+    },
+    "mlperf_v51_summary_json": {
+      "url": "https://raw.githubusercontent.com/mlcommons/inference_results_v5.1/main/summary_results.json",
+      "sha256": "68c19b46cf5a87f535beae81154d61c3d981fe850ae3d09af530c769b6e0cc68",
+      "bytes": 2221336,
+      "license": "Apache-2.0"
+    }
+  }
+}

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
+  <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121k">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three/build/three.module.js",
+      "three/addons/": "/vendor/three/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="canvas-3d" data-testid="canvas-3d" hidden aria-label="CalorGrid 3D Thermal-Compute Atlas Viewport"></canvas>
+
+  <header class="cockpit-header" data-testid="cockpit-header">
+    <div class="brand-cluster">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="cg-nav-loop" x1="16" y1="48" x2="48" y2="16" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="50%" stop-color="#f97316"/>
+              <stop offset="100%" stop-color="#ef4444"/>
+            </linearGradient>
+            <linearGradient id="cg-nav-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#202026"/>
+              <stop offset="100%" stop-color="#111115"/>
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#cg-nav-bg)"/>
+          <rect x="13" y="13" width="16" height="16" rx="4" stroke="#ffffff" stroke-opacity="0.26" stroke-width="2.2"/>
+          <rect x="35" y="13" width="16" height="16" rx="4" fill="#ef4444" fill-opacity="0.22" stroke="#f87171" stroke-width="2.2"/>
+          <rect x="13" y="35" width="16" height="16" rx="4" fill="#0284c7" fill-opacity="0.22" stroke="#38bdf8" stroke-width="2.2"/>
+          <rect x="35" y="35" width="16" height="16" rx="4" stroke="#ffffff" stroke-opacity="0.26" stroke-width="2.2"/>
+          <path d="M 21 43 L 21 32 Q 21 21 32 21 L 43 21" stroke="url(#cg-nav-loop)" stroke-width="5.6" stroke-linecap="round"/>
+          <path d="M 21 43 L 32 43 Q 43 43 43 32 L 43 21" stroke="url(#cg-nav-loop)" stroke-width="3.2" stroke-linecap="round" opacity="0.45"/>
+          <circle cx="21" cy="43" r="3.6" fill="#e0f2fe"/>
+          <circle cx="43" cy="21" r="4.0" fill="#fde047"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-title">CalorGrid</span>
+        <span class="brand-sub">Swiss Thermal-Compute Network</span>
+      </div>
+      <span class="health-badge" data-testid="api-health-badge">Live</span>
+
+      <nav class="app-top-tabs" data-testid="app-top-tabs" aria-label="Primary App Views">
+        <button type="button" class="app-tab-btn is-active" data-app-tab="explore">Explore</button>
+        <button type="button" class="app-tab-btn" data-app-tab="configure">Configure</button>
+        <button type="button" class="app-tab-btn" data-app-tab="heatledger">HeatLedger</button>
+      </nav>
+
+      <div class="mobile-header-actions">
+        <button type="button" class="btn-order-compact" data-app-tab="configure" aria-label="Configure hosting and heating for your building">Host &amp; Heat</button>
+        <button type="button" class="btn-toggle atlas-only-mobile" data-testid="toggle-mobile-controls" aria-expanded="false" aria-label="Toggle simulation filters">Filters</button>
+        <button type="button" class="btn-switch atlas-only-mobile" data-testid="toggle-panels-mobile" aria-pressed="false" aria-label="Toggle info panels">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span>Panels</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-ribbon">
+      <div class="preset-group" role="group" aria-label="Camera Presets" data-testid="camera-presets">
+        <button type="button" class="btn-chip is-active" data-testid="preset-scorecard" data-preset="scorecard">Basel Overview</button>
+        <button type="button" class="btn-chip" data-testid="preset-jan-peak" data-preset="jan_peak">Jan Peak</button>
+        <button type="button" class="btn-chip" data-testid="preset-jul-dump" data-preset="jul_dump">Jul Dump</button>
+        <button type="button" class="btn-chip" data-testid="preset-live-rack" data-preset="live_rack">Live Rack</button>
+        <button type="button" class="btn-chip" data-testid="preset-summer-verbund" data-preset="summer_verbund">Summer Verbund</button>
+        <button type="button" class="btn-chip btn-chip-swiss" data-testid="preset-swiss-network" data-preset="swiss_network">Swiss Fleet (14)</button>
+      </div>
+
+      <div class="header-controls">
+        <div class="select-controls-group" data-testid="select-controls-group">
+          <label class="control-inline">
+            <span>Policy</span>
+            <select data-testid="strategy-select" aria-label="Scheduler strategy">
+              <option value="smart" selected>Smart (Heat-Led)</option>
+              <option value="baseline">Baseline (Run-on-Arrival)</option>
+              <option value="smart_heat_led">Smart Strict Heat-Led</option>
+              <option value="smart_sla">Smart SLA Priority</option>
+              <option value="adapter">External Adapter</option>
+            </select>
+          </label>
+
+          <label class="control-inline">
+            <span>Racks</span>
+            <select data-testid="servers-select" aria-label="Servers per house">
+              <option value="1">1 x 1 kW</option>
+              <option value="2">2 x 1 kW</option>
+              <option value="4" selected>4 x 1 kW</option>
+              <option value="8">8 x 1 kW</option>
+              <option value="12">12 x 1 kW</option>
+              <option value="16">16 x 1 kW</option>
+            </select>
+          </label>
+
+          <label class="control-inline">
+            <span>Climate</span>
+            <select data-testid="site-select" aria-label="Weather site">
+              <option value="basel" selected>Basel</option>
+              <option value="davos">Davos</option>
+            </select>
+          </label>
+        </div>
+
+        <button type="button" class="btn-toggle" data-testid="toggle-xray" aria-pressed="false" data-active="false">X-Ray</button>
+        <button type="button" class="btn-toggle" data-testid="toggle-provenance" aria-pressed="false" data-active="false">Provenance</button>
+        <button type="button" class="btn-toggle btn-toggle-accent" data-testid="toggle-sensitivity" aria-expanded="false">Sensitivity</button>
+        <button type="button" class="btn-switch desktop-panels-switch" data-testid="toggle-panels" aria-pressed="true" title="Toggle HUD panels (H)">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span>Panels</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <aside class="provenance-legend" data-testid="provenance-legend" hidden>
+    <div class="legend-header">
+      <strong>Evidence &amp; Provenance Overlay</strong>
+      <span class="legend-disclaimer" id="provenance-disclaimer">Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence</span>
+    </div>
+    <div class="legend-grid" id="provenance-categories-grid">
+      <div class="legend-item">
+        <span class="swatch" style="background:#16a34a"></span>
+        <div>
+          <div class="legend-label">Live Observed (OS Process ID)</div>
+          <div class="legend-desc">Live OS CPU process state, CPU time and SIGSTOP/SIGCONT transitions.</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <span class="swatch" style="background:#d97706"></span>
+        <div>
+          <div class="legend-label">Benchmark Inputs &amp; Assumptions</div>
+          <div class="legend-desc">Pinned Open-Meteo 2025 weather, ElCom H4 tariff and 35 kWh lossless tank.</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <span class="swatch" style="background:#0284c7"></span>
+        <div>
+          <div class="legend-label">Geodata / Open Blueprint / CAD Stand-Ins</div>
+          <div class="legend-desc">swisstopo, OpenStreetMap, open IFC 4.3 blueprint and SimReady hardware.</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <span class="swatch" style="background:#7c3aed"></span>
+        <div>
+          <div class="legend-label">Empirical Sensitivity Bounds</div>
+          <div class="legend-desc">HEATWISE idle draw, MLPerf v5.1, ASHRAE W45, CAPEX scaling and tariff spread.</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="hud-rails">
+    <div class="rail-left">
+      <section class="panel-card" data-testid="kpi-scorecard" data-panel-id="ledger">
+        <div class="panel-head">
+          <h2>Annual Reference Ledger</h2>
+          <div class="panel-head-actions">
+            <span class="badge-mono" id="scorecard-meta">Basel 2025 | smart</span>
+            <button type="button" class="panel-collapse-btn" data-panel-toggle="ledger" aria-expanded="true" aria-label="Collapse Annual Reference Ledger" title="Toggle panel">−</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+        <div class="kpi-grid">
+          <div class="kpi-tile">
+            <span class="kpi-label">Servers / House</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val" data-testid="kpi-servers-per-house"></span>
+              <span class="kpi-unit">x 1 kW</span>
+            </div>
+            <span class="kpi-sub" id="kpi-heating-days-sub"></span>
+          </div>
+
+          <div class="kpi-tile">
+            <span class="kpi-label">Heat Covered</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val accent-blue" data-testid="kpi-heat-covered"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-heat-covered-sub"></span>
+          </div>
+
+          <div class="kpi-tile">
+            <span class="kpi-label">Heat Dumped</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val accent-amber" data-testid="kpi-heat-dumped"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-heat-dumped-sub"></span>
+          </div>
+
+          <div class="kpi-tile">
+            <span class="kpi-label">Utilisation</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val accent-green" data-testid="kpi-server-utilisation"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-server-hours-sub"></span>
+          </div>
+
+          <div class="kpi-tile">
+            <span class="kpi-label">Missed Deadlines</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val accent-red" data-testid="kpi-missed-deadlines"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-jobs-sub"></span>
+          </div>
+
+          <div class="kpi-tile">
+            <span class="kpi-label">Electricity Cost</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val" data-testid="kpi-electricity-cost"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-electricity-sub">IWB H4 0.3325 CHF/kWh</span>
+          </div>
+
+          <div class="kpi-tile">
+            <span class="kpi-label">Compute Income</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val" data-testid="kpi-computing-income"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-heat-value-sub"></span>
+          </div>
+
+          <div class="kpi-tile kpi-tile-emphasis">
+            <span class="kpi-label">OPEX Break-Even</span>
+            <div class="kpi-val-row">
+              <span class="kpi-val accent-blue" data-testid="kpi-break-even"></span>
+            </div>
+            <span class="kpi-sub" id="kpi-residual-sub"></span>
+          </div>
+        </div>
+
+        <div class="negative-payoff-banner" data-testid="negative-payoff-banner"></div>
+        </div>
+      </section>
+
+      <section class="panel-card" data-testid="thermal-telemetry" data-panel-id="thermal">
+        <div class="panel-head">
+          <h2>Hourly Thermal State</h2>
+          <div class="panel-head-actions">
+            <span class="badge-mono" id="telemetry-timestamp">2025-01-15 12:00</span>
+            <button type="button" class="panel-collapse-btn" data-panel-toggle="thermal" aria-expanded="true" aria-label="Collapse Hourly Thermal State" title="Toggle panel">−</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+        <div class="scrubber-row">
+          <label class="scrubber-field">
+            <span>Date (2025)</span>
+            <input type="date" data-testid="day-picker" min="2025-01-01" max="2025-12-31" value="2025-01-15">
+          </label>
+          <label class="scrubber-field scrubber-hour">
+            <span>Local Hour <strong id="hour-label">12</strong>:00</span>
+            <input type="range" data-testid="hour-slider" min="0" max="23" step="1" value="12">
+          </label>
+        </div>
+
+        <div class="dst-note" id="dst-note" hidden></div>
+
+        <div class="readout-list">
+          <div class="readout-row">
+            <span class="readout-key">35 kWh Buffer Tank</span>
+            <span class="readout-val" data-testid="readout-tank-soc">-</span>
+          </div>
+          <div class="readout-row">
+            <span class="readout-key">Hydronic Loop</span>
+            <span class="readout-val" data-testid="readout-water-temps">-</span>
+          </div>
+          <div class="readout-row">
+            <span class="readout-key">Outdoor Temp (Zurich)</span>
+            <span class="readout-val" data-testid="readout-outdoor-temp">-</span>
+          </div>
+          <div class="readout-row">
+            <span class="readout-key">Basement Air (1-Node)</span>
+            <span class="readout-val" data-testid="readout-basement-air-temp">-</span>
+          </div>
+          <div class="readout-row">
+            <span class="readout-key">Heat Dump Bypass</span>
+            <span class="readout-val accent-red" data-testid="readout-heat-dump">-</span>
+          </div>
+        </div>
+
+        <div class="model-callout">
+          <strong>5-line lumped 1-node air model</strong> (20% unrecovered heat, not 3D CFD):
+          <code>Q_air = 0.20*P_srv</code> | <code>C = 0.5 kWh/K</code> | <code>UA = 0.12 kW/K</code>
+        </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="rail-right">
+      <section class="panel-card" data-testid="worker-panel" data-panel-id="worker">
+        <div class="panel-head">
+          <h2>Live CPU Batch Worker</h2>
+          <div class="panel-head-actions">
+            <span class="state-pill state-idle" data-testid="worker-state">IDLE</span>
+            <button type="button" class="panel-collapse-btn" data-panel-toggle="worker" aria-expanded="true" aria-label="Collapse Live CPU Batch Worker" title="Toggle panel">−</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+        <div class="worker-controls">
+          <select data-testid="worker-job-select" aria-label="Digital Humanities job type">
+            <option value="archive_ocr" selected>Archive OCR (tesseract)</option>
+            <option value="iiif_embeddings">IIIF Image Embeddings</option>
+            <option value="audio_transcription">Audio Features (MFCC)</option>
+          </select>
+
+          <div class="btn-row">
+            <button type="button" class="btn-action btn-start" data-testid="worker-start-btn">Start</button>
+            <button type="button" class="btn-action" data-testid="worker-pause-btn">Pause</button>
+            <button type="button" class="btn-action" data-testid="worker-resume-btn">Resume</button>
+            <button type="button" class="btn-action btn-stop" data-testid="worker-stop-btn">Stop</button>
+          </div>
+          <button type="button" class="btn-action btn-signal" data-testid="worker-heat-signal-btn">Apply Scheduler Heat Signal</button>
+        </div>
+
+        <div class="readout-list">
+          <div class="readout-row">
+            <span class="readout-key">OS Process ID</span>
+            <span class="readout-val mono" data-testid="worker-pid">-</span>
+          </div>
+          <div class="readout-row">
+            <span class="readout-key">1 kW Modelled Rate</span>
+            <span class="readout-val mono" data-testid="worker-scaled-throughput">idle</span>
+          </div>
+          <div class="readout-row">
+            <span class="readout-key">Est. Energy / Units</span>
+            <span class="readout-val mono" id="worker-energy-readout">0.0 J | 0 units</span>
+          </div>
+        </div>
+        <div class="worker-caption" id="worker-arrival-caption">
+          ReferenceScheduler pauses and resumes the live OS process group with SIGSTOP and SIGCONT.
+        </div>
+        </div>
+      </section>
+
+      <section class="panel-card" data-testid="verbund-panel" data-panel-id="verbund">
+        <div class="panel-head">
+          <h2>Summer Verbund Sinks</h2>
+          <div class="panel-head-actions">
+            <span class="badge-mono" id="verbund-ashrae-badge">W45</span>
+            <button type="button" class="panel-collapse-btn" data-panel-toggle="verbund" aria-expanded="true" aria-label="Collapse Summer Verbund Sinks" title="Toggle panel">−</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+        <select class="full-select" data-testid="verbund-scene-select" aria-label="Verbund thermal scene">
+          <option value="basel_erdsonde" selected>Basel Dual-Sink: Erdsonde-Regeneration (35-45 C)</option>
+          <option value="basel_pool_st_jakob">Basel Freibad: Gartenbad St. Jakob (26-34 C)</option>
+          <option value="sole_uno">Sole Uno Wellness Rheinfelden (30-35 C)</option>
+          <option value="hotel_laundry_dhw">Hotel &amp; Laundry Preheat (45-60 C)</option>
+          <option value="brewery_dairy_cip">Brewery &amp; Dairy CIP Preheat (45-65 C)</option>
+          <option value="ara_basel_biogas">ARA Basel 24/7 Biogas Digester (37-42 C)</option>
+          <option value="davos_alpine">Davos Alpine Reference House (291 Heating Days)</option>
+        </select>
+
+        <div class="verbund-metric" data-testid="verbund-dump-elimination"></div>
+
+        <div class="verbund-valve-box" data-testid="verbund-valve-split">
+          <div class="valve-bar">
+            <div class="valve-seg seg-primary" id="valve-seg-primary" style="width:100%"></div>
+            <div class="valve-seg seg-secondary" id="valve-seg-secondary" style="width:0%"></div>
+            <div class="valve-seg seg-dump" id="valve-seg-dump" style="width:0%"></div>
+          </div>
+          <div class="valve-text" id="valve-split-text"></div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="compact-table" data-testid="verbund-comparison-table">
+            <thead>
+              <tr>
+                <th>Archetype</th>
+                <th>Util %</th>
+                <th>Dump kWh</th>
+                <th>CHF/srv-h</th>
+              </tr>
+            </thead>
+            <tbody id="verbund-comparison-tbody"></tbody>
+          </table>
+        </div>
+        <div class="verbund-citation" id="verbund-citation"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <nav class="mobile-panel-dock" data-testid="mobile-panel-dock" aria-label="Panel Switcher">
+    <button type="button" class="dock-btn is-active" data-mobile-panel="none">3D View</button>
+    <button type="button" class="dock-btn" data-mobile-panel="ledger">Ledger</button>
+    <button type="button" class="dock-btn" data-mobile-panel="thermal">Thermal</button>
+    <button type="button" class="dock-btn" data-mobile-panel="worker">Worker</button>
+    <button type="button" class="dock-btn" data-mobile-panel="verbund">Verbund</button>
+  </nav>
+
+  <aside class="sensitivity-drawer" data-testid="sensitivity-panel" hidden>
+    <div class="drawer-head">
+      <div>
+        <h2>Empirical Sensitivity Analysis</h2>
+        <p class="drawer-sub">Empirical bounds from HEATWISE (Zenodo 23237930), MLPerf v5.1 Offline (derived, not verified by MLCommons), ASHRAE W45, CAPEX scaling and ElCom 2026 tariffs.</p>
+      </div>
+      <button type="button" class="btn-chip" id="close-sensitivity-btn">Close</button>
+    </div>
+
+    <div class="sens-grid">
+      <section class="sens-card" data-testid="sens-heatwise"></section>
+      <section class="sens-card" data-testid="sens-ashrae"></section>
+      <section class="sens-card" data-testid="sens-capex"></section>
+      <section class="sens-card" data-testid="sens-tariff"></section>
+      <section class="sens-card sens-card-wide" data-testid="sens-mlperf"></section>
+    </div>
+  </aside>
+
+  <section class="swiss-network-overlay" data-testid="swiss-network-overlay" hidden>
+    <div class="sn-topbar">
+      <div class="sn-title-group">
+        <h2>Switzerland Network</h2>
+      </div>
+      <div class="sn-controls">
+        <div class="sn-year-scrubber" role="group" aria-label="Month of year">
+          <div class="sn-year-head">
+            <span>Month</span>
+            <strong id="sn-month-label">Jul (29 C)</strong>
+          </div>
+          <input type="range" id="sn-month-slider" class="cg-slider sn-month-slider" min="1" max="12" step="1" value="7" aria-label="Select month from January to December">
+          <div class="sn-year-ticks">
+            <button type="button" data-sn-season="jan" data-doy="15" data-hour="8">Jan</button>
+            <button type="button" data-sn-season="apr" data-doy="105" data-hour="14">Apr</button>
+            <button type="button" class="is-active" data-sn-season="jul" data-doy="196" data-hour="14">Jul</button>
+            <button type="button" data-sn-season="oct" data-doy="288" data-hour="14">Oct</button>
+          </div>
+        </div>
+        <div class="sn-pill-group sn-desktop-only" role="group" aria-label="Scheduler">
+          <button type="button" class="sn-pill is-active" data-sn-strategy="smart">Smart</button>
+          <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
+        </div>
+        <button type="button" class="sn-btn-primary sn-desktop-only" id="sn-order-server-btn">Host a server</button>
+      </div>
+    </div>
+
+    <div class="sn-kpi-strip" id="swiss-fleet-kpis"></div>
+
+    <div class="sn-body">
+      <div class="sn-map-pane">
+        <div id="swiss-map-svg-host" class="sn-map-host"></div>
+        <div class="sn-map-legend">
+          <span><i style="background:#d9480f"></i>Heating</span>
+          <span><i style="background:#0284c7"></i>Receiving</span>
+          <span><i style="background:#64748b"></i>Sharing</span>
+        </div>
+        <div class="sn-flows-bar sn-desktop-only">
+          <span class="sn-flows-label">Fiber routes</span>
+          <div id="swiss-active-flows" class="sn-flows-list"></div>
+        </div>
+      </div>
+
+      <aside class="sn-side-pane">
+        <div id="swiss-node-detail" class="sn-detail-card"></div>
+        <div class="sn-roster-wrap">
+          <div class="sn-roster-filters">
+            <button type="button" class="sn-pill is-active" data-sn-filter="all">All (14)</button>
+            <button type="button" class="sn-pill" data-sn-filter="homes">Homes (7)</button>
+            <button type="button" class="sn-pill" data-sn-filter="farms">Farms (3)</button>
+            <button type="button" class="sn-pill" data-sn-filter="sinks">Pools &amp; Civic (4)</button>
+          </div>
+          <div id="swiss-node-roster" class="sn-roster-list"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <div class="swiss-rtx-stage" data-testid="swiss-rtx-stage" hidden>
+    <video id="swiss-rtx-video" class="swiss-rtx-video" autoplay muted loop playsinline preload="auto"></video>
+    <div id="sn-site-basement-host" class="sn-site-basement-host" hidden></div>
+    <div class="sn-rtx-topctrl">
+      <button type="button" class="sn-rtx-back-btn" id="sn-rtx-back-btn">&lt;- Map</button>
+      <div class="sn-rtx-mode-toggle" role="group" aria-label="Site 3D View">
+        <button type="button" class="sn-rtx-mode-btn is-active" id="sn-view-exterior">Outside</button>
+        <button type="button" class="sn-rtx-mode-btn" id="sn-view-basement">Inside</button>
+      </div>
+    </div>
+    <div class="swiss-rtx-badge" id="swiss-rtx-badge" hidden></div>
+  </div>
+
+  <div class="swiss-twin-bar" data-testid="swiss-twin-bar" hidden>
+    <div id="swiss-twin-bar-info" class="sn-tb-info"></div>
+    <div class="sn-tb-actions">
+      <button type="button" class="sn-btn-primary" id="sn-tb-configure">Configure for my building</button>
+      <button type="button" class="sn-btn-dark" id="sn-tb-heatledger">Open HeatLedger</button>
+      <button type="button" class="sn-btn-ghost" id="sn-tb-prev">Previous</button>
+      <button type="button" class="sn-btn-ghost" id="sn-tb-next">Next</button>
+      <button type="button" class="sn-btn-ghost" id="sn-tb-webgl" hidden>Interactive 3D</button>
+      <button type="button" class="sn-btn-ghost sn-desktop-only" id="sn-tb-back-map">Map</button>
+    </div>
+  </div>
+
+  <section class="app-overlay configurator-overlay" data-testid="configurator-overlay" hidden>
+    <div class="app-split-shell">
+      <div class="app-stage-col">
+        <div class="stage-toolbar">
+          <div class="seg-toggle" role="group" aria-label="Configurator View Mode">
+            <button type="button" class="seg-btn is-active" id="cfg-mode-basement" data-testid="cfg-mode-basement">Inside</button>
+            <button type="button" class="seg-btn" id="cfg-mode-exterior" data-testid="cfg-mode-exterior">Outside</button>
+          </div>
+          <button type="button" class="sn-btn-ghost" id="cfg-reset-3d-btn">Reset</button>
+        </div>
+
+        <div class="cfg-stage-frame">
+          <div id="cfg-exterior-stage" class="cfg-exterior-stage" hidden>
+            <video id="cfg-exterior-video" class="cfg-exterior-video" src="/media/twins/basel_klingental.mp4" autoplay muted loop playsinline preload="auto"></video>
+            <div id="cfg-exterior-badge" class="stage-floating-badge" hidden></div>
+            <button type="button" class="cfg-enter-basement-cta" id="cfg-enter-basement-btn" data-testid="cfg-enter-basement-btn">
+              View inside in 3D
+            </button>
+          </div>
+
+          <div id="cfg-3d-host" class="cfg-3d-host"></div>
+          <div id="cfg-3d-badge" class="stage-floating-badge stage-3d-badge"></div>
+          <button type="button" class="stage-pip-card" id="cfg-pip-btn" title="Switch to exterior view">
+            <video id="cfg-pip-video" src="/media/twins/basel_klingental.mp4" autoplay muted loop playsinline preload="auto"></video>
+            <span>Exterior</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="app-panel-col">
+        <div class="app-card">
+          <h2>Configure your building</h2>
+          <label class="field-group">
+            <span>Building</span>
+            <select id="cfg-deployment-select" data-testid="cfg-deployment-select" aria-label="Building type"></select>
+          </label>
+
+          <div class="cfg-boiler-toggle-row" data-testid="cfg-boiler-toggle-row">
+            <div class="cfg-boiler-copy">
+              <strong>Already have a boiler?</strong>
+              <span id="cfg-boiler-sub">Reduced host boiler: CHF 2,400 (was CHF 4,200)</span>
+            </div>
+            <label class="cfg-toggle-switch" for="cfg-existing-boiler-toggle" title="Toggle if your building already has a hot-water boiler">
+              <input type="checkbox" id="cfg-existing-boiler-toggle" data-testid="cfg-existing-boiler-toggle">
+              <span class="cfg-toggle-track" aria-hidden="true"><span class="cfg-toggle-thumb"></span></span>
+              <span class="cfg-toggle-state" id="cfg-boiler-state-lbl">No</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="card-section-head">
+            <span>Server class (CHF 0 · CalorGrid-owned)</span>
+          </div>
+          <div id="cfg-server-models" class="cfg-models-grid" data-testid="cfg-server-models"></div>
+        </div>
+
+        <div class="app-card">
+          <div class="stepper-row">
+            <div class="stepper-info">
+              <strong>Units</strong>
+              <span id="cfg-count-sub">3.2 kW hot water</span>
+            </div>
+            <div class="stepper-ctrl">
+              <button type="button" class="step-btn" id="cfg-count-minus" data-testid="cfg-count-minus" aria-label="Remove server">−</button>
+              <span class="step-val" id="cfg-count-val" data-testid="cfg-count-val">4</span>
+              <button type="button" class="step-btn" id="cfg-count-plus" data-testid="cfg-count-plus" aria-label="Add server">+</button>
+            </div>
+          </div>
+
+          <div id="cfg-fit-banner" class="cfg-fit-banner is-optimal">
+            <strong>Balanced fit</strong>
+            <span>Covers 64% of annual heat with zero summer waste.</span>
+          </div>
+
+          <div id="cfg-live-kpis" class="cfg-kpi-grid" data-testid="cfg-live-kpis"></div>
+
+          <div class="cfg-cta-row">
+            <button type="button" class="sn-btn-primary" id="cfg-test-heatledger-btn" data-testid="cfg-test-heatledger-btn">Preview in HeatLedger</button>
+            <button type="button" class="sn-btn-outline" id="cfg-reserve-btn" data-testid="cfg-reserve-btn">Save host quote</button>
+          </div>
+
+          <div id="cfg-reserve-summary" class="cfg-reserve-toast" hidden></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="app-overlay heatledger-overlay" data-testid="heatledger-overlay" hidden>
+    <div class="app-split-shell">
+      <div class="app-stage-col">
+        <div class="stage-toolbar">
+          <strong class="hl-stage-heading">HeatLedger</strong>
+          <button type="button" class="sn-btn-ghost" id="hl-reset-3d-btn">Reset</button>
+        </div>
+
+        <div class="cfg-stage-frame hl-stage-frame">
+          <div id="hl-3d-host" class="cfg-3d-host"></div>
+          <div id="hl-3d-badge" class="stage-floating-badge"></div>
+          <div class="stage-pip-card" id="hl-pip-wrap">
+            <video id="hl-pip-video" src="/media/twins/basel_klingental.mp4" autoplay muted loop playsinline preload="auto"></video>
+            <span>Building</span>
+          </div>
+        </div>
+
+        <div class="hl-rack-strip">
+          <div class="hl-rack-strip-text">
+            <strong id="hl-server-summary">4 of 4 heating</strong>
+          </div>
+          <div class="stepper-ctrl">
+            <button type="button" class="step-btn" id="hl-rem-server-btn" data-testid="hl-rem-server-btn" aria-label="Remove server">−</button>
+            <button type="button" class="step-btn" id="hl-add-server-btn" data-testid="hl-add-server-btn" aria-label="Add server">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-panel-col">
+        <div class="app-card">
+          <div class="hl-site-header">
+            <h2>Tomorrow</h2>
+            <select id="hl-deployment-select" data-testid="hl-deployment-select" class="hl-site-select" aria-label="Building"></select>
+          </div>
+
+          <div id="hl-weather-card" class="hl-weather-card" data-testid="hl-weather-card">
+            <div class="hl-weather-top">
+              <strong>Loading forecast...</strong>
+              <span class="hl-live-tag">Open-Meteo</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="slider-block">
+            <div class="slider-head">
+              <label for="hl-heat-slider">Heat target</label>
+              <strong id="hl-heat-readout" data-testid="hl-heat-readout">100%</strong>
+            </div>
+            <input type="range" id="hl-heat-slider" data-testid="hl-heat-slider" class="cg-slider" min="20" max="140" step="5" value="100">
+            <div class="preset-pills-row">
+              <button type="button" class="hl-preset-btn" data-hl-preset="25">Away</button>
+              <button type="button" class="hl-preset-btn" data-hl-preset="70">Eco</button>
+              <button type="button" class="hl-preset-btn is-active" data-hl-preset="100">Auto</button>
+              <button type="button" class="hl-preset-btn" data-hl-preset="130">Boost</button>
+            </div>
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <label for="hl-indoor-slider">Indoor temperature</label>
+              <strong id="hl-indoor-readout" data-testid="hl-indoor-readout">21.0 C</strong>
+            </div>
+            <input type="range" id="hl-indoor-slider" data-testid="hl-indoor-slider" class="cg-slider" min="18" max="24" step="0.5" value="21">
+          </div>
+
+          <div id="hl-live-kpis" class="cfg-kpi-grid" data-testid="hl-live-kpis"></div>
+        </div>
+
+        <div class="app-card">
+          <div class="card-section-head">
+            <span>24-hour heat vs demand</span>
+            <div class="hl-chart-legend">
+              <span><i style="background:#d4d4d8"></i>Demand</span>
+              <span><i style="background:#d9480f"></i>Servers</span>
+            </div>
+          </div>
+          <div id="hl-hourly-chart" class="hl-hourly-chart" data-testid="hl-hourly-chart"></div>
+        </div>
+
+        <div class="app-card">
+          <div class="card-section-head">
+            <span>Running processes</span>
+          </div>
+          <div id="hl-process-list" class="hl-process-list" data-testid="hl-process-list"></div>
+
+          <div class="hl-os-strip">
+            <div class="hl-os-text">
+              <strong>Linux worker</strong>
+              <span id="hl-real-worker-status">Idle</span>
+            </div>
+            <button type="button" class="sn-btn-ghost" id="hl-real-worker-btn">Start OCR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="app-bottom-nav" data-testid="app-bottom-nav" aria-label="Mobile Navigation">
+    <button type="button" class="bnav-btn is-active" data-app-tab="explore">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+        <line x1="8" y1="2" x2="8" y2="18"></line>
+        <line x1="16" y1="6" x2="16" y2="22"></line>
+      </svg>
+      <span>Explore</span>
+    </button>
+    <button type="button" class="bnav-btn" data-app-tab="configure">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="3" width="20" height="7" rx="2"></rect>
+        <rect x="2" y="14" width="20" height="7" rx="2"></rect>
+        <line x1="6" y1="6.5" x2="6.01" y2="6.5"></line>
+        <line x1="6" y1="17.5" x2="6.01" y2="17.5"></line>
+      </svg>
+      <span>Configure</span>
+    </button>
+    <button type="button" class="bnav-btn" data-app-tab="heatledger">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2c1 4 5 6 5 11a5 5 0 1 1-10 0c0-2.2 1-4.1 2.2-5.7C9.6 9.2 11 9.5 11 11c0-3 1-6 1-9z"></path>
+      </svg>
+      <span>HeatLedger</span>
+    </button>
+  </nav>
+
+  <footer class="attribution-footer" data-testid="attribution-footer">
+    Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
+  </footer>
+
+  <script type="module" src="/js/main.js?v=20261121k"></script>
+</body>
+</html>
