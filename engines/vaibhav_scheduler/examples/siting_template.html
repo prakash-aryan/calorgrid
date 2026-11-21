@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DigitalHeat siting model</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.045);
+  --s1: #2a78d6; --s2: #eb6834; --heat: #6250d6; --backup: #b9b7ae; --critical: #d03b3b;
+  --good-text: #006300; --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.06);
+    --s1: #3987e5; --s2: #d95926; --heat: #9085e9; --backup: #5c5b56; --critical: #d03b3b;
+    --good-text: #0ca30c; --accent: #3987e5;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 22px 16px 60px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 18px; margin: 0 0 4px; }
+h3 { font-size: 14px; margin: 0 0 2px; }
+p { margin: 0 0 10px; }
+.lede { color: var(--ink2); max-width: 86ch; }
+.num, td.r, .tile b { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.step { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+section { margin-top: 34px; }
+
+.controls { position: sticky; top: 0; z-index: 6; background: var(--page); border-bottom: 1px solid var(--border);
+  padding: 10px 0 8px; margin-top: 12px; }
+.crow { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: end; }
+.ctl { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--ink2); }
+.ctl > span b { color: var(--ink); font-variant-numeric: tabular-nums; }
+select, input[type=range] { font: inherit; }
+select { color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 6px; min-width: 150px; }
+input[type=range] { width: 190px; accent-color: var(--accent); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg label { padding: 4px 9px; cursor: pointer; color: var(--ink2); background: var(--surface); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--ink); color: var(--page); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+details { margin-top: 8px; font-size: 12px; color: var(--ink2); }
+summary { cursor: pointer; }
+details .crow { margin-top: 8px; }
+details input[type=range] { width: 150px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; margin-top: 14px; }
+.grid-map { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 14px; margin-top: 14px; }
+.stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 900px) { .grid2, .grid-map { grid-template-columns: minmax(0,1fr); } }
+/* two countries: a map for each site, the monthly charts in a row below */
+.cross-only { display: none; }
+body.cross .cross-only { display: block; }
+body.cross #g3 { grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); }
+body.cross #lines3 { grid-column: 1 / -1; flex-direction: row; }
+body.cross #lines3 > .card { flex: 1; }
+body.cross #g4 { grid-template-columns: minmax(0,1fr) minmax(0,1.4fr); }
+@media (max-width: 900px) {
+  body.cross #g3, body.cross #g4 { grid-template-columns: minmax(0,1fr); }
+  body.cross #lines3 { flex-direction: column; }
+}
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 14px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.tile > span { display: block; font-size: 12px; color: var(--ink2); }
+.tile b { display: block; font-size: 24px; font-weight: 600; line-height: 1.25; }
+.tile small { color: var(--muted); font-size: 12px; }
+.up { color: var(--good-text); }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; color: var(--ink2); margin: 4px 0 2px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
+.hatch { background-image: repeating-linear-gradient(45deg, var(--critical) 0 3px, transparent 3px 5px); }
+.note { font-size: 12px; color: var(--ink2); margin: 6px 0 0; }
+.callout { border-left: 3px solid var(--accent); padding: 6px 10px; background: var(--wash); border-radius: 0 6px 6px 0;
+  margin-top: 12px; max-width: 96ch; }
+svg { display: block; width: 100%; }
+svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); }
+svg .ink { fill: var(--ink); } svg .ink2 { fill: var(--ink2); }
+.pt { cursor: pointer; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 14px 4px 0;
+  position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--grid); }
+td { padding: 3px 14px 3px 0; border-bottom: 1px solid var(--grid); }
+td.r, th.r { text-align: right; }
+td:last-child, th:last-child { padding-right: 0; }
+.est td:first-child { color: var(--ink2); }
+.est tr.head td { color: var(--ink); font-weight: 600; padding-top: 8px; border-bottom: 1px solid var(--axis); }
+.scroll { max-height: 400px; overflow: auto; margin-top: 6px; }
+tr.pick { cursor: pointer; } tr.pick:hover td { background: var(--wash); }
+tr.sel td { background: var(--wash); font-weight: 600; }
+.bar { display: inline-block; height: 8px; border-radius: 2px; background: var(--s2); vertical-align: middle; margin-left: 6px; }
+
+#tip { position: fixed; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.16); font-size: 12px; max-width: 280px; display: none; z-index: 20; }
+#tip b { display: block; }
+#tip .tr { display: flex; justify-content: space-between; gap: 14px; color: var(--ink2); }
+#tip .tr span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
+footer { margin-top: 36px; font-size: 12px; color: var(--ink2); border-top: 1px solid var(--border); padding-top: 12px; }
+footer ul { margin: 4px 0 10px; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h1">DigitalHeat siting model</h1>
+  <p class="lede" id="intro"></p>
+
+  <div class="controls">
+    <div class="crow">
+      <label class="ctl"><span><i class="dot" style="background:var(--s1)"></i>Site 1</span><select id="s1"></select></label>
+      <label class="ctl"><span>Compute demand: <b id="Dv"></b></span>
+        <input id="D" type="range" min="0.5" max="20" step="0.25"></label>
+      <label class="ctl"><span><i class="dot" style="background:var(--s2)"></i>Site 2 (steps 3 and 4)</span><select id="s2"></select></label>
+      <label class="ctl"><span>Window (steps 3 and 4)</span><select id="win"></select></label>
+      <div class="ctl"><span>When nobody needs the heat</span>
+        <div class="seg"><label><input type="radio" name="mode" value="0" checked>run and dump heat</label>
+          <label><input type="radio" name="mode" value="1">pause the compute</label></div></div>
+    </div>
+    <details><summary>Assumptions you can change</summary>
+      <div class="crow">
+        <label class="ctl"><span>Heat recovered: <b id="etav"></b></span><input id="eta" type="range" min="0.5" max="1" step="0.01"></label>
+        <label class="ctl"><span>Tank per house: <b id="tankv"></b></span><input id="tank" type="range" min="0" max="100" step="5"></label>
+        <label class="ctl"><span>Electricity price: <b id="pricev"></b></span><input id="price" type="range" min="0.10" max="0.50" step="0.0025"></label>
+        <label class="ctl"><span>Heat pump COP: <b id="copv"></b></span><input id="cop" type="range" min="1.5" max="5" step="0.1"></label>
+      </div>
+    </details>
+  </div>
+
+  <!-- ------------------------------------------------------------ step 2 -->
+  <section id="step2">
+    <div class="step">Step 2 · one house</div>
+    <h2>How much compute can the heat needs of one house host?</h2>
+    <p class="lede">The house needs heat every hour. Dividing that by the share of server heat that reaches the house
+      gives the compute the house can host in that hour. The slider sets a constant compute demand; the results show
+      how much of the heat requirement it covers and what the heat is worth over the whole year.</p>
+    <div class="tiles" id="tiles2"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Demand estimate for <span id="est-name"></span></h3>
+        <div class="muted" style="font-size:12px">Full year <span class="yr"></span>, hourly</div>
+        <table class="est" id="est"></table>
+      </div>
+      <div class="card">
+        <h3>Money saved at different compute demand values</h3>
+        <div class="muted" style="font-size:12px">CHF per year from the heat the house uses; the dot is the current setting</div>
+        <svg id="c-save" role="img" aria-label="Savings per year against compute demand"></svg>
+        <h3 style="margin-top:10px">Share of the servers' electricity bill paid back by heat</h3>
+        <svg id="c-share" role="img" aria-label="Share of the electricity bill recovered against compute demand"></svg>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>How the servers meet the heat requirement, week by week</h3>
+      <div class="legend"><span><i class="sw" style="background:var(--heat)"></i>requirement covered by server heat</span>
+        <span><i class="sw" style="background:var(--backup)"></i>left for the backup heater</span>
+        <span><i class="sw hatch"></i><span id="lg-waste">server heat dumped</span> (below the line)</span></div>
+      <svg id="c-week" role="img" aria-label="Weekly heat requirement covered by servers, left for backup, and heat dumped"></svg>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ step 3 -->
+  <section id="step3">
+    <div class="step" id="st3"></div>
+    <h2>Which weather complements site 1?</h2>
+    <p class="lede" id="lede3"></p>
+    <div class="grid-map" id="g3">
+      <div class="card">
+        <h3 id="h-need1"></h3>
+        <div class="muted cross-only" style="font-size:12px">Heat requirement of the house, <span class="win-name"></span>; both maps share one colour scale</div>
+        <svg id="m-need" role="img" aria-label="Map: heat requirement per town for site 1"></svg>
+      </div>
+      <div class="card cross-only">
+        <h3 id="h-need2"></h3>
+        <div class="muted" style="font-size:12px">Click a dot to make it site 2</div>
+        <svg id="m-need2" role="img" aria-label="Map: heat requirement per town for site 2"></svg>
+      </div>
+      <div class="stack" id="lines3">
+        <div class="card">
+          <h3>Monthly mean temperature</h3>
+          <div class="legend" id="lg-sites-a"></div>
+          <svg id="c-temp" role="img" aria-label="Monthly mean temperature at site 1 and site 2"></svg>
+        </div>
+        <div class="card">
+          <h3>Monthly heat requirement of the house</h3>
+          <div class="legend" id="lg-sites-b"></div>
+          <svg id="c-need" role="img" aria-label="Monthly heat requirement at site 1 and site 2"></svg>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Where the compute runs, week by week, <span class="win-name"></span></h3>
+      <div class="legend"><span><i class="sw" style="background:var(--s1)"></i>at site 1, heat used</span>
+        <span><i class="sw" style="background:var(--s2)"></i>at site 2, heat used</span>
+        <span><i class="sw hatch"></i><span id="lg-waste2">running with its heat dumped</span></span></div>
+      <svg id="c-split" role="img" aria-label="Weekly split of compute between site 1, site 2 and unused"></svg>
+      <p class="callout" id="complement"></p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ step 4 -->
+  <section id="step4">
+    <div class="step">Step 4 · location model</div>
+    <h2>Savings over the window for every possible site 2</h2>
+    <p class="lede" id="lede4"></p>
+    <div class="tiles" id="tiles4"></div>
+    <div class="grid-map" id="g4">
+      <div class="card">
+        <h3 id="h-gain"></h3>
+        <svg id="m-gain" role="img" aria-label="Map: extra savings per candidate second site"></svg>
+      </div>
+      <div class="card">
+        <h3 id="h-scat"></h3>
+        <div class="muted" style="font-size:12px">Extra CHF saved in the window, one dot per town; the highlighted dot is the current site 2</div>
+        <svg id="c-elev" role="img" aria-label="Extra savings against a property of the second site"></svg>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3 id="h-rank"></h3>
+      <div class="scroll"><table id="rank"></table></div>
+    </div>
+  </section>
+
+  <footer>
+    <b>What the model assumes</b>
+    <ul id="assume"></ul>
+    <div id="check"></div>
+  </footer>
+</div>
+<div id="tip"></div>
+
+<script>
+const DATA = /*SITING_JSON*/null;
+const L = DATA.locations, N = L.length, HOUSE = DATA.house, HRS = DATA.hours;
+/* site 1 comes from one set of towns, site 2 from another (or from the same one) */
+const POOL1 = DATA.pools.site1, POOL2 = DATA.pools.site2, CROSS = POOL1 !== POOL2;
+const R1 = DATA.regions[POOL1], R2 = DATA.regions[POOL2];
+const P1 = L.map((_, i) => i).filter(i => L[i].region === POOL1), P2 = L.map((_, i) => i).filter(i => L[i].region === POOL2);
+document.body.classList.toggle("cross", CROSS);
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MDAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
+const $ = id => document.getElementById(id);
+const chf = v => Math.round(v).toLocaleString("en-US").replace(/,/g, " ");
+const kwh = chf;
+const pct = (v, d = 0) => (v * 100).toFixed(d) + "%";
+const f1 = v => v.toFixed(1), f2 = v => v.toFixed(2);
+const esc = s => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+const tr = (k, v) => `<div class='tr'><span>${k}</span><span>${v}</span></div>`;
+
+/* ------------------------------------------------------------ data */
+function decode(b64) {
+  const bin = atob(b64), out = new Float64Array(bin.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+    out[i] = (v > 32767 ? v - 65536 : v) / 10;
+  }
+  return out;
+}
+/* The brief's formula: space heating on heating days plus hot water. */
+function requirement(t) {
+  const q = new Float64Array(t.length), hw = HOUSE.hot_water_kwh_per_day / 24;
+  for (let d = 0; d * 24 < t.length; d++) {
+    let s = 0;
+    for (let h = 0; h < 24; h++) s += t[d * 24 + h];
+    const heating = s / 24 < HOUSE.heating_day_threshold_c;
+    for (let h = 0; h < 24; h++) {
+      const i = d * 24 + h;
+      q[i] = (heating ? Math.max(0, HOUSE.design_heat_load_kw * (HOUSE.indoor_setpoint_c - t[i]) / HOUSE.design_delta_k) : 0) + hw;
+    }
+  }
+  return q;
+}
+/* A town's temperatures start at its own midnight, so the 24-hour blocks above are
+   its calendar days; `off` is the hour of that series that is hour 0 of the shared clock. */
+const RAW = L.map(l => decode(l.t));
+const Q = RAW.map((t, i) => requirement(t).subarray(L[i].off, L[i].off + HRS));
+const T = RAW.map((t, i) => t.subarray(L[i].off, L[i].off + HRS));
+const MSTART = MDAYS.map((_, m) => MDAYS.slice(0, m).reduce((a, b) => a + b, 0) * 24);
+function windowHours(start, months) {
+  const out = [];
+  for (let k = 0; k < months; k++) {
+    const m = (start - 1 + k) % 12;
+    for (let h = MSTART[m]; h < MSTART[m] + MDAYS[m] * 24; h++) out.push(h);
+  }
+  return Int32Array.from(out);
+}
+const YEAR = windowHours(1, 12);
+const monthOf = h => { let m = 11; while (MSTART[m] > h) m--; return m; };
+
+/* ------------------------------------------------------------ model (mirror of digitalheat/siting.py) */
+function simulate(Qs, hrs, D, o, keep) {
+  const n = Qs.length, eta = o.eta, tank = o.tank, cap = D, m = hrs.length;
+  const soc = new Float64Array(n), x = new Float64Array(n), ord = new Int32Array(n);
+  const sites = Array.from({ length: n }, () => ({ need: 0, compute: 0, direct: 0, fromTank: 0, dumped: 0, backup: 0 }));
+  const ser = keep ? { x: [], cov: [], bak: [], dmp: [], paused: new Float64Array(m) } : null;
+  if (keep) for (let i = 0; i < n; i++) for (const k of ["x", "cov", "bak", "dmp"]) ser[k].push(new Float64Array(m));
+  let paused = 0;
+  for (let k = 0; k < m; k++) {
+    const h = hrs[k];
+    for (let i = 0; i < n; i++) ord[i] = i;          // site 1 first, site 2 takes what it cannot use
+    let left = D;
+    x.fill(0);
+    for (let j = 0; j < n; j++) { const i = ord[j], take = Math.min(left, cap - x[i], Qs[i][h] / eta); x[i] += take; left -= take; }
+    for (let j = 0; j < n; j++) { const i = ord[j], take = Math.min(left, cap - x[i], (tank - soc[i]) / eta); x[i] += take; left -= take; }
+    if (o.follow) { paused += left; if (keep) ser.paused[k] = left; }
+    else for (let j = 0; j < n; j++) { const i = ord[j], take = Math.min(left, cap - x[i]); x[i] += take; left -= take; }
+    for (let i = 0; i < n; i++) {
+      const need = Qs[i][h], heat = eta * x[i], s = sites[i];
+      const direct = Math.min(heat, need), charge = Math.min(heat - direct, tank - soc[i]);
+      const discharge = Math.min(need - direct, soc[i]);
+      soc[i] += charge - discharge;
+      const dumped = heat - direct - charge, backup = need - direct - discharge;
+      s.need += need; s.compute += x[i]; s.direct += direct; s.fromTank += discharge; s.dumped += dumped; s.backup += backup;
+      if (keep) { ser.x[i][k] = x[i]; ser.cov[i][k] = direct + discharge; ser.bak[i][k] = backup; ser.dmp[i][k] = dumped; }
+    }
+  }
+  const sum = key => sites.reduce((a, s) => a + s[key], 0);
+  const covered = sum("direct") + sum("fromTank"), compute = sum("compute");
+  const savings = covered * o.price / o.cop, cost = compute * o.price;
+  return { sites, ser, paused, covered, compute, need: sum("need"), dumped: sum("dumped"), backup: sum("backup"),
+           savings, cost, share: cost ? savings / cost : 0, coverage: covered / sum("need"),
+           unused: o.follow ? paused * eta : sum("dumped") };
+}
+
+/* ------------------------------------------------------------ state */
+const P0 = DATA.params;
+const S = { s1: L.findIndex(l => l.name === DATA.defaults.site1), s2: -1, D: DATA.defaults.compute_kw,
+            win: DATA.defaults.window_months === 12 ? 0 : DATA.defaults.window_start, follow: false, eta: P0.recovery, tank: P0.tank_kwh,
+            price: P0.electricity_chf_per_kwh, cop: P0.heat_pump_cop };
+const opts = () => ({ eta: S.eta, tank: S.tank, price: S.price, cop: S.cop, follow: S.follow });
+const winHours = () => S.win === 0 ? YEAR : windowHours(S.win, 6);
+const winName = () => S.win === 0 ? `full year ${DATA.year}` : `${MONTHS[S.win - 1]}–${MONTHS[(S.win + 4) % 12]} ${DATA.year}`;
+
+/* ------------------------------------------------------------ chart helpers */
+function frame(id, H, m) {
+  const svg = $(id), W = Math.max(260, svg.clientWidth || 600);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
+  return { svg, W, H, x0: m.l, x1: W - m.r, y0: m.t, y1: H - m.b };
+}
+function niceStep(raw) { const p = 10 ** Math.floor(Math.log10(raw)), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+function yAxis(f, lo, hi, fmt, n = 4) {
+  if (hi <= lo) hi = lo + 1;
+  const step = niceStep((hi - lo) / n), a = Math.floor(lo / step) * step, b = Math.ceil(hi / step - 1e-9) * step;
+  const y = v => f.y1 - (v - a) / (b - a) * (f.y1 - f.y0);
+  let out = "";
+  for (let v = a; v <= b + step / 2; v += step) {
+    const zero = Math.abs(v) < step / 1e6;
+    out += `<line x1="${f.x0}" x2="${f.x1}" y1="${y(v)}" y2="${y(v)}" stroke="var(--${zero ? "axis" : "grid"})"/>
+      <text x="${f.x0 - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(zero ? 0 : v)}</text>`;
+  }
+  return { y, out, a, b };
+}
+const HATCH = id => `<defs><pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+  <rect width="3" height="5" fill="var(--critical)"/></pattern></defs>`;
+
+/* lines over a numeric x; opt: xs, series[{color,v}], xTicks[{x,label}], fmt, bands[[a,b]], dot{x,y,label}, hline{y,label}, tip(i), lo */
+function lineChart(id, opt, H = 190) {
+  const f = frame(id, H, { l: 46, r: 14, t: 12, b: 24 }), xs = opt.xs, n = xs.length;
+  const all = opt.series.flatMap(s => Array.from(s.v)).concat(opt.hline ? [opt.hline.y] : []);
+  const ax = yAxis(f, Math.min(opt.lo ?? 0, ...all), Math.max(...all), opt.fmt);
+  const x = v => f.x0 + (v - xs[0]) / (xs[n - 1] - xs[0]) * (f.x1 - f.x0);
+  let out = "";
+  for (const [a, b] of opt.bands || []) out += `<rect x="${x(a)}" y="${f.y0}" width="${x(b) - x(a)}" height="${f.y1 - f.y0}" fill="var(--wash)"/>`;
+  out += ax.out;
+  for (const t of opt.xTicks) out += `<text x="${x(t.x)}" y="${f.H - 7}" text-anchor="${x(t.x) > f.x1 - 12 ? "end" : "middle"}">${t.label}</text>`;
+  if (opt.hline) out += `<line x1="${f.x0}" x2="${f.x1}" y1="${ax.y(opt.hline.y)}" y2="${ax.y(opt.hline.y)}" stroke="var(--muted)" stroke-dasharray="4 4"/>
+    <text class="ink2" x="${f.x1}" y="${ax.y(opt.hline.y) - 5}" text-anchor="end">${opt.hline.label}</text>`;
+  for (const s of opt.series) out += `<path d="M${Array.from(s.v, (v, i) => `${x(xs[i])} ${ax.y(v)}`).join("L")}" fill="none"
+    stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  if (opt.points) for (const s of opt.series) out += Array.from(s.v, (v, i) =>
+    `<circle cx="${x(xs[i])}" cy="${ax.y(v)}" r="3.5" fill="${s.color}" stroke="var(--surface)" stroke-width="1.5"/>`).join("");
+  if (opt.dot) { const dx = x(opt.dot.x), dy = ax.y(opt.dot.y), right = dx < f.x1 - 120;
+    out += `<circle cx="${dx}" cy="${dy}" r="5" fill="${opt.series[0].color}" stroke="var(--surface)" stroke-width="2"/>
+      <text class="ink" x="${dx + (right ? 9 : -9)}" y="${dy + (opt.dot.below || dy < f.y0 + 24 ? 18 : -9)}" text-anchor="${right ? "start" : "end"}" font-weight="600">${opt.dot.label}</text>`; }
+  for (let i = 0; i < n; i++) {
+    const a = i ? (x(xs[i - 1]) + x(xs[i])) / 2 : f.x0, b = i < n - 1 ? (x(xs[i]) + x(xs[i + 1])) / 2 : f.x1;
+    out += `<rect x="${a}" y="${f.y0}" width="${b - a}" height="${f.y1 - f.y0}" fill="transparent" data-tip="${esc(opt.tip(i))}"/>`;
+  }
+  f.svg.innerHTML = out;
+}
+
+/* stacked columns; opt: n, stacks[{fill,v}], neg{fill,v}, ticks[{i,label}], fmt, tip(i) */
+function barChart(id, opt, H = 210) {
+  const f = frame(id, H, { l: 46, r: 10, t: 10, b: 24 }), n = opt.n, bw = (f.x1 - f.x0) / n;
+  let top = 0, low = 0;
+  for (let i = 0; i < n; i++) { top = Math.max(top, opt.stacks.reduce((a, s) => a + s.v[i], 0)); if (opt.neg) low = Math.min(low, -opt.neg.v[i]); }
+  const ax = yAxis(f, low, top || 1, opt.fmt);
+  let out = HATCH(id + "-h") + ax.out;
+  const w = Math.max(1, bw - 2);
+  for (let i = 0; i < n; i++) {
+    const x = f.x0 + i * bw + 1; let base = 0;
+    for (const s of opt.stacks) {
+      const v = s.v[i]; if (v <= 1e-9) continue;
+      const ya = ax.y(base + v), yb = ax.y(base), h = yb - ya;
+      if (h >= 0.6) out += `<rect x="${x}" y="${ya + (base ? 0 : 0)}" width="${w}" height="${Math.max(0.6, h - (h > 3 ? 1.5 : 0))}" rx="${Math.min(2, w / 2)}" fill="${s.fill === "hatch" ? `url(#${id}-h)` : s.fill}"/>`;
+      base += v;
+    }
+    if (opt.neg && opt.neg.v[i] > 1e-9) { const ya = ax.y(0) + 1.5, h = ax.y(-opt.neg.v[i]) - ax.y(0) - 1.5;
+      if (h >= 0.6) out += `<rect x="${x}" y="${ya}" width="${w}" height="${h}" rx="${Math.min(2, w / 2)}" fill="url(#${id}-h)"/>`; }
+    out += `<rect x="${f.x0 + i * bw}" y="${f.y0}" width="${bw}" height="${f.y1 - f.y0}" fill="transparent" data-tip="${esc(opt.tip(i))}"/>`;
+  }
+  for (const t of opt.ticks) out += `<text x="${f.x0 + t.i * bw + 2}" y="${f.H - 7}">${t.label}</text>`;
+  f.svg.innerHTML = out;
+}
+
+/* weekly blocks along a list of hours */
+function weeks(hrs) {
+  const out = [];
+  for (let k = 0; k < hrs.length; k += 168) out.push([k, Math.min(hrs.length, k + 168)]);
+  if (out.length > 1 && out.at(-1)[1] - out.at(-1)[0] < 84) { const last = out.pop(); out.at(-1)[1] = last[1]; }
+  return out;
+}
+const mean = (arr, a, b) => { let s = 0; for (let k = a; k < b; k++) s += arr[k]; return s / (b - a); };
+function weekTicks(blocks, hrs) {
+  const ticks = []; let prev = -1;
+  blocks.forEach(([a], i) => { const m = monthOf(hrs[a]); if (m !== prev && (i === 0 || monthOf(hrs[a]) !== monthOf(hrs[blocks[i - 1][0]]))) ticks.push({ i, label: MONTHS[m] }); prev = m; });
+  return ticks;
+}
+function weekLabel(hrs, a, b) {
+  const day = h => { const m = monthOf(h); return `${Math.floor((h - MSTART[m]) / 24) + 1} ${MONTHS[m]}`; };
+  return `${day(hrs[a])} – ${day(hrs[b - 1])}`;
+}
+
+/* ------------------------------------------------------------ map */
+const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+function ramp(u) {
+  const st = dark() ? RAMP.slice().reverse() : RAMP, p = Math.max(0, Math.min(1, u)) * (st.length - 1);
+  const i = Math.min(st.length - 2, Math.floor(p)), t = p - i;
+  const c = k => { const a = parseInt(st[i].slice(1 + 2 * k, 3 + 2 * k), 16), b = parseInt(st[i + 1].slice(1 + 2 * k, 3 + 2 * k), 16); return Math.round(a + (b - a) * t); };
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
+const MAP_MAX_H = 560;
+/* opt: region, range[lo,hi] (optional, to share a scale between maps), label, fmt, tip(i) */
+function drawMap(id, vals, opt) {
+  const idx = L.map((_, i) => i).filter(i => L[i].region === opt.region), rings = DATA.regions[opt.region].outlines;
+  const svg = $(id), W = Math.max(280, svg.clientWidth || 640), pad = 18;
+  const pts = rings.flat().concat(idx.map(i => [L[i].lon, L[i].lat]));
+  let lo0 = Infinity, lo1 = -Infinity, la0 = Infinity, la1 = -Infinity;
+  for (const [x, y] of pts) { lo0 = Math.min(lo0, x); lo1 = Math.max(lo1, x); la0 = Math.min(la0, y); la1 = Math.max(la1, y); }
+  const KX = Math.cos((la0 + la1) / 2 * Math.PI / 180);
+  const k = Math.min((W - 2 * pad) / ((lo1 - lo0) * KX), (MAP_MAX_H - 2 * pad - 34) / (la1 - la0));
+  const H = (la1 - la0) * k + 2 * pad + 34, ox = (W - (lo1 - lo0) * KX * k) / 2;
+  const X = lon => ox + (lon - lo0) * KX * k, Y = lat => pad + (la1 - lat) * k;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
+  const live = idx.map(i => vals[i]).filter(v => v != null);
+  const [lo, hi] = opt.range || [Math.min(...live), Math.max(...live)];
+  let out = "";
+  for (const ring of rings) out += `<path d="M${ring.map(p => `${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join("L")}Z" fill="var(--wash)" stroke="var(--axis)" stroke-width="1.25" stroke-linejoin="round"/>`;
+  const order = idx.slice().sort((a, b) => (a === S.s1 || a === S.s2) - (b === S.s1 || b === S.s2));
+  const r0 = k < 60 ? 4.5 : 6;
+  for (const i of order) {
+    const l = L[i], cx = X(l.lon), cy = Y(l.lat), pick = i === S.s1 || i === S.s2;
+    const fill = vals[i] == null ? "var(--surface)" : ramp((vals[i] - lo) / (hi - lo || 1));
+    out += `<circle class="pt" data-loc="${i}" cx="${cx}" cy="${cy}" r="${pick ? r0 + 2 : r0}" fill="${fill}"
+      stroke="${pick ? `var(--${i === S.s1 ? "s1" : "s2"})` : "var(--surface)"}" stroke-width="${pick ? 3 : 1.5}" data-tip="${esc(opt.tip(i))}"/>`;
+    if (pick) { const right = cx < W - 130;
+      out += `<text class="ink" x="${cx + (right ? 12 : -12)}" y="${cy + 4}" text-anchor="${right ? "start" : "end"}" font-weight="600"
+        stroke="var(--surface)" stroke-width="3.5" paint-order="stroke">${i === S.s1 ? "1" : "2"} · ${l.name}</text>`; }
+  }
+  const gx = pad, gy = H - 22, gw = 150;
+  out += `<defs><linearGradient id="${id}-g">${[0, .25, .5, .75, 1].map(u => `<stop offset="${u}" stop-color="${ramp(u)}"/>`).join("")}</linearGradient></defs>
+    <rect x="${gx}" y="${gy}" width="${gw}" height="8" rx="2" fill="url(#${id}-g)"/>
+    <text x="${gx}" y="${gy - 5}">${opt.fmt(lo)}</text><text x="${gx + gw}" y="${gy - 5}" text-anchor="end">${opt.fmt(hi)}</text>
+    <text class="ink2" x="${gx + gw + 10}" y="${gy + 8}">${opt.label}</text>`;
+  svg.innerHTML = out;
+}
+
+/* ------------------------------------------------------------ step 2 */
+let cache2 = { key: "" };
+function coverageTargets(q, o) {
+  return [0.8, 0.9, 0.95, 1].map(target => {
+    let lo = 0, hi = 60;
+    for (let it = 0; it < 22; it++) { const mid = (lo + hi) / 2; (simulate([q], YEAR, mid, o).coverage >= Math.min(target, 0.999999) ? (hi = mid) : (lo = mid)); }
+    return [target, hi];
+  });
+}
+function renderStep2() {
+  const o = opts(), q = Q[S.s1], r = simulate([q], YEAR, S.D, o, true);
+  const key = [S.s1, S.eta, S.tank, S.follow, S.price, S.cop].join("|");
+  if (cache2.key !== key) {
+    const xs = []; for (let d = 0; d <= 20.001; d += 0.5) xs.push(d);
+    cache2 = { key, xs, runs: xs.map(d => d ? simulate([q], YEAR, d, o) : { savings: 0, share: 0, coverage: 0 }),
+               targets: coverageTargets(q, { ...o, follow: false }) };
+  }
+  let peak = 0; for (const v of q) peak = Math.max(peak, v);
+  const wasted = S.follow ? r.paused : r.dumped;
+  $("tiles2").innerHTML = [
+    ["Heat requirement covered", pct(r.coverage), `${kwh(r.covered)} of ${kwh(r.need)} kWh a year`],
+    ["Saved by supplying the heat", `<span class="up">${chf(r.savings)} CHF</span>`, `a year, at ${f2(S.price / S.cop * 100)} Rp. per kWh of heat`],
+    ["Electricity bill of the servers", `${chf(r.cost)} CHF`, `${kwh(r.compute)} kWh a year`],
+    ["Bill paid back by heat", pct(r.share, 1), `the ceiling is ${pct(S.eta / S.cop, 1)} (recovery ÷ COP)`],
+    S.follow ? ["Compute paused", `${kwh(wasted)} kWh`, `${pct(wasted / (S.D * 8760))} of the demand found no use for its heat`]
+             : ["Server heat dumped", `${kwh(wasted)} kWh`, `${pct(wasted / (S.eta * r.compute || 1))} of the heat the servers gave off`],
+  ].map(t => `<div class="tile"><span>${t[0]}</span><b>${t[1]}</b><small>${t[2]}</small></div>`).join("");
+
+  $("est-name").textContent = L[S.s1].name;
+  const row = (k, v) => `<tr><td>${k}</td><td class="r">${v}</td></tr>`;
+  $("est").innerHTML = `<tr class="head"><td colspan="2">Heat the house needs</td></tr>` +
+    row("Over the year", `${kwh(r.need)} kWh`) + row("Highest hour", `${f1(peak)} kW`) + row("Average", `${f2(r.need / 8760)} kW`) +
+    `<tr class="head"><td colspan="2">Compute that would follow it exactly (heat ÷ ${pct(S.eta)})</td></tr>` +
+    row("Highest hour", `${f1(peak / S.eta)} kW`) + row("Average", `${f2(r.need / 8760 / S.eta)} kW`) +
+    row("Over the year", `${kwh(r.need / S.eta)} kWh`) +
+    `<tr class="head"><td colspan="2">Constant compute demand needed to cover (with the ${S.tank} kWh tank)</td></tr>` +
+    cache2.targets.map(([t, d]) => row(`${pct(t)} of the heat requirement`, `${f1(d)} kW`)).join("");
+
+  const xs = cache2.xs, xt = [0, 5, 10, 15, 20].map(v => ({ x: v, label: v + " kW" }));
+  lineChart("c-save", { xs, series: [{ color: "var(--s1)", v: cache2.runs.map(x => x.savings) }], xTicks: xt, fmt: chf,
+    hline: { y: r.need * S.price / S.cop, label: "ceiling: the whole heat requirement" },
+    dot: { x: S.D, y: r.savings, label: `${chf(r.savings)} CHF at ${S.D} kW`, below: true },
+    tip: i => `<b>${xs[i]} kW of compute</b>${tr("Saved a year", chf(cache2.runs[i].savings) + " CHF")}${tr("Requirement covered", pct(cache2.runs[i].coverage))}` });
+  lineChart("c-share", { xs: xs.slice(1), series: [{ color: "var(--s1)", v: cache2.runs.slice(1).map(x => x.share * 100) }], xTicks: xt.slice(1),
+    fmt: v => v + "%", hline: { y: S.eta / S.cop * 100, label: "ceiling: every kWh of heat used" },
+    dot: { x: S.D, y: r.share * 100, label: pct(r.share, 1) },
+    tip: i => `<b>${xs[i + 1]} kW of compute</b>${tr("Bill paid back", pct(cache2.runs[i + 1].share, 1))}` }, 150);
+
+  const blocks = weeks(YEAR), waste = S.follow ? r.ser.paused : r.ser.dmp[0];
+  const cov = blocks.map(([a, b]) => mean(r.ser.cov[0], a, b)), bak = blocks.map(([a, b]) => mean(r.ser.bak[0], a, b));
+  const dmp = blocks.map(([a, b]) => mean(waste, a, b) * (S.follow ? S.eta : 1));
+  $("lg-waste").textContent = S.follow ? "heat not produced because the compute was paused" : "server heat dumped";
+  barChart("c-week", { n: blocks.length, stacks: [{ fill: "var(--heat)", v: cov }, { fill: "var(--backup)", v: bak }],
+    neg: { v: dmp }, ticks: weekTicks(blocks, YEAR), fmt: v => f1(Math.abs(v)) + " kW",
+    tip: i => `<b>${weekLabel(YEAR, ...blocks[i])}</b>${tr("Heat needed", f2(cov[i] + bak[i]) + " kW")}${tr("Covered by servers", f2(cov[i]) + " kW")}` +
+      `${tr("Backup heater", f2(bak[i]) + " kW")}${tr(S.follow ? "Heat not produced" : "Heat dumped", f2(dmp[i]) + " kW")}` });
+}
+
+/* ------------------------------------------------------------ steps 3 and 4 */
+const latText = l => `${Math.abs(l.lat).toFixed(1)}° ${l.lat < 0 ? "S" : "N"}`;
+const SCAT = DATA.scatter === "lat"
+  ? { of: l => Math.abs(l.lat), grid: 1, step: 2, tick: v => `${v}° ${R2.south ? "S" : "N"}`, axis: "latitude of site 2", title: "Extra savings against the latitude of site 2" }
+  : { of: l => l.elev, grid: 200, step: 400, tick: v => v + " m", axis: "elevation of site 2", title: "Extra savings against the elevation of site 2" };
+function monthly(arr, fn) { return MDAYS.map((d, m) => fn(arr, MSTART[m], MSTART[m] + d * 24)); }
+function renderPair() {
+  const o = opts(), W = winHours(), q1 = Q[S.s1];
+  const alone = simulate([q1], W, S.D, o);
+  const rows = [];
+  for (const j of P2) if (j !== S.s1) {
+    const r = simulate([q1, Q[j]], W, S.D, o);
+    rows.push({ j, r, gain: r.savings - alone.savings });
+  }
+  rows.sort((a, b) => b.r.savings - a.r.savings || L[a.j].name.localeCompare(L[b.j].name));
+  rows.forEach((x, i) => x.rank = i + 1);
+  if (!rows.some(x => x.j === S.s2)) S.s2 = rows[0].j;
+  $("s2").value = S.s2;
+  const sel = rows.find(x => x.j === S.s2), best = rows[0];
+  const pair = simulate([q1, Q[S.s2]], W, S.D, o, true);
+  const needW = Q.map(q => { let s = 0; for (const h of W) s += q[h]; return s; });
+  const tempW = T.map(t => { let s = 0; for (const h of W) s += t[h]; return s / W.length; });
+  document.querySelectorAll(".win-name").forEach(e => e.textContent = winName());
+
+  /* step 3 */
+  const locTip = (i, extra = "") => `<b>${L[i].name}${L[i].canton ? ", " + L[i].canton : ""}</b>${tr("Elevation", L[i].elev + " m")}${CROSS ? tr("Latitude", latText(L[i])) : ""}` +
+    `${tr("Mean temperature", f1(tempW[i]) + " °C")}${tr("Heat requirement", kwh(needW[i]) + " kWh")}${extra}`;
+  const shown = CROSS ? P1.concat(P2) : P1;
+  let nlo = Infinity, nhi = -Infinity; for (const i of shown) { nlo = Math.min(nlo, needW[i]); nhi = Math.max(nhi, needW[i]); }
+  const needMap = { range: [nlo, nhi], label: "kWh of heat needed in the window", fmt: kwh, tip: i => locTip(i) };
+  drawMap("m-need", needW, { ...needMap, region: POOL1 });
+  if (CROSS) drawMap("m-need2", needW, { ...needMap, region: POOL2 });
+  const inWin = m => S.win === 0 || ((m - (S.win - 1) + 12) % 12) < 6;
+  const bands = MONTHS.map((_, m) => m).filter(inWin).map(m => [Math.max(0, m - .5), Math.min(11, m + .5)]);
+  const xs = MONTHS.map((_, m) => m), xt = xs.filter(m => m % 2 === 0).map(m => ({ x: m, label: MONTHS[m] }));
+  const two = fn => [{ color: "var(--s1)", v: monthly(fn(S.s1), mean) }, { color: "var(--s2)", v: monthly(fn(S.s2), mean) }];
+  const lg = `<span><i class="sw" style="background:var(--s1)"></i>site 1 · ${L[S.s1].name} (${L[S.s1].elev} m)</span>
+    <span><i class="sw" style="background:var(--s2)"></i>site 2 · ${L[S.s2].name} (${L[S.s2].elev} m)</span><span class="muted">shaded: the window</span>`;
+  $("lg-sites-a").innerHTML = lg; $("lg-sites-b").innerHTML = lg;
+  const st = two(i => T[i]);
+  lineChart("c-temp", { xs, series: st, xTicks: xt, fmt: v => v + " °C", bands, points: true, lo: 0,
+    tip: m => `<b>${MONTHS[m]}</b>${tr(L[S.s1].name, f1(st[0].v[m]) + " °C")}${tr(L[S.s2].name, f1(st[1].v[m]) + " °C")}` }, 170);
+  const sn = two(i => Q[i]).map((s, k) => ({ ...s, v: s.v.map((v, m) => v * MDAYS[m] * 24) }));
+  lineChart("c-need", { xs, series: sn, xTicks: xt, fmt: kwh, bands, points: true,
+    tip: m => `<b>${MONTHS[m]}</b>${tr(L[S.s1].name, kwh(sn[0].v[m]) + " kWh")}${tr(L[S.s2].name, kwh(sn[1].v[m]) + " kWh")}` }, 170);
+
+  const blocks = weeks(W), e = S.eta, ser = pair.ser;
+  const used = i => blocks.map(([a, b]) => mean(ser.x[i], a, b) - mean(ser.dmp[i], a, b) / e);
+  const u1 = used(0), u2 = used(1);
+  const idle = blocks.map(([a, b]) => S.follow ? mean(ser.paused, a, b) : (mean(ser.dmp[0], a, b) + mean(ser.dmp[1], a, b)) / e);
+  $("lg-waste2").textContent = S.follow ? "paused: no house can use the heat" : "running with its heat dumped";
+  barChart("c-split", { n: blocks.length, stacks: [{ fill: "var(--s1)", v: u1 }, { fill: "var(--s2)", v: u2 }, { fill: "hatch", v: idle }],
+    ticks: weekTicks(blocks, W), fmt: v => f1(v) + " kW",
+    tip: i => `<b>${weekLabel(W, ...blocks[i])}</b>${tr("At " + L[S.s1].name, f2(u1[i]) + " kW")}${tr("At " + L[S.s2].name, f2(u2[i]) + " kW")}` +
+      `${tr(S.follow ? "Paused" : "Heat dumped", f2(idle[i]) + " kW")}` }, 200);
+  const taken = Math.max(0, alone.unused - pair.unused);
+  $("complement").innerHTML = alone.unused < 1
+    ? `With ${S.D} kW of compute, <b>${L[S.s1].name}</b> uses all the server heat in this window on its own, so a second site adds nothing. Raise the compute demand to see a difference.`
+    : `On its own, <b>${L[S.s1].name}</b> has no use for <b>${kwh(alone.unused)} kWh</b> of server heat in this window. ` +
+      `<b>${L[S.s2].name}</b> takes <b>${kwh(taken)} kWh</b> of it (${pct(taken / alone.unused)}), worth <b>${chf(sel.gain)} CHF</b>. ` +
+      `The best of the ${rows.length} candidates, ${L[best.j].name}, takes ${pct(Math.max(0, alone.unused - best.r.unused) / alone.unused)}.`;
+
+  /* step 4 */
+  const gainOf = new Array(N).fill(null); rows.forEach(x => gainOf[x.j] = x.gain);
+  const rowOf = j => rows.find(x => x.j === j);
+  $("tiles4").innerHTML = [
+    [`Site 1 alone · ${L[S.s1].name}`, `${chf(alone.savings)} CHF`, `${pct(alone.share, 1)} of the electricity bill paid back`],
+    [`With site 2 · ${L[S.s2].name}`, `${chf(sel.r.savings)} CHF`, `${pct(sel.r.share, 1)} of the electricity bill paid back`],
+    ["Extra savings from site 2", `<span class="up">+${chf(sel.gain)} CHF</span>`, alone.savings ? `+${pct(sel.gain / alone.savings)} on site 1 alone · rank ${sel.rank} of ${rows.length}` : ""],
+    ["Best site 2", `${L[best.j].name}`, `+${chf(best.gain)} CHF · ${L[best.j].elev} m`],
+    ["Worst site 2", `${L[rows.at(-1).j].name}`, `+${chf(rows.at(-1).gain)} CHF · ${L[rows.at(-1).j].elev} m`],
+  ].map(t => `<div class="tile"><span>${t[0]}</span><b>${t[1]}</b><small>${t[2]}</small></div>`).join("");
+  drawMap("m-gain", gainOf, { region: POOL2, label: "extra CHF saved in the window", fmt: v => chf(v) + " CHF",
+    tip: i => i === S.s1 ? `<b>${L[i].name}</b>Site 1` : locTip(i, tr("Savings with site 1", chf(rowOf(i).r.savings) + " CHF") + tr("Extra savings", "+" + chf(rowOf(i).gain) + " CHF") + tr("Rank", rowOf(i).rank + " of " + rows.length)) });
+
+  { const f = frame("c-elev", CROSS ? 500 : 300, { l: 50, r: 16, t: 14, b: 34 });
+    const ex = rows.map(x => SCAT.of(L[x.j])), x0 = Math.floor(Math.min(...ex) / SCAT.grid) * SCAT.grid, x1 = Math.max(x0 + SCAT.grid, Math.ceil(Math.max(...ex) / SCAT.grid) * SCAT.grid);
+    const ax = yAxis(f, 0, Math.max(...rows.map(x => x.gain), 1), chf), X = v => f.x0 + (v - x0) / (x1 - x0) * (f.x1 - f.x0);
+    let out = ax.out;
+    for (let v = x0; v <= x1; v += SCAT.step) out += `<text x="${X(v)}" y="${f.H - 16}" text-anchor="middle">${SCAT.tick(v)}</text>`;
+    out += `<text class="ink2" x="${f.x1}" y="${f.H - 2}" text-anchor="end">${SCAT.axis}</text>`;
+    for (const x of [...rows].sort((a, b) => (a.j === S.s2) - (b.j === S.s2))) { const on = x.j === S.s2, cx = X(SCAT.of(L[x.j]));
+      out += `<circle class="pt" data-loc="${x.j}" cx="${cx}" cy="${ax.y(x.gain)}" r="${on ? 7 : 4.5}" fill="var(--${on ? "s2" : "s1"})"
+        fill-opacity="${on ? 1 : .75}" stroke="var(--surface)" stroke-width="${on ? 2 : 1}" data-tip="${esc(locTip(x.j, tr("Extra savings", "+" + chf(x.gain) + " CHF")))}"/>`;
+      if (on) { const right = cx < f.x1 - 120;
+        out += `<text class="ink" x="${cx + (right ? 11 : -11)}" y="${ax.y(x.gain) + 4}" text-anchor="${right ? "start" : "end"}" font-weight="600"
+          stroke="var(--surface)" stroke-width="3.5" paint-order="stroke">${L[x.j].name}</text>`; } }
+    f.svg.innerHTML = out; }
+
+  const maxGain = Math.max(...rows.map(x => x.gain), 1);
+  $("rank").innerHTML = `<tr><th>#</th><th>Site 2</th><th class="r">Elevation</th>${CROSS ? `<th class="r">Latitude</th>` : ""}<th class="r">Mean temp.</th><th class="r">Heat needed</th>
+    <th class="r">Saved, both sites</th><th>Extra over site 1 alone</th><th class="r">Bill paid back</th><th class="r">${S.follow ? "Compute paused" : "Heat dumped"}</th></tr>` +
+    rows.map(x => `<tr class="pick${x.j === S.s2 ? " sel" : ""}" data-loc="${x.j}"><td class="num">${x.rank}</td><td>${L[x.j].name}<span class="muted"> ${L[x.j].canton}</span></td>
+      <td class="r">${L[x.j].elev} m</td>${CROSS ? `<td class="r">${latText(L[x.j])}</td>` : ""}<td class="r">${f1(tempW[x.j])} °C</td><td class="r">${kwh(needW[x.j])} kWh</td><td class="r">${chf(x.r.savings)} CHF</td>
+      <td class="num">+${chf(x.gain)} CHF<i class="bar" style="width:${Math.round(x.gain / maxGain * 70)}px"></i></td>
+      <td class="r">${pct(x.r.share, 1)}</td><td class="r">${kwh(S.follow ? x.r.paused : x.r.dumped)} kWh</td></tr>`).join("");
+}
+
+/* ------------------------------------------------------------ wiring */
+function labels() {
+  $("Dv").textContent = S.D + " kW"; $("etav").textContent = pct(S.eta); $("tankv").textContent = S.tank + " kWh";
+  $("pricev").textContent = (S.price * 100).toFixed(2) + " Rp./kWh"; $("copv").textContent = f1(S.cop);
+  $("assume").innerHTML = [
+    `The same house stands at every town${CROSS ? ", in both countries" : ""}: space heating = max(0, ${HOUSE.design_heat_load_kw} kW × (${HOUSE.indoor_setpoint_c} − T) ÷ ${HOUSE.design_delta_k}) on days whose mean temperature is below ${HOUSE.heating_day_threshold_c} °C, plus ${HOUSE.hot_water_kwh_per_day} kWh of hot water a day (the case brief's reference house).`,
+    `${pct(S.eta)} of server electricity reaches the house as heat. The case brief says 80%; 85% is the figure from the DigitalHeat slides used in your heat model.`,
+    `Compute demand is a constant load that can be split freely between sites, and each site can host all of it. Site 1 is served first; site 2 takes what site 1 cannot use. Jobs, deadlines, server sizes and hardware cost are not in this model yet.`,
+    `Each house has a ${S.tank} kWh tank with no losses, empty at the start of the run.`,
+    `Savings = heat the houses use × ${(S.price * 100).toFixed(2)} Rp./kWh ÷ COP ${f1(S.cop)}. One electricity price is used everywhere (ElCom 2026, IWB Basel, H4); real tariffs differ by town${CROSS ? `, and a household in ${R2.name} pays its own tariff in its own currency, so the value of the heat there is overstated or understated by that difference` : ""}.`,
+    ...(CROSS ? [`Every hour is the same instant at both sites (the clock is ${R1.name}'s local time). The house in ${R2.name} follows its own calendar days, starting at midnight ${R2.day_starts}, for the heating-day rule. Months on the charts are ${R1.name}'s months.`,
+      `Moving compute between the two countries is free and instant here: network delay, data transfer cost and data-residency rules are not in the model.`] : []),
+    `Weather: ${R1.source}. Locations: ${[...new Set([R1.selection, R2.selection])].join("; ")}. Windows that pass December continue in January ${DATA.year}.`,
+  ].map(t => `<li>${t}</li>`).join("");
+}
+function staticText() {
+  const n = P2.length - (CROSS ? 0 : 1), year = DATA.year;
+  if (CROSS) document.title = $("h1").textContent = `DigitalHeat siting model: ${R1.name} and ${R2.name}`;
+  $("intro").innerHTML = CROSS
+    ? `Servers sit in houses and their heat covers what the house needs. Here site 1 is one of ${P1.length} towns in ${R1.name} and
+       site 2 is one of ${P2.length} towns in ${R2.name}, where winter falls in the other half of the year. The page works through
+       one house, the weather profiles of both countries, and the savings of adding a second house at each town in ${R2.name}.
+       Move a control and every figure below is recalculated.`
+    : `Servers sit in houses and their heat covers what the house needs. This page works through three steps: one house, then
+       ${N} weather profiles in ${R1.name}, then the 6-month savings of adding a second house at each of them. Move a control and
+       every figure below is recalculated.`;
+  $("st3").textContent = CROSS ? `Step 3 · ${P1.length} + ${P2.length} weather profiles and a second site` : `Step 3 · ${N} weather profiles and a second site`;
+  $("lede3").innerHTML = CROSS
+    ? `Each dot is a town with its own hourly temperature profile for ${year}: ${P1.length} in ${R1.name} for site 1 and ${P2.length} in
+       ${R2.name} for site 2. Both sets run on one clock, so every hour is the same instant at both sites. The same house is placed at
+       every town, so only the weather differs. A second site helps when its house still needs heat in the hours when site 1 cannot use
+       any more. Click a dot in ${R1.name} to change site 1 and a dot in ${R2.name} to change site 2.`
+    : `Each dot is one of ${N} towns in ${R1.name} with its own hourly temperature profile for ${year}. The same house is placed at every
+       town, so only the weather differs. A second site helps when its house still needs heat in the hours when site 1 cannot use any
+       more. Click a dot to make it site 2.`;
+  $("h-need1").innerHTML = CROSS ? `Site 1 · ${P1.length} towns in ${R1.name}` : `Heat requirement of the house at each town, <span class="win-name"></span>`;
+  $("h-need2").textContent = `Site 2 · ${P2.length} towns in ${R2.name}`;
+  $("lede4").innerHTML = `The model pairs site 1 with each of the ${CROSS ? "" : "other "}${n} towns${CROSS ? " in " + R2.name : ""} and shares the compute demand
+    between the two houses hour by hour. Savings are the heat both houses actually use, valued at the heat-pump electricity it replaces.
+    Click a dot or a table row to change site 2.`;
+  $("h-gain").innerHTML = `Extra savings from adding site 2 at each town${CROSS ? " in " + R2.name : ""}, <span class="win-name"></span>`;
+  $("h-scat").textContent = SCAT.title;
+  $("h-rank").textContent = `All ${n} candidates, best first`;
+}
+function render(all = true) { labels(); if (all) renderStep2(); renderPair(); }
+function selfCheck() {
+  const d = DATA.defaults, o = { eta: P0.recovery, tank: P0.tank_kwh, price: P0.electricity_chf_per_kwh, cop: P0.heat_pump_cop, follow: false };
+  const i1 = L.findIndex(l => l.name === d.site1), W = windowHours(d.window_start, d.window_months);
+  const yr = simulate([Q[i1]], YEAR, d.compute_kw, o).savings;
+  let best = null;
+  for (const j of P2) if (j !== i1) { const s = simulate([Q[i1], Q[j]], W, d.compute_kw, o).savings; if (!best || s > best.s) best = { s, j }; }
+  const c = DATA.check, ok = Math.abs(yr - c.year_savings_chf) < 0.01 && Math.abs(best.s - c.best_savings_chf) < 0.01 && L[best.j].name === c.best_name;
+  $("check").innerHTML = `<b>Model check ${ok ? "passed" : "FAILED"}.</b> At the default settings this page computes ${f2(yr)} CHF a year for one house and
+    ${f2(best.s)} CHF for the best pair (${L[best.j].name}); the Python model (digitalheat/siting.py) gives ${f2(c.year_savings_chf)} and ${f2(c.best_savings_chf)} (${c.best_name}).`;
+  $("check").dataset.ok = ok;
+}
+
+const optsHtml = pool => pool.slice().sort((a, b) => L[a].name.localeCompare(L[b].name))
+  .map(i => `<option value="${i}">${L[i].name} (${L[i].elev} m)</option>`).join("");
+$("s1").innerHTML = optsHtml(P1); $("s2").innerHTML = optsHtml(P2);
+staticText();
+$("win").innerHTML = MONTHS.map((m, i) => `<option value="${i + 1}">${m}–${MONTHS[(i + 5) % 12]} (6 months)</option>`).join("") + `<option value="0">Full year</option>`;
+document.querySelectorAll(".yr").forEach(e => e.textContent = DATA.year);
+$("s1").value = S.s1; $("win").value = S.win; $("D").value = S.D; $("eta").value = S.eta; $("tank").value = S.tank; $("price").value = S.price; $("cop").value = S.cop;
+$("s1").onchange = e => { S.s1 = +e.target.value; if (S.s2 === S.s1) S.s2 = -1; render(); };
+$("s2").onchange = e => { const v = +e.target.value; if (v !== S.s1) S.s2 = v; render(false); };
+$("win").onchange = e => { S.win = +e.target.value; render(false); };
+$("D").oninput = e => { S.D = +e.target.value; render(); };
+for (const k of ["eta", "tank", "price", "cop"]) $(k).oninput = e => { S[k] = +e.target.value; render(); };
+document.querySelectorAll("input[name=mode]").forEach(r => r.onchange = e => { S.follow = e.target.value === "1"; render(); });
+document.addEventListener("click", e => { const el = e.target.closest("[data-loc]"); if (!el) return;
+  const j = +el.dataset.loc;
+  if (CROSS && L[j].region === POOL1) { if (j !== S.s1) { S.s1 = j; $("s1").value = j; render(); } return; }
+  if (j === S.s1) return; S.s2 = j; render(false); });
+const tip = $("tip");
+document.addEventListener("mousemove", e => {
+  const el = e.target.closest && e.target.closest("[data-tip]");
+  if (!el) { tip.style.display = "none"; return; }
+  tip.innerHTML = el.dataset.tip; tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(innerWidth - w - 8, e.clientX + 14) + "px";
+  tip.style.top = Math.max(8, Math.min(innerHeight - h - 8, e.clientY - h - 10)) + "px";
+});
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => render(), 120); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => render());
+const qs = new URLSearchParams(location.search);
+if (qs.get("D")) { S.D = +qs.get("D"); $("D").value = S.D; }
+if (qs.get("win")) { S.win = +qs.get("win"); $("win").value = S.win; }
+if (qs.get("s1")) { const i = L.findIndex(l => l.name === qs.get("s1")); if (P1.includes(i)) { S.s1 = i; $("s1").value = i; } }
+if (qs.get("s2")) S.s2 = L.findIndex(l => l.name === qs.get("s2"));
+selfCheck(); render();
+</script>
+</body>
+</html>

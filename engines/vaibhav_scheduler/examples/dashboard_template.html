@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DigitalHeat fleet dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.06);
+  --water: #2a78d6; --space: #eb6834; --water-room: #b7d3f6; --space-room: #f7cdbb; --dump: #a3a199;
+  --urgent: #6250d6; --normal: #1baf7a; --relaxed: #eda100;
+  --accent: #2a78d6; --critical: #d03b3b; --good: #0ca30c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.08);
+    --water: #3987e5; --space: #d95926; --water-room: #1b3f6e; --space-room: #5e2a14; --dump: #6b6a64;
+    --urgent: #9085e9; --normal: #199e70; --relaxed: #c98500;
+    --accent: #3987e5;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 16px 48px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 15px; margin: 0; }
+h3 { font-size: 12px; margin: 10px 0 2px; color: var(--ink2); font-weight: 600; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.note { color: var(--ink2); margin: 2px 0 8px; max-width: 110ch; }
+
+.top { position: sticky; top: 0; z-index: 6; background: var(--page); padding: 12px 0 10px;
+  border-bottom: 1px solid var(--border); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
+.top .grow { flex: 1 1 auto; }
+.clock { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.progress { color: var(--ink2); font-variant-numeric: tabular-nums; }
+.controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+button, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 10px; }
+button { cursor: pointer; }
+button:hover { background: var(--wash); }
+button[aria-pressed=true] { background: var(--ink); color: var(--page); border-color: var(--ink); }
+#toggle { min-width: 74px; font-weight: 600; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.status { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.status.off i { background: var(--critical); }
+.seg-group { display: inline-flex; }
+.seg-group button { border-radius: 0; margin-left: -1px; }
+.seg-group button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.seg-group button:last-child { border-radius: 0 6px 6px 0; }
+
+.tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 1000px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.tile .k { color: var(--ink2); font-size: 12px; }
+.tile .v { font-size: 22px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.tile .v small { font-size: 12px; font-weight: 400; color: var(--ink2); }
+.tile .d { color: var(--muted); font-size: 11px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.houses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .houses { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px 10px; min-width: 0; }
+.card + .card.wide { margin-top: 12px; }
+.hh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.facts { display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--ink2); margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
+.facts b { color: var(--ink); font-weight: 600; }
+
+/* this hour: server heat against what the house needs and can take */
+.meter { position: relative; height: 14px; border-radius: 4px; background: var(--wash); overflow: hidden; }
+.meter i { position: absolute; top: 0; bottom: 0; }
+.meter .room { background: var(--space-room); }
+.meter .used { background: var(--space); }
+.meter .over { background: var(--dump); }
+.meter .must { width: 2px; background: var(--ink); }
+.meterline { color: var(--ink2); margin: 3px 0 0; font-variant-numeric: tabular-nums; }
+
+.servers { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 5px 6px; }
+.srv { display: flex; height: 12px; border-radius: 3px; background: var(--wash); overflow: hidden; }
+.srv span { height: 100%; flex: none; box-shadow: inset -1px 0 0 var(--surface); }
+.c-urgent { background: var(--urgent); } .c-normal { background: var(--normal); } .c-relaxed { background: var(--relaxed); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink2); margin: 4px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.sw.space { background: var(--space); } .sw.water { background: var(--water); }
+.sw.space-room { background: var(--space-room); } .sw.water-room { background: var(--water-room); }
+.sw.dump { background: var(--dump); }
+.sw.tick { width: 14px; height: 2px; border-radius: 0; background: var(--ink); }
+.plot { width: 100%; }
+
+.queue { position: sticky; top: 74px; }
+@media (max-width: 1100px) { .queue { position: static; } }
+.tablewrap { overflow: auto; max-height: 62vh; }
+table.q { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.q th, table.q td { padding: 3px 6px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.q th { color: var(--ink2); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--surface); }
+table.q th.l, table.q td.l { text-align: left; }
+.chip { display: inline-flex; align-items: center; gap: 5px; }
+table.q td.empty { color: var(--ink2); padding: 10px 0; white-space: normal; border-bottom: none; }
+
+svg { display: block; overflow: visible; }
+svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.gridl { stroke: var(--grid); stroke-width: 1; }
+.axisl { stroke: var(--axis); stroke-width: 1; }
+.f-space { fill: var(--space); } .f-water { fill: var(--water); }
+.f-space-room { fill: var(--space-room); } .f-water-room { fill: var(--water-room); } .f-dump { fill: var(--dump); }
+.mustline { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.hov { fill: var(--wash); }
+
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 230px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14); display: none; }
+#tip h4 { margin: 0 0 4px; font-size: 12px; }
+#tip table { border-collapse: collapse; width: 100%; }
+#tip td { padding: 1px 0; }
+#tip td:last-child { text-align: right; padding-left: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tip tr.sep td { border-top: 1px solid var(--border); padding-top: 4px; }
+ul.plain { margin: 4px 0 4px; padding-left: 18px; color: var(--ink2); max-width: 110ch; }
+ul.plain b { color: var(--ink); }
+ul.plain li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Fleet dashboard</h1>
+      <div class="muted">A simulation shown live: six houses, their servers and the jobs on them.</div>
+    </div>
+    <div>
+      <div class="clock" id="clock">&nbsp;</div>
+      <div class="progress" id="progress">connecting…</div>
+    </div>
+    <span class="grow"></span>
+    <div class="controls">
+      <span class="status" id="status"><i></i><span id="statustext">connecting</span></span>
+      <button id="toggle">Pause</button>
+      <label for="speed" class="muted">Speed</label>
+      <select id="speed"></select>
+      <button id="restart">Restart</button>
+      <span class="muted">History</span>
+      <span class="seg-group" id="window">
+        <button data-h="24">24 h</button><button data-h="72" aria-pressed="true">72 h</button><button data-h="0">All</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="main">
+    <div>
+      <div class="houses" id="houses"></div>
+      <div class="card wide">
+        <h2>How to read this</h2>
+        <ul class="plain" id="how"></ul>
+      </div>
+    </div>
+    <div class="card queue">
+      <div class="hh"><h2>Queue</h2><span class="muted num" id="qcount"></span></div>
+      <p class="note" id="qnote"></p>
+      <div class="legend">
+        <span><i class="sw c-urgent"></i>Urgent</span>
+        <span><i class="sw c-normal"></i>Normal</span>
+        <span><i class="sw c-relaxed"></i>Relaxed</span>
+      </div>
+      <div class="tablewrap"><table class="q" id="queue"></table></div>
+    </div>
+  </div>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const f = (v, d = 1) => { const t = Math.abs(v) < 0.5 / 10 ** d ? 0 : v; return t.toFixed(d).replace("-", "−"); };
+const n0 = (v) => Math.round(v).toLocaleString("en").replace("-", "−");
+const g = (v) => String(+v.toFixed(2));
+const pct = (a, b) => b > 0 ? f(a / b * 100, 0) + "%" : "–";
+const dur = (h) => h < 1 ? `${Math.round(h * 60)} min` : `${f(h)} h`;
+const KEYS = ["must_run", "space_max", "water_max", "to_space", "to_water", "dumped", "backup"];
+
+let S = null;                 // latest snapshot from the server
+let hist = [];                // per house: the hourly history so far
+let runId = null, windowH = 72, hover = null, built = false;
+
+/* ---- time ---- */
+const when = (hour) => new Date(Date.parse(S.start + "T00:00:00Z") + hour * 3600000);
+const stamp = (hour, long) => when(hour).toLocaleString("en-GB", long
+  ? { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }
+  : { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+const dayLabel = (hour) => when(hour).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/* ---- talking to the server ---- */
+async function poll() {
+  try {
+    const have = runId == null ? 0 : hist[0].must_run.length;
+    const res = await fetch(`/state?since=${have}` + (runId == null ? "" : `&run=${runId}`), { cache: "no-store" });
+    const snap = await res.json();
+    if (snap.run !== runId || snap.from === 0) { hist = snap.sites.map(() => Object.fromEntries(KEYS.map((k) => [k, []]))); runId = snap.run; }
+    snap.sites.forEach((site, i) => { for (const k of KEYS) { hist[i][k].length = snap.from; hist[i][k].push(...site.history[k]); } });
+    S = snap;
+    $("status").classList.remove("off");
+    $("statustext").textContent = S.finished ? "run finished" : S.paused ? "paused" : "running";
+    render();
+  } catch (err) {
+    $("status").classList.add("off");
+    $("statustext").textContent = "server not reachable";
+    $("progress").textContent = "start it with: python examples/dashboard_server.py";
+  }
+}
+async function control(action, value) {
+  await fetch("/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, value }) });
+  poll();
+}
+
+/* ---- drawing ---- */
+function s(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceStep(top) { const raw = top / 3, mag = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw); }
+function jobName(kind, gpus, run) { return `${g(gpus)} GPU · ${dur(run)}`; }
+
+function buildOnce() {
+  $("houses").innerHTML = S.sites.map((site, i) => `<div class="card">
+      <div class="hh"><h2>${esc(site.name)}</h2><span class="muted num">${site.size}× house · ${site.servers.length} server${site.servers.length === 1 ? "" : "s"} · ${site.gpus} GPUs</span></div>
+      <div class="facts" id="facts-${i}"></div>
+      <div class="meter" id="meter-${i}"></div>
+      <p class="meterline" id="meterline-${i}"></p>
+      <h3>Servers and the jobs on them</h3>
+      <div class="servers" id="srv-${i}"></div>
+      <h3 id="charttitle-${i}">Heat, kWh each hour</h3>
+      <div class="plot" id="chart-${i}"></div>
+    </div>`).join("");
+  $("speed").innerHTML = S.speeds.map((v) => `<option value="${v}">${v}×</option>`).join("");
+  $("how").innerHTML = [
+    "<b>Servers.</b> Each strip is one server with 8 GPUs. Coloured blocks are the jobs running on it, as wide as the GPUs they use, coloured by class. Hover a block for the job's details.",
+    "<b>This hour.</b> The bar under each house's name shows the server heat of the current hour (solid) inside what the house can absorb (pale), with a mark at the least it must get. Heat beyond what it can absorb is grey: dumped.",
+    `<b>Heat history.</b> One column per hour, as on the planner page: solid is server heat the house used (<i class="sw space"></i> rooms, <i class="sw water"></i> hot water), pale is room still left (<i class="sw space-room"></i> <i class="sw water-room"></i>), <i class="sw dump"></i> grey on top is heat dumped, and the black line is the must-run minimum.`,
+    `<b>Queue.</b> Jobs waiting, highest priority first. A job is held while even the best house would use less than ${f(S.policy.hold_share * 100, 0)}% of its heat, until it has under ${S.policy.start_margin_h} hours of slack. Priority rises by one for every hour waited and further as the slack runs out.`,
+    `<b>What it is.</b> A simulation, not real machines: ${S.hours / 24} days of 2025 weather from ${dayLabel(0)}, jobs from the Alibaba GPU trace asking for about ${f(S.policy.load * 100, 0)}% of the fleet, servers measured in MLPerf. "Now" is simulated time.`,
+  ].map((t) => `<li>${t}</li>`).join("");
+  built = true;
+}
+
+function drawChart(i) {
+  const el = $("chart-" + i), H = hist[i], t = S.t;
+  const span = windowH || S.hours, first = windowH ? Math.max(0, t - span) : 0;
+  el.textContent = "";
+  const W = Math.max(260, el.clientWidth), Ht = 150, ml = 40, mr = 8, mt = 8, mb = 20;
+  const svg = s("svg", { width: W, height: Ht, viewBox: `0 0 ${W} ${Ht}`, role: "img",
+    "aria-label": `${S.sites[i].name}: server heat used and dumped, the heat the house could absorb and its must-run minimum, hour by hour` }, el);
+  const pw = W - ml - mr, ph = Ht - mt - mb, slot = pw / span;
+  let top = 1;
+  for (let h = first; h < t; h++) top = Math.max(top, H.space_max[h] + H.water_max[h] + H.dumped[h], H.must_run[h]);
+  const step = niceStep(top), ymax = Math.ceil(top / step) * step;
+  const x = (h) => ml + (h - first) * slot, y = (v) => mt + ph * (1 - v / ymax);
+  const band = s("rect", { class: "hov", x: ml, y: mt, width: Math.max(1, slot), height: ph, visibility: "hidden" }, svg);
+  for (let v = 0; v <= ymax + 1e-9; v += step) {
+    s("line", { class: "gridl", x1: ml, x2: ml + pw, y1: y(v), y2: y(v) }, svg);
+    s("text", { x: ml - 5, y: y(v) + 4, "text-anchor": "end" }, svg, v >= 1000 ? n0(v) : f(v, step < 1 ? 1 : 0));
+  }
+  s("line", { class: "axisl", x1: ml, x2: ml + pw, y1: y(0), y2: y(0) }, svg);
+  const dayEvery = Math.max(1, Math.ceil(span / 24 / 5));
+  for (let h = Math.ceil(first / 24) * 24; h < first + span; h += 24 * dayEvery) s("text", { x: x(h), y: Ht - 5, "text-anchor": "start" }, svg, dayLabel(h));
+  const bw = Math.max(1, Math.min(14, slot * 0.78));
+  let must = "";
+  for (let h = first; h < t; h++) {
+    const xl = x(h) + (slot - bw) / 2;
+    let v0 = 0;
+    for (const [v, cls] of [[H.to_space[h], "f-space"], [H.to_water[h], "f-water"], [H.space_max[h] - H.to_space[h], "f-space-room"], [H.water_max[h] - H.to_water[h], "f-water-room"], [H.dumped[h], "f-dump"]]) {
+      const hpx = y(v0) - y(v0 + v);
+      if (hpx >= 0.5) s("rect", { class: cls, x: xl, y: y(v0 + v), width: bw, height: hpx }, svg);
+      v0 += v;
+    }
+    must += `${must ? "L" : "M"}${x(h).toFixed(1)},${y(H.must_run[h]).toFixed(1)}H${(x(h) + slot).toFixed(1)}`;
+  }
+  if (must) s("path", { class: "mustline", d: must }, svg);
+  const hit = s("rect", { x: ml, y: mt, width: pw, height: ph, fill: "transparent" }, svg);
+  hit.addEventListener("pointermove", (e) => {
+    const r = hit.getBoundingClientRect(), h = first + Math.floor((e.clientX - r.left) / r.width * span);
+    hover = h < t ? { i, h, x: e.clientX, y: e.clientY } : null; showTip();
+  });
+  hit.addEventListener("pointerleave", () => { hover = null; showTip(); });
+  if (hover && hover.i === i && hover.h >= first && hover.h < t) { band.setAttribute("x", x(hover.h)); band.setAttribute("visibility", "visible"); }
+  $("charttitle-" + i).textContent = `Heat, kWh each hour · ${windowH ? `last ${windowH} hours` : "whole run"}`;
+}
+function showTip() {
+  const tip = $("tip");
+  if (!hover || !S) { tip.style.display = "none"; return; }
+  const H = hist[hover.i], h = hover.h, used = H.to_space[h] + H.to_water[h], can = H.space_max[h] + H.water_max[h];
+  const row = (k, v, cls = "") => `<tr class="${cls}"><td>${k}</td><td>${v}</td></tr>`;
+  tip.innerHTML = `<h4>${esc(S.sites[hover.i].name)} · ${stamp(h, false)}</h4><table>` +
+    row("Server heat produced", `<b>${f(used + H.dumped[h])} kWh</b>`) +
+    row('<i class="sw space"></i> used by the rooms', f(H.to_space[h])) +
+    row('<i class="sw water"></i> used for hot water', f(H.to_water[h])) +
+    row('<i class="sw dump"></i> dumped', f(H.dumped[h])) +
+    row("House could absorb", `<b>${f(can)} kWh</b>`, "sep") +
+    row("still unfilled", f(can - used)) +
+    row("Must-run minimum", `${f(H.must_run[h])} kWh`, "sep") +
+    row("left to the backup", f(H.backup[h])) + "</table>";
+  tip.style.display = "block";
+  const w = tip.offsetWidth, ht = tip.offsetHeight;
+  tip.style.left = Math.max(8, hover.x + 16 + w > innerWidth ? hover.x - 16 - w : hover.x + 16) + "px";
+  tip.style.top = Math.max(8, Math.min(innerHeight - ht - 8, hover.y - ht / 2)) + "px";
+}
+
+function render() {
+  if (!built) buildOnce();
+  const t = S.t, now = t - 1, F = S.fleet;
+  $("clock").textContent = stamp(now, true);
+  $("progress").textContent = `hour ${t} of ${S.hours} · one simulated hour every ${g(S.seconds_per_hour / S.speed)} s`;
+  $("toggle").textContent = S.finished ? "Finished" : S.paused ? "Play" : "Pause";
+  $("toggle").disabled = S.finished;
+  if (document.activeElement !== $("speed")) $("speed").value = S.speed;
+
+  const heatNow = sum(hist, (H) => H.to_space[now] + H.to_water[now] + H.dumped[now]), dumpNow = sum(hist, (H) => H.dumped[now]);
+  const cls = F.waiting_by_class, tile = (k, v, unit, d) => `<div class="tile"><div class="k">${k}</div><div class="v">${v} <small>${unit}</small></div><div class="d">${d}</div></div>`;
+  $("tiles").innerHTML =
+    tile("Jobs running", n0(F.running), "", `${n0(F.done)} finished so far`) +
+    tile("Jobs waiting", n0(F.waiting), "", ["urgent", "normal", "relaxed"].map((c) => `${cls[c] || 0} ${c}`).join(" · ")) +
+    tile("GPUs busy", pct(F.busy, F.gpus), "", `${n0(F.busy)} of ${F.gpus}`) +
+    tile("Server heat this hour", n0(heatNow), "kWh", `${pct(heatNow - dumpNow, heatNow)} used by the houses`) +
+    tile("Dumped this hour", n0(dumpNow), "kWh", `${pct(dumpNow, heatNow)} of the server heat`) +
+    tile("Deadlines missed", n0(F.missed), "jobs", `of ${n0(F.arrived)} arrived so far`);
+
+  S.sites.forEach((site, i) => {
+    const H = hist[i], used = H.to_space[now] + H.to_water[now], heat = used + H.dumped[now], can = H.space_max[now] + H.water_max[now], must = H.must_run[now];
+    $("facts-" + i).innerHTML = `<span>Outdoor <b>${f(site.outdoor)} °C</b></span><span>Indoor <b>${f(site.indoor)} °C</b></span>` +
+      `<span>Hot-water tank <b>${pct(site.tank, site.tank_full)}</b></span><span>GPUs busy <b>${pct(site.gpu, site.gpus)}</b></span>`;
+    const scale = Math.max(can, heat, must, 0.01), w = (v) => (v / scale * 100).toFixed(2) + "%";
+    $("meter-" + i).innerHTML = `<i class="room" style="left:0;width:${w(can)}"></i><i class="used" style="left:0;width:${w(used)}"></i>` +
+      `<i class="over" style="left:${w(can)};width:${w(H.dumped[now])}"></i><i class="must" style="left:calc(${w(must)} - 1px)"></i>`;
+    $("meterline-" + i).textContent = `This hour: servers made ${f(heat)} kWh · house can absorb ${f(can)} · must get ${f(must)} · dumped ${f(H.dumped[now])} · backup ${f(H.backup[now])}`;
+    $("srv-" + i).innerHTML = site.servers.map((jobs, k) => {
+      const usedGpus = sum(jobs, (j) => j.g);
+      return `<div class="srv" title="Server ${k + 1}: ${g(usedGpus)} of 8 GPUs busy">` + jobs.map((j) =>
+        `<span class="c-${esc(j.cls)}" style="width:${(j.g / 8 * 100).toFixed(2)}%" title="Job ${j.n} · ${jobName(j.kind, j.g, j.run)} · ${esc(j.cls)}&#10;started ${stamp(j.start, false)}, ends ${stamp(j.end, false)}&#10;deadline ${stamp(Math.floor(j.due), false)}"></span>`).join("") + "</div>";
+    }).join("");
+    drawChart(i);
+  });
+
+  $("qcount").textContent = `${n0(F.waiting)} waiting`;
+  $("qnote").textContent = F.waiting > S.queue.length ? `Showing the ${S.queue.length} with the highest priority.` : "Highest priority first; these are decided again next hour.";
+  $("queue").innerHTML = S.queue.length
+    ? "<thead><tr><th class=\"l\">Job</th><th class=\"l\">Class</th><th>Waited</th><th>Slack</th><th>Priority</th></tr></thead><tbody>" +
+      S.queue.map((j) => `<tr><td class="l">${jobName(j.kind, j.g, j.run)}</td><td class="l"><span class="chip"><i class="sw c-${esc(j.cls)}"></i>${esc(j.cls)}</span></td>` +
+        `<td>${j.waited} h</td><td>${f(j.slack)} h</td><td>${f(j.priority)}</td></tr>`).join("") + "</tbody>"
+    : '<tbody><tr><td class="l empty">Nothing is waiting: every job that arrived has been started.</td></tr></tbody>';
+  showTip();
+}
+const sum = (a, fn) => a.reduce((t, x) => t + fn(x), 0);
+
+/* ---- controls ---- */
+$("toggle").addEventListener("click", () => control(S && S.paused ? "play" : "pause"));
+$("restart").addEventListener("click", () => { hover = null; control("restart"); });
+$("speed").addEventListener("change", (e) => control("speed", +e.target.value));
+$("window").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  windowH = +b.dataset.h;
+  document.querySelectorAll("#window button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  if (S) render();
+});
+let wait;
+addEventListener("resize", () => { clearTimeout(wait); wait = setTimeout(() => S && render(), 80); });
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>
