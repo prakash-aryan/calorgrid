@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121k">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121m">
   <script type="importmap">
   {
     "imports": {
@@ -46,18 +46,22 @@
       </div>
       <div class="brand-text">
         <span class="brand-title">CalorGrid</span>
-        <span class="brand-sub">Swiss Thermal-Compute Network</span>
+        <span class="brand-sub">Useful Load -&gt; Useful Heat · Decentralized Swiss Network</span>
       </div>
       <span class="health-badge" data-testid="api-health-badge">Live</span>
 
       <nav class="app-top-tabs" data-testid="app-top-tabs" aria-label="Primary App Views">
+        <span class="nav-role-tag">Hosts</span>
         <button type="button" class="app-tab-btn is-active" data-app-tab="explore">Explore</button>
         <button type="button" class="app-tab-btn" data-app-tab="configure">Configure</button>
         <button type="button" class="app-tab-btn" data-app-tab="heatledger">HeatLedger</button>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <span class="nav-role-tag">Customers</span>
+        <button type="button" class="app-tab-btn app-tab-compute" data-app-tab="compute" data-testid="tab-compute-gpus">Compute / GPUs</button>
       </nav>
 
       <div class="mobile-header-actions">
-        <button type="button" class="btn-order-compact" data-app-tab="configure" aria-label="Configure hosting and heating for your building">Host &amp; Heat</button>
+        <button type="button" class="btn-order-compact" data-app-tab="compute" aria-label="Book GPUs and compute capacity">Book GPUs</button>
         <button type="button" class="btn-toggle atlas-only-mobile" data-testid="toggle-mobile-controls" aria-expanded="false" aria-label="Toggle simulation filters">Filters</button>
         <button type="button" class="btn-switch atlas-only-mobile" data-testid="toggle-panels-mobile" aria-pressed="false" aria-label="Toggle info panels">
           <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
@@ -421,7 +425,8 @@
   <section class="swiss-network-overlay" data-testid="swiss-network-overlay" hidden>
     <div class="sn-topbar">
       <div class="sn-title-group">
-        <h2>Switzerland Network</h2>
+        <h2>Switzerland Decentralized Heat-Compute Fleet</h2>
+        <p class="sn-subtitle">Building Hosts get CHF 0 servers &amp; lower heating bills · Compute Customers book On-Demand or Spot GPUs across 14 Swiss sites</p>
       </div>
       <div class="sn-controls">
         <div class="sn-year-scrubber" role="group" aria-label="Month of year">
@@ -442,6 +447,7 @@
           <button type="button" class="sn-pill" data-sn-strategy="baseline">Uncoordinated</button>
         </div>
         <button type="button" class="sn-btn-primary sn-desktop-only" id="sn-order-server-btn">Host a server</button>
+        <button type="button" class="sn-btn-dark sn-desktop-only" id="sn-book-compute-btn" data-testid="sn-book-compute-btn">Book GPUs</button>
       </div>
     </div>
 
@@ -494,6 +500,7 @@
     <div class="sn-tb-actions">
       <button type="button" class="sn-btn-primary" id="sn-tb-configure">Configure for my building</button>
       <button type="button" class="sn-btn-dark" id="sn-tb-heatledger">Open HeatLedger</button>
+      <button type="button" class="sn-btn-outline" id="sn-tb-book-compute" data-testid="sn-tb-book-compute">Book GPUs here</button>
       <button type="button" class="sn-btn-ghost" id="sn-tb-prev">Previous</button>
       <button type="button" class="sn-btn-ghost" id="sn-tb-next">Next</button>
       <button type="button" class="sn-btn-ghost" id="sn-tb-webgl" hidden>Interactive 3D</button>
@@ -532,10 +539,20 @@
 
       <div class="app-panel-col">
         <div class="app-card">
+          <span class="app-eyebrow">Building Host View · CHF 0 Server Hardware</span>
           <h2>Configure your building</h2>
           <label class="field-group">
             <span>Building</span>
             <select id="cfg-deployment-select" data-testid="cfg-deployment-select" aria-label="Building type"></select>
+          </label>
+          <label class="field-group">
+            <span>Existing default heater</span>
+            <select id="cfg-heater-select" data-testid="cfg-heater-select" aria-label="Existing default heater">
+              <option value="" selected>Site default heating system</option>
+              <option value="gas_boiler">Gas Boiler (90% eff.)</option>
+              <option value="heat_pump">Air/Ground Heat Pump (COP 2.5)</option>
+              <option value="electric_backup">Direct Electric Resistance Heater</option>
+            </select>
           </label>
 
           <div class="cfg-boiler-toggle-row" data-testid="cfg-boiler-toggle-row">
@@ -585,6 +602,14 @@
 
           <div id="cfg-reserve-summary" class="cfg-reserve-toast" hidden></div>
         </div>
+
+        <div class="app-card">
+          <div class="card-section-head">
+            <span>CalorGrid vs. Default Heater (Annual)</span>
+            <small>Host keeps existing heating system</small>
+          </div>
+          <div id="cfg-host-breakdown" class="cg-host-breakdown" data-testid="cfg-host-breakdown"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -593,7 +618,7 @@
     <div class="app-split-shell">
       <div class="app-stage-col">
         <div class="stage-toolbar">
-          <strong class="hl-stage-heading">HeatLedger</strong>
+          <strong class="hl-stage-heading">Building Host HeatLedger</strong>
           <button type="button" class="sn-btn-ghost" id="hl-reset-3d-btn">Reset</button>
         </div>
 
@@ -623,6 +648,15 @@
             <h2>Tomorrow</h2>
             <select id="hl-deployment-select" data-testid="hl-deployment-select" class="hl-site-select" aria-label="Building"></select>
           </div>
+          <label class="field-group">
+            <span>Default backup heater</span>
+            <select id="hl-heater-select" data-testid="hl-heater-select" aria-label="Default backup heater">
+              <option value="" selected>Site default heating system</option>
+              <option value="gas_boiler">Gas Boiler (90% eff.)</option>
+              <option value="heat_pump">Air/Ground Heat Pump (COP 2.5)</option>
+              <option value="electric_backup">Direct Electric Resistance Heater</option>
+            </select>
+          </label>
 
           <div id="hl-weather-card" class="hl-weather-card" data-testid="hl-weather-card">
             <div class="hl-weather-top">
@@ -660,6 +694,14 @@
 
         <div class="app-card">
           <div class="card-section-head">
+            <span>Heating-Bill Savings vs. Default Heater</span>
+            <small>CHF 0 servers · CalorGrid pays server power</small>
+          </div>
+          <div id="hl-host-breakdown" class="cg-host-breakdown" data-testid="hl-host-breakdown"></div>
+        </div>
+
+        <div class="app-card">
+          <div class="card-section-head">
             <span>24-hour heat vs demand</span>
             <div class="hl-chart-legend">
               <span><i style="background:#d4d4d8"></i>Demand</span>
@@ -671,8 +713,10 @@
 
         <div class="app-card">
           <div class="card-section-head">
-            <span>Running processes</span>
+            <span>Live Site GPU Telemetry &amp; Running Processes</span>
+            <small>Per-server load + GPU kW_th</small>
           </div>
+          <div id="hl-live-telemetry" class="hl-live-telemetry" data-testid="hl-live-telemetry"></div>
           <div id="hl-process-list" class="hl-process-list" data-testid="hl-process-list"></div>
 
           <div class="hl-os-strip">
@@ -681,6 +725,137 @@
               <span id="hl-real-worker-status">Idle</span>
             </div>
             <button type="button" class="sn-btn-ghost" id="hl-real-worker-btn">Start OCR</button>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="card-section-head">
+            <span>Application &amp; Simulation Logs</span>
+            <small>Simulations · Analysis · Scheduler · Workers</small>
+          </div>
+          <div id="cg-app-logs" class="cg-app-logs" data-testid="cg-app-logs"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="app-overlay compute-overlay" data-testid="compute-overlay" hidden>
+    <div class="cc-shell">
+      <div class="cc-hero">
+        <div class="cc-hero-copy">
+          <span class="app-eyebrow">Compute / GPU Customers · Decentralized Swiss Network</span>
+          <h2>Book GPUs &amp; Servers Hosted Inside Swiss Heat Sinks</h2>
+          <p class="app-lead">Instead of building energy-wasting hyperscale data centers, CalorGrid places compute directly inside Swiss pools, spas, biogas digesters &amp; buildings. Choose instant <strong>On-Demand</strong> capacity at year-round sinks or save 50% with thermal-matched <strong>Spot</strong> routing.</p>
+          <div id="cc-pricing-meta" class="cc-pricing-meta" data-testid="compute-pricing-meta"></div>
+        </div>
+        <div class="cc-hero-actions">
+          <button type="button" class="sn-btn-ghost" id="cc-refresh-pricing-btn" data-testid="cc-refresh-pricing-btn">Refresh Cloud Rates</button>
+          <button type="button" class="sn-btn-outline" id="cc-switch-to-host-btn">Building Host View</button>
+        </div>
+      </div>
+
+      <div class="cc-main-grid">
+        <div class="cc-col-left">
+          <div class="app-card" data-testid="compute-quote-panel">
+            <div class="card-section-head">
+              <span>1. Configure Compute Capacity &amp; Thermal Tier</span>
+              <small>Live scheduler quoting</small>
+            </div>
+
+            <div class="cc-form-row">
+              <div class="cc-seg-wrap">
+                <span class="cc-field-label">Pricing Tier</span>
+                <div class="seg-toggle" data-testid="compute-tier-toggle" role="group" aria-label="Pricing tier">
+                  <button type="button" class="seg-btn is-active" data-cc-tier="on_demand" data-testid="cc-tier-ondemand">On-Demand (0 min)</button>
+                  <button type="button" class="seg-btn" data-cc-tier="spot" data-testid="cc-tier-spot">Spot (-50%)</button>
+                </div>
+              </div>
+              <div class="cc-seg-wrap">
+                <span class="cc-field-label">Unit Mode</span>
+                <div class="seg-toggle" data-testid="compute-unit-mode-toggle" role="group" aria-label="Unit mode">
+                  <button type="button" class="seg-btn is-active" data-cc-unit-mode="gpu" data-testid="cc-mode-gpu">Individual GPU</button>
+                  <button type="button" class="seg-btn" data-cc-unit-mode="server" data-testid="cc-mode-server">Full Server</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cc-form-grid">
+              <label class="field-group">
+                <span>GPU or Server SKU</span>
+                <select id="cc-sku-select" data-testid="compute-sku-select" aria-label="GPU or server SKU"></select>
+              </label>
+              <label class="field-group">
+                <span>Preferred Swiss Site</span>
+                <select id="cc-site-select" data-testid="compute-site-select" aria-label="Preferred Swiss site"></select>
+              </label>
+              <label class="field-group">
+                <span>Quantity</span>
+                <input type="number" id="cc-qty-input" data-testid="compute-qty-input" min="1" max="64" step="1" value="1">
+              </label>
+              <label class="field-group">
+                <span>Duration (hours)</span>
+                <input type="number" id="cc-hours-input" data-testid="compute-hours-input" min="0.5" max="168" step="0.5" value="4">
+              </label>
+              <label class="field-group">
+                <span>Workload Type</span>
+                <select id="cc-workload-select" data-testid="compute-workload-select" aria-label="Workload type"></select>
+              </label>
+              <label class="field-group">
+                <span>Job Name (optional)</span>
+                <input type="text" id="cc-job-name-input" data-testid="compute-job-name-input" maxlength="80" placeholder="e.g. llama3-basel-eval">
+              </label>
+            </div>
+
+            <div id="cc-quote-result" class="cc-quote-result" data-testid="compute-quote-result"></div>
+
+            <div class="cc-action-bar">
+              <button type="button" class="sn-btn-outline" id="cc-quote-btn" data-testid="compute-quote-btn">Update Quote</button>
+              <button type="button" class="sn-btn-primary" id="cc-book-btn" data-testid="compute-book-btn">Dispatch Compute Job</button>
+              <button type="button" class="sn-btn-dark" id="cc-tick-btn" data-testid="compute-tick-btn">Advance Sim Tick (+1h)</button>
+            </div>
+
+            <div id="cc-booking-receipt" class="cc-receipt-box" data-testid="compute-booking-receipt" hidden></div>
+          </div>
+
+          <div class="app-card" data-testid="compute-fleet-telemetry">
+            <div class="card-section-head">
+              <span>2. Live Fleet Server &amp; GPU Telemetry</span>
+              <select id="cc-telemetry-site-filter" class="cc-inline-select" aria-label="Filter telemetry by site"></select>
+            </div>
+            <div id="cc-fleet-summary" class="cfg-kpi-grid"></div>
+            <div class="cc-subhead">Active &amp; Queued Scheduler Jobs</div>
+            <div id="cc-active-jobs" class="cc-active-jobs"></div>
+            <div class="cc-subhead">Per-Site Servers &amp; GPU Slots</div>
+            <div id="cc-fleet-sites" class="cc-fleet-sites"></div>
+          </div>
+        </div>
+
+        <div class="cc-col-right">
+          <div class="app-card" data-testid="compute-cloud-comparison">
+            <div class="card-section-head">
+              <span>3. Live Cloud Comparison (On-Demand &amp; Spot)</span>
+              <small>Click any row to quote</small>
+            </div>
+            <div class="cc-subhead">Individual GPU Pricing vs. Hyperscalers</div>
+            <div id="cc-gpu-table-host" class="cc-table-wrap"></div>
+            <div class="cc-subhead">Full Server SKUs (All 4 Implemented Nodes)</div>
+            <div id="cc-sku-table-host" class="cc-table-wrap"></div>
+          </div>
+
+          <div class="app-card" data-testid="compute-summer-sinks">
+            <div class="card-section-head">
+              <span>4. Summer &amp; Year-Round Distributed Sink Cost Model</span>
+              <small>8x B200 node break-even across Swiss sinks</small>
+            </div>
+            <div id="cc-summer-sinks"></div>
+          </div>
+
+          <div class="app-card">
+            <div class="card-section-head">
+              <span>5. Scheduler, Booking &amp; Simulation Logs</span>
+              <small>Real-time TelemetryLogStore</small>
+            </div>
+            <div id="cc-app-logs" class="cg-app-logs" data-testid="cc-app-logs"></div>
           </div>
         </div>
       </div>
@@ -711,12 +886,27 @@
       </svg>
       <span>HeatLedger</span>
     </button>
+    <button type="button" class="bnav-btn" data-app-tab="compute" data-testid="bnav-compute-gpus">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+        <rect x="9" y="9" width="6" height="6"></rect>
+        <line x1="9" y1="1" x2="9" y2="4"></line>
+        <line x1="15" y1="1" x2="15" y2="4"></line>
+        <line x1="9" y1="20" x2="9" y2="23"></line>
+        <line x1="15" y1="20" x2="15" y2="23"></line>
+        <line x1="20" y1="9" x2="23" y2="9"></line>
+        <line x1="20" y1="14" x2="23" y2="14"></line>
+        <line x1="1" y1="9" x2="4" y2="9"></line>
+        <line x1="1" y1="14" x2="4" y2="14"></line>
+      </svg>
+      <span>Compute</span>
+    </button>
   </nav>
 
   <footer class="attribution-footer" data-testid="attribution-footer">
     Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
   </footer>
 
-  <script type="module" src="/js/main.js?v=20261121k"></script>
+  <script type="module" src="/js/main.js?v=20261121m"></script>
 </body>
 </html>

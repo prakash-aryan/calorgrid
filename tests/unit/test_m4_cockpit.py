@@ -105,6 +105,36 @@ REQUIRED_TESTIDS = (
     "sens-capex",
     "sens-tariff",
     "attribution-footer",
+    "tab-compute-gpus",
+    "bnav-compute-gpus",
+    "sn-book-compute-btn",
+    "sn-tb-book-compute",
+    "cfg-heater-select",
+    "cfg-host-breakdown",
+    "hl-heater-select",
+    "hl-host-breakdown",
+    "hl-live-telemetry",
+    "cg-app-logs",
+    "compute-overlay",
+    "compute-pricing-meta",
+    "compute-quote-panel",
+    "compute-tier-toggle",
+    "compute-unit-mode-toggle",
+    "compute-sku-select",
+    "compute-qty-input",
+    "compute-hours-input",
+    "compute-site-select",
+    "compute-workload-select",
+    "compute-job-name-input",
+    "compute-quote-btn",
+    "compute-book-btn",
+    "compute-tick-btn",
+    "compute-quote-result",
+    "compute-booking-receipt",
+    "compute-cloud-comparison",
+    "compute-summer-sinks",
+    "compute-fleet-telemetry",
+    "cc-app-logs",
 )
 
 
@@ -128,10 +158,12 @@ def test_m4_html_contains_all_55_testids_and_offline_imports() -> None:
     assert "OpenStreetMap" in html
     assert "not a surveyed private Basel residence" in html
 
-    files = [WEB_DIR / "index.html", WEB_DIR / "css" / "cockpit.css", *WEB_DIR.glob("js/*.js")]
-    for fpath in files:
+    for fpath in [*WEB_DIR.rglob("*.html"), *WEB_DIR.rglob("*.css"), *WEB_DIR.rglob("*.js")]:
+        if "vendor" in fpath.parts:
+            continue
         txt = fpath.read_text(encoding="utf-8").replace("http://www.w3.org/2000/svg", "")
         assert "https://" not in txt and "http://" not in txt, f"External URL in {fpath}"
+        assert "digitalheat" not in txt.lower(), f"Legacy brand token in {fpath}"
 
 
 def test_m4_scene_coordinates_and_hygiene_compliance() -> None:
@@ -142,6 +174,11 @@ def test_m4_scene_coordinates_and_hygiene_compliance() -> None:
     assert "cutaway_house_walls" in scene_js
     assert "cutaway_box" in scene_js
     assert "sun_direction_xyz" in scene_js
+
+    main_js = (WEB_DIR / "js" / "main.js").read_text(encoding="utf-8")
+    assert "window.__CALORGRID_RAW_SCENE__" in main_js
+    assert "window.CalorGridScene" in main_js
+    assert "DigitalHeatScene" not in main_js
 
     forbidden_ai = (
         "".join(["cla", "ude"]),
@@ -182,6 +219,8 @@ def test_m4_fastapi_serves_cockpit_static_files_and_vendor() -> None:
             "/js/fleet_twins.js",
             "/js/swiss_network.js",
             "/js/configurator.js",
+            "/js/compute_customer.js",
+            "/js/telemetry_logs.js",
             "/js/hud.js",
             "/vendor/three/build/three.module.js",
             "/vendor/three/build/three.core.js",
@@ -229,6 +268,10 @@ def test_m4_fastapi_serves_cockpit_static_files_and_vendor() -> None:
         assert qh["financials"]["total_upfront_chf"] > ql["financials"]["total_upfront_chf"]
         assert ql["financials"]["server_host_cost_chf"] == 0
         assert ql["financials"]["boiler_cost_chf"] < ql["financials"]["boiler_retail_chf"]
+        assert ql["host_ledger"]["host_server_hardware_chf"] == 0.0
+        assert ql["host_ledger"]["host_server_electricity_chf"] == 0.0
+        assert "tomorrow" in qh["host_ledger"]
+        assert "calorgrid_operating_cost_chf" in qh["operator_ledger"]["tomorrow"]
         q_existing = client.get(
             "/api/v1/configurator/quote?deployment_id=house_basel&server_model_id=hydronode_1kw"
             "&server_count=4&has_existing_boiler=true"
@@ -252,3 +295,40 @@ def test_m4_fastapi_serves_cockpit_static_files_and_vendor() -> None:
         fc_j = fc.json()
         assert len(fc_j["hourly_temps_c"]) == 24
         assert fc_j["temp_min_c"] <= fc_j["temp_max_c"]
+
+        pricing = client.get("/api/v1/compute/pricing")
+        assert pricing.status_code == 200
+        pj = pricing.json()
+        assert len(pj["gpu_comparisons"]) >= 4
+        assert len(pj["server_sku_comparisons"]) == 4
+        assert len(pj["summer_sinks"]) >= 4
+
+        cq = client.post(
+            "/api/v1/compute/quote",
+            json={
+                "tier": "on_demand",
+                "unit_mode": "gpu",
+                "gpu_or_sku": "h100_sxm_80gb",
+                "quantity": 1,
+                "duration_hours": 2.0,
+            },
+        )
+        assert cq.status_code == 200
+        cq_j = cq.json()
+        assert cq_j["wait_time_min"] == 0
+
+        cb = client.post(
+            "/api/v1/compute/book",
+            headers={"Idempotency-Key": "m3-cockpit-test-key-1"},
+            json={"quote_id": cq_j["quote_id"]},
+        )
+        assert cb.status_code == 200
+        assert cb.json()["job_id"]
+
+        logs = client.get("/api/v1/logs?limit=20")
+        assert logs.status_code == 200
+        assert logs.json()["count"] >= 1
+
+        tel = client.get("/api/v1/fleet/telemetry")
+        assert tel.status_code == 200
+        assert tel.json()["summary"]["total_sites"] >= 14

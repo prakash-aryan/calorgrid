@@ -2,6 +2,13 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import {
+  buildGpuSlotsElement,
+  domEl,
+  fmtChf,
+  fmtNum,
+  renderLogFeed,
+} from "./telemetry_logs.js?v=20261121m";
 
 function buildStudioEnvironment(renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1558,16 +1565,30 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
 
   let catalog = null;
   let latestQuote = null;
+  let latestSiteTelemetry = null;
+  let latestLogs = null;
+  let logCategoryFilter = "";
   let activePane = null; // "configure" | "heatledger" | null
   let cfgViewMode = "basement"; // "basement" | "exterior"
-  let state = {
+  let hlPollTimer = null;
+  let quoteAbort = null;
+  let telemetryAbort = null;
+  let logsAbort = null;
+
+  const state = {
     deploymentId: "house_basel",
     serverModelId: "hydronode_1kw",
     serverCount: 4,
     heatTargetPct: 100,
     indoorTargetC: 21.0,
     hasExistingBoiler: false,
+    heaterType: "",
   };
+
+  function renewAbort(prev) {
+    if (prev) prev.abort();
+    return new AbortController();
+  }
 
   async function ensureCatalog() {
     if (catalog) return catalog;
@@ -1582,47 +1603,58 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     if (!catalog) return;
     const depSelect = document.getElementById("cfg-deployment-select");
     const hlDepSelect = document.getElementById("hl-deployment-select");
-    const optsHtml = catalog.deployments
-      .map((d) => `<option value="${d.id}">${d.label}</option>`)
-      .join("");
+    const buildDepFrag = () => {
+      const frag = document.createDocumentFragment();
+      for (const d of catalog.deployments) {
+        frag.appendChild(domEl("option", { value: d.id, text: d.label }));
+      }
+      return frag;
+    };
     if (depSelect) {
-      depSelect.innerHTML = optsHtml;
+      depSelect.replaceChildren(buildDepFrag());
       depSelect.value = state.deploymentId;
     }
     if (hlDepSelect) {
-      hlDepSelect.innerHTML = optsHtml;
+      hlDepSelect.replaceChildren(buildDepFrag());
       hlDepSelect.value = state.deploymentId;
     }
 
     const modelsHost = document.getElementById("cfg-server-models");
     if (modelsHost) {
-      modelsHost.innerHTML = catalog.server_models
-        .map((m) => {
-          const waterKw = (m.electrical_kw * m.recovery_fraction).toFixed(2);
-          return `
-            <button type="button" class="cfg-model-card" data-model-id="${m.id}">
-              <div class="cfg-model-top">
-                <strong>${m.name}</strong>
-                <span class="cfg-model-price is-hosted">CHF 0 · Supplied</span>
-              </div>
-              <div class="cfg-model-meta">${m.vendor_ref} · ${m.cooling_type}</div>
-              <div class="cfg-model-tags">
-                <span>${waterKw} kW hot water</span>
-                <span>${m.workload_profile}</span>
-              </div>
-            </button>
-          `;
-        })
-        .join("");
-      modelsHost.querySelectorAll("[data-model-id]").forEach((btn) => {
+      const frag = document.createDocumentFragment();
+      for (const m of catalog.server_models) {
+        const waterKw = (m.electrical_kw * m.recovery_fraction).toFixed(2);
+        const btn = domEl(
+          "button",
+          {
+            type: "button",
+            className: "cfg-model-card",
+            dataset: { modelId: m.id },
+          },
+          [
+            domEl("div", { className: "cfg-model-top" }, [
+              domEl("strong", { text: m.name }),
+              domEl("span", { className: "cfg-model-price is-hosted", text: "CHF 0 · Supplied" }),
+            ]),
+            domEl("div", {
+              className: "cfg-model-meta",
+              text: `${m.vendor_ref} · ${m.cooling_type}`,
+            }),
+            domEl("div", { className: "cfg-model-tags" }, [
+              domEl("span", { text: `${waterKw} kW hot water` }),
+              domEl("span", { text: m.workload_profile }),
+            ]),
+          ]
+        );
         btn.addEventListener("click", async () => {
-          state.serverModelId = btn.dataset.modelId;
-          const mdl = catalog.server_models.find((x) => x.id === state.serverModelId);
-          if (mdl && state.serverCount > mdl.max_units) state.serverCount = mdl.max_units;
+          state.serverModelId = m.id;
+          if (state.serverCount > m.max_units) state.serverCount = m.max_units;
           setCfgViewMode("basement");
           await refreshQuote();
         });
-      });
+        frag.appendChild(btn);
+      }
+      modelsHost.replaceChildren(frag);
     }
   }
 
@@ -1660,8 +1692,56 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     }
   }
 
+  async function refreshSiteTelemetry() {
+    if (!latestQuote?.deployment?.preview_node_id) return;
+    telemetryAbort = renewAbort(telemetryAbort);
+    const siteId = latestQuote.deployment.preview_node_id;
+    try {
+      const resp = await fetch(
+        `/api/v1/fleet/telemetry?site_id=${encodeURIComponent(siteId)}`,
+        { signal: telemetryAbort.signal }
+      );
+      if (!resp.ok) return;
+      latestSiteTelemetry = await resp.json();
+      renderSiteTelemetry();
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        // Non-fatal telemetry poll error
+      }
+    }
+  }
+
+  async function refreshAppLogs() {
+    logsAbort = renewAbort(logsAbort);
+    const qs = new URLSearchParams({ limit: "35", order: "desc" });
+    if (logCategoryFilter) qs.set("category", logCategoryFilter);
+    try {
+      const resp = await fetch(`/api/v1/logs?${qs.toString()}`, {
+        signal: logsAbort.signal,
+      });
+      if (!resp.ok) return;
+      latestLogs = await resp.json();
+      const logsEl = document.getElementById("cg-app-logs");
+      renderLogFeed(
+        logsEl,
+        latestLogs,
+        logCategoryFilter,
+        (cat) => {
+          logCategoryFilter = cat;
+          refreshAppLogs().catch(() => {});
+        },
+        () => refreshAppLogs().catch(() => {})
+      );
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        // Non-fatal logs poll error
+      }
+    }
+  }
+
   async function refreshQuote() {
     await ensureCatalog();
+    quoteAbort = renewAbort(quoteAbort);
     const qs = new URLSearchParams({
       deployment_id: state.deploymentId,
       server_model_id: state.serverModelId,
@@ -1670,12 +1750,88 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
       indoor_target_c: String(state.indoorTargetC),
       has_existing_boiler: state.hasExistingBoiler ? "true" : "false",
     });
-    const resp = await fetch(`/api/v1/configurator/quote?${qs.toString()}`);
-    if (!resp.ok) throw new Error(`Quote HTTP ${resp.status}`);
-    latestQuote = await resp.json();
-    renderConfigurator();
-    renderHeatLedger();
-    return latestQuote;
+    if (state.heaterType) {
+      qs.set("heater_type", state.heaterType);
+    }
+    try {
+      const resp = await fetch(`/api/v1/configurator/quote?${qs.toString()}`, {
+        signal: quoteAbort.signal,
+      });
+      if (!resp.ok) throw new Error(`Quote HTTP ${resp.status}`);
+      latestQuote = await resp.json();
+      renderConfigurator();
+      renderHeatLedger();
+      if (activePane === "heatledger") {
+        refreshSiteTelemetry().catch(() => {});
+        refreshAppLogs().catch(() => {});
+      }
+      return latestQuote;
+    } catch (err) {
+      if (err?.name === "AbortError") return latestQuote;
+      throw err;
+    }
+  }
+
+  function buildHostBreakdownNodes(hostHorizon, opHorizon, horizonLabel, digits = 0) {
+    if (!hostHorizon || !opHorizon) return [];
+    const cgPct = hostHorizon.calorgrid_heat_share_pct;
+    const defPct = hostHorizon.default_heater_share_pct;
+    const cgPctTxt = cgPct !== null && cgPct !== undefined ? `${cgPct.toFixed(1)}%` : "--%";
+    const defPctTxt = defPct !== null && defPct !== undefined ? `${defPct.toFixed(1)}%` : "--%";
+    const barCgW = cgPct !== null && cgPct !== undefined ? Math.max(0, Math.min(100, cgPct)) : 0;
+    const barDefW = defPct !== null && defPct !== undefined ? Math.max(0, Math.min(100, defPct)) : 0;
+
+    return [
+      domEl("div", { className: "cg-split-meta" }, [
+        domEl("span", {
+          text: `CalorGrid Heat: ${fmtNum(hostHorizon.calorgrid_heat_kwh, 1)} kWh (${cgPctTxt})`,
+        }),
+        domEl("span", {
+          text: `${hostHorizon.heater_label}: ${fmtNum(hostHorizon.default_heater_heat_kwh, 1)} kWh (${defPctTxt})`,
+        }),
+      ]),
+      domEl("div", { className: "cg-split-bar" }, [
+        domEl("div", { className: "cg-split-seg is-cg", style: { width: `${barCgW}%` } }),
+        domEl("div", { className: "cg-split-seg is-def", style: { width: `${barDefW}%` } }),
+      ]),
+      domEl("div", { className: "cg-ledger-grid" }, [
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: `Baseline Heating Bill (${horizonLabel})` }),
+          domEl("strong", { text: fmtChf(hostHorizon.baseline_heating_bill_chf, digits) }),
+          domEl("small", {
+            text: `100% ${hostHorizon.heater_label} (${fmtNum(hostHorizon.building_heat_demand_kwh, 1)} kWh)`,
+          }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Remaining Backup Heater Cost" }),
+          domEl("strong", { text: fmtChf(hostHorizon.backup_heater_cost_chf, digits) }),
+          domEl("small", {
+            text: `DHW preheat cap ${hostHorizon.dhw_preheat_cap_pct}% · Keep existing heater`,
+          }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Host Heating-Bill Savings" }),
+          domEl("strong", {
+            className: "accent-hosted",
+            text: `+${fmtChf(hostHorizon.heating_bill_savings_chf, digits)}`,
+          }),
+          domEl("small", { text: "Saves on heating bill (not electricity bill)" }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "CalorGrid Operating Cost" }),
+          domEl("strong", { text: fmtChf(opHorizon.calorgrid_operating_cost_chf, digits) }),
+          domEl("small", {
+            text: `Paid by CalorGrid (Server elec CHF 0 + HW CHF 0 to host)`,
+          }),
+        ]),
+      ]),
+      domEl("div", { className: "cg-host-promise" }, [
+        domEl("strong", { text: "Building Host Guarantee: " }),
+        domEl("span", {
+          text: `Keep your existing heating system (${hostHorizon.heater_label}). Server hardware is CHF ${Math.round(hostHorizon.host_server_hardware_chf)} and server electricity is CHF ${Math.round(hostHorizon.host_server_electricity_chf)} on your bill (paid directly by CalorGrid).`,
+        }),
+      ]),
+    ];
   }
 
   function renderConfigurator() {
@@ -1684,11 +1840,16 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const mdl = latestQuote.server_model;
     const sz = latestQuote.sizing;
     const fin = latestQuote.financials;
+    const hostLedger = latestQuote.host_ledger;
+    const opLedger = latestQuote.operator_ledger;
 
     const depSel = document.getElementById("cfg-deployment-select");
     if (depSel && depSel.value !== dep.id) depSel.value = dep.id;
+    const cfgHeaterSel = document.getElementById("cfg-heater-select");
+    if (cfgHeaterSel && !state.heaterType && hostLedger?.heater_type) {
+      cfgHeaterSel.value = "";
+    }
 
-    // Sync exterior photorealistic Isaac Sim RTX video + small PiP preview for chosen building
     const extSrc = `/media/twins/${dep.preview_node_id}.mp4`;
     if (cfgExtVideo) {
       if (cfgExtVideo.getAttribute("src") !== extSrc) {
@@ -1734,7 +1895,10 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const fitEl = document.getElementById("cfg-fit-banner");
     if (fitEl) {
       fitEl.className = `cfg-fit-banner is-${sz.fit_status}`;
-      fitEl.innerHTML = `<strong>${sz.fit_label}</strong><span>${sz.fit_note}</span>`;
+      fitEl.replaceChildren(
+        domEl("strong", { text: sz.fit_label }),
+        domEl("span", { text: sz.fit_note })
+      );
     }
 
     const boilerToggle = document.getElementById("cfg-existing-boiler-toggle");
@@ -1744,38 +1908,47 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const boilerSub = document.getElementById("cfg-boiler-sub");
     if (boilerSub) {
       boilerSub.textContent = fin.has_existing_boiler
-        ? "Using existing boiler · CHF 0 boiler cost"
-        : `Reduced host boiler: CHF ${Math.round(fin.boiler_subsidized_chf).toLocaleString()} (was CHF ${Math.round(fin.boiler_retail_chf).toLocaleString()})`;
+        ? "Keep existing heating system · CHF 0 new boiler cost"
+        : `Optional subsidized boiler: CHF ${Math.round(fin.boiler_subsidized_chf).toLocaleString()} (was CHF ${Math.round(fin.boiler_retail_chf).toLocaleString()})`;
     }
 
     const kpisEl = document.getElementById("cfg-live-kpis");
     if (kpisEl) {
       const paybackTxt = fin.host_payback_years ? `${fin.host_payback_years} yr payback` : "Instant savings";
       const boilerDetail = fin.has_existing_boiler
-        ? `Existing boiler CHF 0 + CHF ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in`
+        ? `Existing heater CHF 0 + CHF ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in`
         : `Boiler CHF ${Math.round(fin.boiler_cost_chf).toLocaleString()} (save ${Math.round(fin.boiler_discount_chf).toLocaleString()}) + ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in`;
-      kpisEl.innerHTML = `
-        <div class="cfg-kpi">
-          <span>Your upfront cost</span>
-          <strong>CHF ${Math.round(fin.host_upfront_chf).toLocaleString()}</strong>
-          <small>${boilerDetail}</small>
-        </div>
-        <div class="cfg-kpi">
-          <span>Servers &amp; plate CDU</span>
-          <strong class="accent-hosted">CHF 0</strong>
-          <small>Supplied &amp; operated by CalorGrid</small>
-        </div>
-        <div class="cfg-kpi">
-          <span>Heat output</span>
-          <strong class="accent-heat">${sz.peak_water_kw.toFixed(1)} kW</strong>
-          <small>${mdl.supply_temp_c} C · ${sz.annual_heat_covered_pct.toFixed(0)}% annual (${sz.annual_useful_heat_mwh} MWh)</small>
-        </div>
-        <div class="cfg-kpi">
-          <span>Your annual savings</span>
-          <strong>+CHF ${Math.round(fin.host_annual_heat_savings_chf).toLocaleString()}/yr</strong>
-          <small>${paybackTxt} · ${(sz.co2_avoided_kg_yr / 1000).toFixed(1)} t CO2</small>
-        </div>
-      `;
+      kpisEl.replaceChildren(
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Your upfront cost" }),
+          domEl("strong", { text: `CHF ${Math.round(fin.host_upfront_chf).toLocaleString()}` }),
+          domEl("small", { text: boilerDetail }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Servers & server power" }),
+          domEl("strong", { className: "accent-hosted", text: "CHF 0" }),
+          domEl("small", { text: "Hardware & electricity paid by CalorGrid" }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Heat output" }),
+          domEl("strong", { className: "accent-heat", text: `${sz.peak_water_kw.toFixed(1)} kW` }),
+          domEl("small", {
+            text: `${mdl.supply_temp_c} C · ${sz.annual_heat_covered_pct.toFixed(0)}% annual (${sz.annual_useful_heat_mwh} MWh)`,
+          }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Annual heating-bill savings" }),
+          domEl("strong", { text: `+CHF ${Math.round(fin.host_annual_heat_savings_chf).toLocaleString()}/yr` }),
+          domEl("small", { text: `${paybackTxt} · ${(sz.co2_avoided_kg_yr / 1000).toFixed(1)} t CO2` }),
+        ])
+      );
+    }
+
+    const cfgBreakdownEl = document.getElementById("cfg-host-breakdown");
+    if (cfgBreakdownEl && hostLedger && opLedger) {
+      cfgBreakdownEl.replaceChildren(
+        ...buildHostBreakdownNodes(hostLedger, opLedger, "Annual", 0)
+      );
     }
 
     if (activePane === "configure" && cfgViewMode === "basement") {
@@ -1790,17 +1963,75 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     }
   }
 
+  function renderSiteTelemetry() {
+    const hostEl = document.getElementById("hl-live-telemetry");
+    if (!hostEl) return;
+    if (!latestSiteTelemetry?.sites?.length) {
+      hostEl.replaceChildren(
+        domEl("div", { className: "cg-log-empty", text: "Loading site GPU telemetry..." })
+      );
+      return;
+    }
+    const site = latestSiteTelemetry.sites[0];
+    const jobs = Array.isArray(latestSiteTelemetry.active_jobs)
+      ? latestSiteTelemetry.active_jobs
+      : [];
+
+    const header = domEl("div", { className: "hl-tel-summary" }, [
+      domEl("div", {}, [
+        domEl("strong", { text: `${site.name} (${site.canton})` }),
+        domEl("span", {
+          text: `Indoor ${site.indoor_temp_c} C (target ${site.target_temp_c} C) · Out ${site.outdoor_temp_c} C · Headroom ${fmtNum(site.thermal_headroom_kw, 2)} kW`,
+        }),
+      ]),
+      domEl("div", { className: "hl-tel-badges" }, [
+        domEl("span", {
+          className: "hl-proc-pill is-run",
+          text: `${site.gpus_busy}/${site.gpus_total} GPUs busy · ${fmtNum(site.kw_th, 2)} kW_th`,
+        }),
+        domEl("span", {
+          className: "hl-proc-pill is-offload",
+          text: `${jobs.length} scheduler job(s)`,
+        }),
+      ]),
+    ]);
+
+    const jobRowList = domEl("div", { className: "hl-tel-jobs" });
+    if (jobs.length > 0) {
+      for (const j of jobs.slice(0, 4)) {
+        jobRowList.appendChild(
+          domEl("div", { className: "hl-tel-job-pill" }, [
+            domEl("strong", { text: `${j.job_name}` }),
+            domEl("span", {
+              text: `${j.tier.toUpperCase()} · ${fmtNum(j.kw_e, 2)} kW_e -> ${fmtNum(j.kw_th, 2)} kW_th · ${j.remaining_hours}h left`,
+            }),
+          ])
+        );
+      }
+    } else {
+      jobRowList.appendChild(
+        domEl("div", {
+          className: "hl-tel-job-pill",
+          text: "No active FleetJobScheduler workloads queued on this site right now.",
+        })
+      );
+    }
+
+    hostEl.replaceChildren(header, jobRowList);
+  }
+
   function renderHeatLedger() {
     if (!latestQuote) return;
     const dep = latestQuote.deployment;
     const mdl = latestQuote.server_model;
     const fc = latestQuote.forecast;
     const hl = latestQuote.heatledger_tomorrow;
+    const hostTom = latestQuote.host_ledger?.tomorrow;
+    const opTom = latestQuote.operator_ledger?.tomorrow;
 
     const hlDepSel = document.getElementById("hl-deployment-select");
     if (hlDepSel && hlDepSel.value !== dep.id) hlDepSel.value = dep.id;
 
-    // Sync small exterior building PiP right beside the live 3D plant room
     const hlPip = document.getElementById("hl-pip-video");
     const hlPipSrc = `/media/twins/${dep.preview_node_id}.mp4`;
     if (hlPip) {
@@ -1811,24 +2042,23 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
       if (activePane === "heatledger") hlPip.play().catch(() => {});
     }
 
-    // Tomorrow weather (keyless Open-Meteo API)
     const weatherEl = document.getElementById("hl-weather-card");
     if (weatherEl) {
-      weatherEl.innerHTML = `
-        <div class="hl-weather-top">
-          <div>
-            <span class="hl-weather-loc">${fc.city}, ${fc.canton} · ${fc.date}</span>
-            <strong>${fc.temp_min_c} C to ${fc.temp_max_c} C · ${fc.condition}</strong>
-          </div>
-          <span class="hl-source-caption">Open-Meteo</span>
-        </div>
-        <div class="hl-weather-sub">
-          Mean outdoor ${fc.temp_mean_c} C · Recommended tomorrow: ${hl.recommended_kwh} kWh
-        </div>
-      `;
+      weatherEl.replaceChildren(
+        domEl("div", { className: "hl-weather-top" }, [
+          domEl("div", {}, [
+            domEl("span", { className: "hl-weather-loc", text: `${fc.city}, ${fc.canton} · ${fc.date}` }),
+            domEl("strong", { text: `${fc.temp_min_c} C to ${fc.temp_max_c} C · ${fc.condition}` }),
+          ]),
+          domEl("span", { className: "hl-source-caption", text: "Open-Meteo" }),
+        ]),
+        domEl("div", {
+          className: "hl-weather-sub",
+          text: `Mean outdoor ${fc.temp_mean_c} C · Building demand tomorrow: ${hl.recommended_kwh} kWh`,
+        })
+      );
     }
 
-    // Update interactive heat sliders readouts & active preset state
     const pctSlider = document.getElementById("hl-heat-slider");
     const pctOut = document.getElementById("hl-heat-readout");
     if (pctSlider && Number(pctSlider.value) !== state.heatTargetPct) pctSlider.value = String(state.heatTargetPct);
@@ -1860,80 +2090,113 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const kpiEl = document.getElementById("hl-live-kpis");
     if (kpiEl) {
       const sign = hl.tomorrow_net_chf >= 0 ? "+" : "";
-      kpiEl.innerHTML = `
-        <div class="cfg-kpi">
-          <span>Heating now</span>
-          <strong class="accent-heat">${hl.live_water_kw.toFixed(1)} kW</strong>
-          <small>${hl.supply_temp_c} C · ${hl.live_flow_l_min.toFixed(1)} L/min</small>
-        </div>
-        <div class="cfg-kpi">
-          <span>Tomorrow heat</span>
-          <strong>${hl.delivered_kwh} kWh</strong>
-          <small>Tank ${hl.tank_soc_pct}% · 0 waste</small>
-        </div>
-        <div class="cfg-kpi">
-          <span>Server power (CalorGrid)</span>
-          <strong>CHF ${hl.tomorrow_elec_chf.toFixed(2)}</strong>
-          <small>Covered by compute CHF ${hl.tomorrow_compute_rev_chf.toFixed(2)}</small>
-        </div>
-        <div class="cfg-kpi">
-          <span>Your heat saved</span>
-          <strong class="accent-hosted">+CHF ${hl.tomorrow_heat_credit_chf.toFixed(2)}</strong>
-          <small>Net fleet ${sign}CHF ${hl.tomorrow_net_chf.toFixed(2)}</small>
-        </div>
-      `;
+      const cgTomorrow = hl.calorgrid_heat_kwh ?? hl.delivered_kwh;
+      const defTomorrow = hl.default_heater_heat_kwh ?? 0;
+      kpiEl.replaceChildren(
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Heating now" }),
+          domEl("strong", { className: "accent-heat", text: `${hl.live_water_kw.toFixed(1)} kW` }),
+          domEl("small", { text: `${hl.supply_temp_c} C · ${hl.live_flow_l_min.toFixed(1)} L/min` }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "CalorGrid vs Default Heater" }),
+          domEl("strong", { text: `${fmtNum(cgTomorrow, 1)} vs ${fmtNum(defTomorrow, 1)} kWh` }),
+          domEl("small", { text: `Tank ${hl.tank_soc_pct}% · Keep existing heater` }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "CalorGrid Operating Cost" }),
+          domEl("strong", {
+            text: fmtChf(opTom?.calorgrid_operating_cost_chf ?? hl.tomorrow_elec_chf, 2),
+          }),
+          domEl("small", {
+            text: `Paid by CalorGrid · Compute rev ${fmtChf(hl.tomorrow_compute_rev_chf, 2)}`,
+          }),
+        ]),
+        domEl("div", { className: "cfg-kpi" }, [
+          domEl("span", { text: "Host Heating-Bill Savings" }),
+          domEl("strong", { className: "accent-hosted", text: `+CHF ${hl.tomorrow_heat_credit_chf.toFixed(2)}` }),
+          domEl("small", { text: `Heating bill saved · Operator net ${sign}CHF ${hl.tomorrow_net_chf.toFixed(2)}` }),
+        ])
+      );
+    }
+
+    const hlBreakdownEl = document.getElementById("hl-host-breakdown");
+    if (hlBreakdownEl && hostTom && opTom) {
+      hlBreakdownEl.replaceChildren(
+        ...buildHostBreakdownNodes(hostTom, opTom, "Tomorrow", 2)
+      );
     }
 
     // 24-hour tomorrow forecast bar chart (demand vs server heat)
     const chartEl = document.getElementById("hl-hourly-chart");
     if (chartEl && Array.isArray(hl.hourly)) {
       const maxKw = Math.max(2.0, ...hl.hourly.map((x) => Math.max(x.demand_kw, x.server_heat_kw)));
-      const bars = hl.hourly
-        .map((row) => {
-          const dh = Math.max(4, Math.round((row.demand_kw / maxKw) * 64));
-          const sh = Math.max(2, Math.round((row.server_heat_kw / maxKw) * 64));
-          return `
-            <div class="hl-bar-col" title="${String(row.hour).padStart(2, "0")}:00 | ${row.temp_c} C | Demand ${row.demand_kw} kW | Server ${row.server_heat_kw} kW">
-              <div class="hl-bar-stack">
-                <div class="hl-bar-dem" style="height:${dh}px"></div>
-                <div class="hl-bar-srv" style="height:${sh}px"></div>
-              </div>
-              <span>${row.hour % 6 === 0 ? String(row.hour).padStart(2, "0") : ""}</span>
-            </div>
-          `;
-        })
-        .join("");
-      chartEl.innerHTML = bars;
+      const frag = document.createDocumentFragment();
+      for (const row of hl.hourly) {
+        const dh = Math.max(4, Math.round((row.demand_kw / maxKw) * 64));
+        const sh = Math.max(2, Math.round((row.server_heat_kw / maxKw) * 64));
+        const col = domEl(
+          "div",
+          {
+            className: "hl-bar-col",
+            title: `${String(row.hour).padStart(2, "0")}:00 | ${row.temp_c} C | Demand ${row.demand_kw} kW | CalorGrid ${row.calorgrid_heat_kw ?? row.server_heat_kw} kW | Backup ${row.default_heater_kw ?? 0} kW`,
+          },
+          [
+            domEl("div", { className: "hl-bar-stack" }, [
+              domEl("div", { className: "hl-bar-dem", style: { height: `${dh}px` } }),
+              domEl("div", { className: "hl-bar-srv", style: { height: `${sh}px` } }),
+            ]),
+            domEl("span", { text: row.hour % 6 === 0 ? String(row.hour).padStart(2, "0") : "" }),
+          ]
+        );
+        frag.appendChild(col);
+      }
+      chartEl.replaceChildren(frag);
     }
 
-    // Live Running Processes List
+    // Live Running Processes & Nested GPU Slots List
     const procEl = document.getElementById("hl-process-list");
     if (procEl) {
-      procEl.innerHTML = hl.processes
-        .map((p) => {
-          const cls =
-            p.status === "RUNNING"
-              ? "is-run"
-              : p.status === "FIBER_OFFLOAD"
-                ? "is-offload"
-                : "is-stop";
-          const lbl =
-            p.status === "RUNNING"
-              ? `Running · ${p.heat_kw} kW`
-              : p.status === "FIBER_OFFLOAD"
-                ? "Shared Over Fiber"
-                : "Paused (Standby)";
-          return `
-            <div class="hl-proc-row">
-              <div class="hl-proc-main">
-                <strong>Unit #${p.unit} · ${p.process} <code>PID ${p.pid}</code></strong>
-                <span>${p.workload} (${p.category})</span>
-              </div>
-              <span class="hl-proc-pill ${cls}">${lbl}</span>
-            </div>
-          `;
-        })
-        .join("");
+      const frag = document.createDocumentFragment();
+      for (const p of hl.processes || []) {
+        const cls =
+          p.status === "RUNNING"
+            ? "is-run"
+            : p.status === "FIBER_OFFLOAD"
+              ? "is-offload"
+              : "is-stop";
+        const lbl =
+          p.status === "RUNNING"
+            ? `Running · ${p.cpu_pct ?? 0}% · ${p.elec_kw ?? 0} kW_e -> ${p.heat_kw} kW_th`
+            : p.status === "FIBER_OFFLOAD"
+              ? "Shared Over Fiber"
+              : `Paused (${p.elec_kw ?? 0} kW_e)`;
+
+        const srcBadge = domEl("span", {
+          className: `hl-src-badge ${p.source === "live_pid" ? "is-live-pid" : "is-sim"}`,
+          text: p.source === "live_pid" ? "LIVE PID" : "SIM",
+        });
+
+        const rowBox = domEl("div", { className: "hl-proc-card" }, [
+          domEl("div", { className: "hl-proc-row" }, [
+            domEl("div", { className: "hl-proc-main" }, [
+              domEl("strong", {}, [
+                `Unit #${p.unit} · ${p.process} `,
+                domEl("code", { text: `PID ${p.pid}` }),
+                " ",
+                srcBadge,
+              ]),
+              domEl("span", { text: `${p.workload} (${p.category})` }),
+            ]),
+            domEl("span", { className: `hl-proc-pill ${cls}`, text: lbl }),
+          ]),
+        ]);
+
+        const gpuGrid = buildGpuSlotsElement(p.gpu_slots);
+        if (gpuGrid) rowBox.appendChild(gpuGrid);
+        frag.appendChild(rowBox);
+      }
+      procEl.replaceChildren(frag);
     }
 
     if (activePane === "heatledger") {
@@ -1953,6 +2216,10 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     activePane = "configure";
     hlOverlay.hidden = true;
     hlStudio.stop();
+    if (hlPollTimer) {
+      clearInterval(hlPollTimer);
+      hlPollTimer = null;
+    }
     cfgOverlay.hidden = false;
     await refreshQuote();
     setCfgViewMode(viewMode);
@@ -1966,6 +2233,13 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     hlOverlay.hidden = false;
     hlStudio.start();
     await refreshQuote();
+    await Promise.all([refreshSiteTelemetry(), refreshAppLogs()]);
+    if (hlPollTimer) clearInterval(hlPollTimer);
+    hlPollTimer = setInterval(() => {
+      if (activePane !== "heatledger") return;
+      refreshSiteTelemetry().catch(() => {});
+      refreshAppLogs().catch(() => {});
+    }, 5000);
   }
 
   function closeAll() {
@@ -1975,6 +2249,13 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     cfgStudio.stop();
     hlStudio.stop();
     if (cfgExtVideo) cfgExtVideo.pause();
+    if (hlPollTimer) {
+      clearInterval(hlPollTimer);
+      hlPollTimer = null;
+    }
+    quoteAbort?.abort();
+    telemetryAbort?.abort();
+    logsAbort?.abort();
   }
 
   const NODE_TO_ARCHETYPE = {
@@ -2022,6 +2303,20 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     await refreshQuote();
   });
 
+  document.getElementById("cfg-heater-select")?.addEventListener("change", async (e) => {
+    state.heaterType = e.target.value;
+    const hlH = document.getElementById("hl-heater-select");
+    if (hlH) hlH.value = state.heaterType;
+    await refreshQuote();
+  });
+
+  document.getElementById("hl-heater-select")?.addEventListener("change", async (e) => {
+    state.heaterType = e.target.value;
+    const cfgH = document.getElementById("cfg-heater-select");
+    if (cfgH) cfgH.value = state.heaterType;
+    await refreshQuote();
+  });
+
   document.getElementById("cfg-mode-exterior")?.addEventListener("click", () => setCfgViewMode("exterior"));
   document.getElementById("cfg-mode-basement")?.addEventListener("click", () => setCfgViewMode("basement"));
   document.getElementById("cfg-enter-basement-btn")?.addEventListener("click", () => setCfgViewMode("basement"));
@@ -2063,16 +2358,20 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     const mdl = latestQuote.server_model;
     const fin = latestQuote.financials;
     const boilerTxt = fin.has_existing_boiler
-      ? "Existing boiler (CHF 0)"
+      ? "Existing heater kept (CHF 0)"
       : `Subsidized boiler CHF ${Math.round(fin.boiler_cost_chf).toLocaleString()} (was CHF ${Math.round(fin.boiler_retail_chf).toLocaleString()})`;
     toast.hidden = false;
-    toast.innerHTML = `
-      <strong>Host Estimate Saved: ${latestQuote.server_count}x ${mdl.name} (CHF 0 servers)</strong>
-      <span>Site: ${dep.label} · ${boilerTxt} + CHF ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in = <b>CHF ${Math.round(fin.host_upfront_chf).toLocaleString()}</b> · Saves +CHF ${Math.round(fin.host_annual_heat_savings_chf).toLocaleString()}/yr.</span>
-    `;
+    toast.replaceChildren(
+      domEl("strong", {
+        text: `Host Estimate Saved: ${latestQuote.server_count}x ${mdl.name} (CHF 0 servers, electricity paid by CalorGrid)`,
+      }),
+      domEl("span", {
+        text: `Site: ${dep.label} · ${boilerTxt} + CHF ${Math.round(fin.tie_in_chf).toLocaleString()} tie-in = CHF ${Math.round(fin.host_upfront_chf).toLocaleString()} · Saves +CHF ${Math.round(fin.host_annual_heat_savings_chf).toLocaleString()}/yr on heating bill.`,
+      })
+    );
   });
 
-  // Wire My HeatLedger Controls (responsive sliders + presets + deployment switch + real Linux worker test)
+  // Wire HeatLedger Controls (150ms debounce + AbortController)
   document.getElementById("hl-deployment-select")?.addEventListener("change", async (e) => {
     state.deploymentId = e.target.value;
     const dep = catalog?.deployments.find((d) => d.id === state.deploymentId);
@@ -2086,7 +2385,9 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
   let sliderDebounce = null;
   function scheduleQuoteRefresh() {
     if (sliderDebounce) clearTimeout(sliderDebounce);
-    sliderDebounce = setTimeout(() => refreshQuote(), 90);
+    sliderDebounce = setTimeout(() => {
+      refreshQuote().catch(() => {});
+    }, 150);
   }
 
   document.getElementById("hl-heat-slider")?.addEventListener("input", (e) => {
@@ -2126,7 +2427,6 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     }
   });
 
-  // Optional 1-tap Real Backend Linux SIGSTOP/SIGCONT Verification Button inside My HeatLedger!
   const realWorkerBtn = document.getElementById("hl-real-worker-btn");
   const realWorkerStatus = document.getElementById("hl-real-worker-status");
   let liveWorkerRunning = false;
@@ -2149,6 +2449,7 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
         realWorkerBtn.textContent = "Run Live Linux OCR";
         if (realWorkerStatus) realWorkerStatus.textContent = `PID ${d.pid} -> ${d.state} (SIGSTOP)`;
       }
+      await refreshQuote();
     } catch (err) {
       if (realWorkerStatus) realWorkerStatus.textContent = `Worker check: ${err.message}`;
     }

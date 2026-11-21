@@ -1,9 +1,10 @@
-import { createCockpitScene } from "./scene.js?v=20261121i";
-import { createProvenanceController } from "./provenance.js?v=20261121i";
-import { createWorkerRackOverlay } from "./worker_rack.js?v=20261121i";
-import { createSwissNetworkController } from "./swiss_network.js?v=20261121i";
-import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121k";
-import { initHud } from "./hud.js?v=20261121i";
+import { createCockpitScene } from "./scene.js?v=20261121m";
+import { createProvenanceController } from "./provenance.js?v=20261121m";
+import { createWorkerRackOverlay } from "./worker_rack.js?v=20261121m";
+import { createSwissNetworkController } from "./swiss_network.js?v=20261121m";
+import { createConfiguratorAndLedgerController } from "./configurator.js?v=20261121m";
+import { createComputeCustomerController } from "./compute_customer.js?v=20261121m";
+import { initHud } from "./hud.js?v=20261121m";
 
 const canvasEl = document.getElementById("canvas-3d");
 const legendEl = document.querySelector("[data-testid='provenance-legend']");
@@ -14,6 +15,7 @@ let provenanceCtrl = null;
 let workerRackCtrl = null;
 let swissNetworkCtrl = null;
 let configuratorCtrl = null;
+let computeCustomerCtrl = null;
 let activeAppTab = "explore";
 let latestHourRow = null;
 let latestDayMeta = null;
@@ -22,7 +24,7 @@ let latestVerbundState = null;
 function ensureSceneEngine() {
   if (!sceneEngine) {
     sceneEngine = createCockpitScene(canvasEl);
-    window.__DIGITALHEAT_RAW_SCENE__ = sceneEngine;
+    window.__CALORGRID_RAW_SCENE__ = sceneEngine;
   }
   return sceneEngine;
 }
@@ -49,27 +51,37 @@ async function ensureAtlasStarted() {
 }
 
 async function setAppTab(tabId, opts = {}) {
-  const valid = ["explore", "configure", "heatledger", "atlas"];
+  const valid = ["explore", "configure", "heatledger", "compute", "atlas"];
   const next = valid.includes(tabId) ? tabId : "explore";
   syncAppTabUi(next);
 
   if (next === "explore") {
     configuratorCtrl?.closeAll();
+    computeCustomerCtrl?.close();
     await swissNetworkCtrl?.open();
     return;
   }
   if (next === "configure") {
     swissNetworkCtrl?.close(false);
+    computeCustomerCtrl?.close();
     await configuratorCtrl?.openConfigurator(opts.viewMode || "basement");
     return;
   }
   if (next === "heatledger") {
     swissNetworkCtrl?.close(false);
+    computeCustomerCtrl?.close();
     await configuratorCtrl?.openHeatLedger();
+    return;
+  }
+  if (next === "compute") {
+    swissNetworkCtrl?.close(false);
+    configuratorCtrl?.closeAll();
+    await computeCustomerCtrl?.open(opts);
     return;
   }
   // Atlas (Detailed Basel 3D Engineering Workbench - lazy initialized on demand)
   configuratorCtrl?.closeAll();
+  computeCustomerCtrl?.close();
   swissNetworkCtrl?.close(false);
   await ensureAtlasStarted();
   sceneEngine?.clearSwissTwin();
@@ -167,12 +179,16 @@ const sceneBridge = {
   },
 };
 
-window.DigitalHeatScene = sceneBridge;
+window.CalorGridScene = sceneBridge;
 
 const hud = initHud(sceneBridge);
 
 configuratorCtrl = createConfiguratorAndLedgerController({
   onOpenTab: (tab) => setAppTab(tab),
+});
+
+computeCustomerCtrl = createComputeCustomerController({
+  onOpenTab: (tab, opts) => setAppTab(tab, opts),
 });
 
 swissNetworkCtrl = createSwissNetworkController({
@@ -188,6 +204,7 @@ swissNetworkCtrl = createSwissNetworkController({
   onExitToBasel: () => setAppTab("atlas"),
   onConfigureNode: (nodeId) => configuratorCtrl.prefillFromNode(nodeId, "configure"),
   onOpenHeatLedger: (nodeId) => configuratorCtrl.prefillFromNode(nodeId, "heatledger"),
+  onBookComputeAtSite: (nodeId) => setAppTab("compute", { preferredSiteId: nodeId }),
 });
 
 document.querySelectorAll("[data-app-tab]").forEach((btn) => {
@@ -201,6 +218,7 @@ window.CalorGridApp = {
   setTab: setAppTab,
   fleet: swissNetworkCtrl,
   configurator: configuratorCtrl,
+  computeCustomer: computeCustomerCtrl,
 };
 
 // Lightweight health check on initial load so header dot turns Live immediately without downloading Basel GLBs

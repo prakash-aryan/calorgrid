@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { Basement3DStudio } from "./configurator.js?v=20261121i";
+import { Basement3DStudio } from "./configurator.js?v=20261121m";
 
 // Exact LV95 -> 3D relief surface coordinates (Y = terrain surface on switzerland_3d_relief.glb)
 // Minor local offset on the 4 tightly clustered Basel sites keeps each 3D beacon distinct and clickable.
@@ -130,6 +130,7 @@ export function createSwissNetworkController({
   onExitToBasel,
   onConfigureNode,
   onOpenHeatLedger,
+  onBookComputeAtSite,
 }) {
   const overlay = document.querySelector("[data-testid='swiss-network-overlay']");
   const mapHost = document.getElementById("swiss-map-svg-host");
@@ -990,6 +991,9 @@ export function createSwissNetworkController({
   overlay.querySelector("#sn-order-server-btn")?.addEventListener("click", () => {
     if (onConfigureNode) onConfigureNode(selectedNodeId);
   });
+  overlay.querySelector("#sn-book-compute-btn")?.addEventListener("click", () => {
+    if (onBookComputeAtSite) onBookComputeAtSite("");
+  });
   rtxBackBtn?.addEventListener("click", () => open());
   viewExtBtn?.addEventListener("click", () => setSiteStageMode("exterior"));
   viewBasBtn?.addEventListener("click", () => setSiteStageMode("basement"));
@@ -1015,6 +1019,9 @@ export function createSwissNetworkController({
     });
     twinBar.querySelector("#sn-tb-heatledger")?.addEventListener("click", () => {
       if (onOpenHeatLedger) onOpenHeatLedger(selectedNodeId);
+    });
+    twinBar.querySelector("#sn-tb-book-compute")?.addEventListener("click", () => {
+      if (onBookComputeAtSite) onBookComputeAtSite(selectedNodeId);
     });
     webglToggleBtn?.addEventListener("click", () => {
       const nextWebgl = webglToggleBtn.dataset.mode !== "webgl";
