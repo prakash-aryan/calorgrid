@@ -6626,3 +6626,40 @@ body:not(.app-mode-atlas) .brand-cluster {
     flex-direction: column;
   }
 }
+
+/* Equal-weight semantic dual CTAs on Landing Page: Warm Thermal vs. Alpine Compute */
+.sn-btn-heat,
+.sn-btn-compute {
+  appearance: none;
+  border: none;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 140ms ease;
+}
+.sn-btn-heat {
+  background: #c84411;
+}
+.sn-btn-heat:hover {
+  background: #ad390d;
+}
+.sn-btn-compute {
+  background: #14537c;
+}
+.sn-btn-compute:hover {
+  background: #0f4365;
+}
+@media (max-width: 1080px) {
+  .sn-btn-heat,
+  .sn-btn-compute {
+    min-height: 44px;
+    width: 100%;
+    padding: 0 12px;
+  }
+}
