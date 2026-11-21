@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 import copy
+import hashlib
 import json
 import math
 import mimetypes
+import re
 import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -15,7 +18,7 @@ from functools import lru_cache, wraps
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +26,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
+from digitalheat.cloud_pricing import CloudPricingService
 from digitalheat.config import (
     DATA_DIR as CONFIG_DATA_DIR,
 )
@@ -43,6 +47,7 @@ from digitalheat.config import (
     WeatherDataset,
 )
 from digitalheat.configurator import (
+    HeaterType,
     compute_configuration_quote,
     fetch_live_swiss_forecast,
     get_configurator_catalog,
@@ -53,7 +58,16 @@ from digitalheat.data_loader import (
     load_weather_zurich,
     verify_manifest,
 )
-from digitalheat.fleet import get_swiss_fleet_snapshot
+from digitalheat.fleet import get_swiss_fleet_snapshot, resolve_site_id
+from digitalheat.fleet_scheduler import (
+    BookingConflictError,
+    BookingNotFoundError,
+    FleetJobScheduler,
+    IdempotencyConflictError,
+    QuoteExpiredError,
+    ThermalCapacityConflictError,
+    ValidationInputError,
+)
 from digitalheat.physics import (
     VERBUND_SCENE_IDS,
     compute_loop_flow_l_per_min,
@@ -66,6 +80,7 @@ from digitalheat.scheduler import (
     ExternalScheduleAdapter,
     run_annual_simulation,
 )
+from digitalheat.telemetry_log import LogCategory, TelemetryLogStore, get_log_store, log_event
 from digitalheat.worker import (
     DEFAULT_MAX_CONTINUOUS_RUNTIME_S,
     JobType,
@@ -82,6 +97,33 @@ DATA_DIR: Path = CONFIG_DATA_DIR
 ASSETS_DIR: Path = PACKAGE_ROOT / "assets"
 WEB_DIR: Path = PACKAGE_ROOT / "web"
 _ADAPTER_LOCK = threading.Lock()
+_IMPORTMAP_HASH_CACHE: tuple[int, str] | None = None
+_IMPORTMAP_RE = re.compile(
+    r'<script\b[^>]*type=["\']importmap["\'][^>]*>(.*?)</script>',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _get_importmap_sha256_token() -> str:
+    global _IMPORTMAP_HASH_CACHE
+    index_path = WEB_DIR / "index.html"
+    if not index_path.is_file():
+        return ""
+    try:
+        mtime_ns = index_path.stat().st_mtime_ns
+        if _IMPORTMAP_HASH_CACHE is not None and _IMPORTMAP_HASH_CACHE[0] == mtime_ns:
+            return _IMPORTMAP_HASH_CACHE[1]
+        html = index_path.read_text(encoding="utf-8")
+        match = _IMPORTMAP_RE.search(html)
+        if not match:
+            _IMPORTMAP_HASH_CACHE = (mtime_ns, "")
+            return ""
+        digest = hashlib.sha256(match.group(1).encode("utf-8")).digest()
+        token = f" 'sha256-{base64.b64encode(digest).decode('ascii')}'"
+        _IMPORTMAP_HASH_CACHE = (mtime_ns, token)
+        return token
+    except OSError:
+        return ""
 
 CANONICAL_GLB_KEYS: tuple[str, ...] = (
     "context_neighborhood",
@@ -343,6 +385,39 @@ class AdapterScheduleRequest(BaseModel):
                         f"of {SERVER_ELECTRICAL_POWER_KW} kW"
                     )
         return self
+
+
+class ComputeQuoteRequest(BaseModel):
+    """Customer GPU or full-server compute quote request."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    tier: Literal["on_demand", "spot"] = "on_demand"
+    unit_mode: Literal["gpu", "server"] = "gpu"
+    gpu_or_sku: str = Field(..., min_length=1, max_length=64)
+    quantity: StrictInt = Field(default=1, ge=1, le=64)
+    duration_hours: float = Field(default=4.0, gt=0.0, le=168.0)
+    preferred_site_id: str | None = None
+    workload_type: str = Field(default="llm_inference", min_length=1, max_length=64)
+    job_name: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class ComputeBookRequest(BaseModel):
+    """Idempotent compute booking request consuming a valid quote_id."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    quote_id: str = Field(..., min_length=8, max_length=64)
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=128)
+    job_name: str | None = Field(default=None, max_length=80)
+
+
+class TelemetryTickRequest(BaseModel):
+    """Simulation tick advance request for fleet scheduler stepping."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    hours: float = Field(default=1.0, gt=0.0, le=72.0)
 
 
 def _sanitize_for_json(obj: object) -> object:
@@ -812,10 +887,67 @@ def _enrich_verbund_scene(scene: dict, assets_manifest: dict) -> dict:
     }
 
 
+_STATE_INIT_LOCK = threading.Lock()
+
+
+def _get_state_lock(app_obj: FastAPI) -> threading.RLock:
+    lock = getattr(app_obj.state, "state_lock", None)
+    if lock is None:
+        with _STATE_INIT_LOCK:
+            lock = getattr(app_obj.state, "state_lock", None)
+            if lock is None:
+                lock = threading.RLock()
+                app_obj.state.state_lock = lock
+                app_obj.state.scheduler_lock = lock
+    return lock
+
+
+def _get_log_store(app_obj: FastAPI) -> TelemetryLogStore:
+    store = getattr(app_obj.state, "log_store", None)
+    if store is None:
+        with _STATE_INIT_LOCK:
+            store = getattr(app_obj.state, "log_store", None)
+            if store is None:
+                store = get_log_store()
+                app_obj.state.log_store = store
+    return store
+
+
+def _get_pricing_service(app_obj: FastAPI) -> CloudPricingService:
+    svc = getattr(app_obj.state, "pricing_service", None)
+    if svc is None:
+        with _STATE_INIT_LOCK:
+            svc = getattr(app_obj.state, "pricing_service", None)
+            if svc is None:
+                svc = CloudPricingService(data_dir=DATA_DIR)
+                app_obj.state.pricing_service = svc
+    return svc
+
+
+def _get_fleet_scheduler(app_obj: FastAPI) -> FleetJobScheduler:
+    sched = getattr(app_obj.state, "fleet_scheduler", None)
+    if sched is None:
+        lock = _get_state_lock(app_obj)
+        store = _get_log_store(app_obj)
+        pricing = _get_pricing_service(app_obj)
+        with _STATE_INIT_LOCK:
+            sched = getattr(app_obj.state, "fleet_scheduler", None)
+            if sched is None:
+                sched = FleetJobScheduler(
+                    lock=lock,
+                    log_store=store,
+                    data_dir=DATA_DIR,
+                    pricing_service=pricing,
+                )
+                app_obj.state.fleet_scheduler = sched
+    return sched
+
+
 def _get_manager_from_app(app_obj: FastAPI) -> WorkerManager:
     mgr = getattr(app_obj.state, "worker_manager", None)
     if mgr is None:
         mgr = get_worker_manager()
+        mgr.set_log_store(_get_log_store(app_obj))
         app_obj.state.worker_manager = mgr
     return mgr
 
@@ -830,7 +962,27 @@ async def lifespan(app_instance: FastAPI):
         app_instance.state.datasets_verified = False
         app_instance.state.dataset_error = str(exc)
 
-    app_instance.state.worker_manager = get_worker_manager()
+    lock = threading.RLock()
+    log_store = get_log_store()
+    pricing_service = CloudPricingService(data_dir=DATA_DIR)
+    fleet_scheduler = FleetJobScheduler(
+        lock=lock,
+        log_store=log_store,
+        data_dir=DATA_DIR,
+        pricing_service=pricing_service,
+    )
+    app_instance.state.state_lock = lock
+    app_instance.state.scheduler_lock = lock
+    app_instance.state.log_store = log_store
+    app_instance.state.pricing_service = pricing_service
+    app_instance.state.fleet_scheduler = fleet_scheduler
+    app_instance.state.quotes = {}
+    app_instance.state.idempotency_bookings = {}
+    app_instance.state.state_version = 1
+
+    mgr = get_worker_manager()
+    mgr.set_log_store(log_store)
+    app_instance.state.worker_manager = mgr
     app_instance.state.adapter_results = {}
 
     if app_instance.state.datasets_verified:
@@ -839,6 +991,7 @@ async def lifespan(app_instance: FastAPI):
         _cached_annual_sim("baseline", 4, "basel")
         _cached_daily_timeseries("smart", 4, "basel")
         _cached_daily_timeseries("baseline", 4, "basel")
+        pricing_service.get_pricing_snapshot(trigger_refresh=True)
 
     try:
         yield
@@ -867,6 +1020,22 @@ async def _no_stale_ui_cache(request: Request, call_next):
     if path == "/" or path.endswith((".html", ".css", ".js")):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    if not path.startswith(("/docs", "/redoc")):
+        importmap_sha_token = _get_importmap_sha256_token()
+        csp_parts = [
+            "default-src 'self'",
+            f"script-src 'self' 'wasm-unsafe-eval'{importmap_sha_token}",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' blob: data:",
+            "media-src 'self' blob:",
+            "worker-src 'self' blob:",
+            "connect-src 'self' blob: data:",
+            "font-src 'self' data:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "frame-ancestors 'self'",
+        ]
+        response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
     return response
 
 
@@ -1095,6 +1264,20 @@ def post_scheduler_adapter(req: AdapterScheduleRequest) -> dict:
     payload["adapter_name"] = req.adapter_name
     if req.include_hourly:
         payload["hourly"] = [r.model_dump() for r in sim_full.hourly]
+    log_event(
+        "simulation_run",
+        "external_adapter_evaluated",
+        f"Evaluated external adapter '{req.adapter_name}' ({req.n_servers} servers, {req.site})",
+        source_module="api",
+        site_id="basel_klingental" if req.site == "basel" else "davos_alpine",
+        metrics={
+            "adapter_name": req.adapter_name,
+            "n_servers": req.n_servers,
+            "site": req.site,
+            "heat_dumped_kwh": round(sim_full.kpis.heat_dumped_kwh, 2),
+        },
+        store=_get_log_store(app),
+    )
     return payload
 
 
@@ -1316,27 +1499,177 @@ def api_configurator_quote(
     deployment_id: str = Query("house_basel"),
     server_model_id: str = Query("hydronode_1kw"),
     server_count: int = Query(4, ge=1, le=8),
-    heat_target_pct: int = Query(100, ge=10, le=140),
+    heat_target_pct: int = Query(100, ge=20, le=140),
     outdoor_temp_c: float | None = Query(None, ge=-25.0, le=42.0),
-    indoor_target_c: float = Query(21.0, ge=16.0, le=26.0),
+    indoor_target_c: float = Query(21.0, ge=18.0, le=24.0),
     has_existing_boiler: bool = Query(False),
+    heater_type: HeaterType | None = Query(None),
 ) -> dict:
     """Compute host boiler quote, thermal output and tomorrow's HeatLedger dispatch plan."""
-    return compute_configuration_quote(
-        deployment_id=deployment_id,
-        server_model_id=server_model_id,
-        server_count=server_count,
-        heat_target_pct=heat_target_pct,
-        outdoor_temp_c=outdoor_temp_c,
-        indoor_target_c=indoor_target_c,
-        has_existing_boiler=has_existing_boiler,
-    )
+    fleet_sched = _get_fleet_scheduler(app)
+    mgr = _get_manager_from_app(app)
+    worker_st = mgr.get_status()
+
+    fleet_site_snap = None
+    try:
+        resolved_site = resolve_site_id(deployment_id)
+        tel = fleet_sched.get_fleet_telemetry(site_id=resolved_site, worker_status=worker_st)
+        if tel.get("sites"):
+            fleet_site_snap = tel["sites"][0]
+    except (ValueError, ValidationInputError):
+        fleet_site_snap = None
+
+    try:
+        return compute_configuration_quote(
+            deployment_id=deployment_id,
+            server_model_id=server_model_id,
+            server_count=server_count,
+            heat_target_pct=heat_target_pct,
+            outdoor_temp_c=outdoor_temp_c,
+            indoor_target_c=indoor_target_c,
+            has_existing_boiler=has_existing_boiler,
+            heater_type=heater_type,
+            fleet_site_snapshot=fleet_site_snap,
+            worker_status=worker_st,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/weather/forecast")
 def api_weather_forecast(deployment_id: str = Query("house_basel")) -> dict:
     """Return tomorrow's live Swiss forecast via keyless Open-Meteo (with offline fallback)."""
-    return fetch_live_swiss_forecast(deployment_id=deployment_id)
+    try:
+        return fetch_live_swiss_forecast(deployment_id=deployment_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/logs")
+def api_get_logs(
+    category: LogCategory | None = Query(None),
+    site_id: str | None = Query(None),
+    after_sequence: int | None = Query(None, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    order: Literal["desc", "asc"] = Query("desc"),
+) -> dict:
+    """Return chronological structured application, simulation, dispatch and booking logs."""
+    store = _get_log_store(app)
+    if site_id is not None:
+        try:
+            resolve_site_id(site_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return store.query(
+        category=category,
+        site_id=site_id,
+        after_sequence=after_sequence,
+        limit=limit,
+        order=order,
+        site_resolver=resolve_site_id,
+    )
+
+
+@app.get("/api/v1/fleet/telemetry")
+def api_fleet_telemetry(
+    site_id: str | None = Query(None),
+    day_of_year: int | None = Query(None, ge=1, le=365),
+    hour: int | None = Query(None, ge=0, le=23),
+) -> dict:
+    """Return copy.deepcopy live per-site, per-server and per-GPU fleet telemetry."""
+    sched = _get_fleet_scheduler(app)
+    mgr = _get_manager_from_app(app)
+    try:
+        return sched.get_fleet_telemetry(
+            site_id=site_id,
+            worker_status=mgr.get_status(),
+            day_of_year=day_of_year,
+            hour=hour,
+        )
+    except ValidationInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/fleet/telemetry/tick")
+def api_fleet_telemetry_tick(req: TelemetryTickRequest | None = None) -> dict:
+    """Advance unified fleet simulation clock, RC building temps, migrations and backfill."""
+    body = req if req is not None else TelemetryTickRequest()
+    sched = _get_fleet_scheduler(app)
+    try:
+        return sched.dispatch_tick(hours=body.hours)
+    except ValidationInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/compute/pricing")
+def api_compute_pricing(refresh: bool = Query(False)) -> dict:
+    """Return non-blocking traditional cloud vs CalorGrid On-Demand/Spot pricing."""
+    svc = _get_pricing_service(app)
+    if refresh:
+        # Trigger async background refresh without blocking API response
+        return svc.get_public_pricing_payload(trigger_refresh=True)
+    return svc.get_public_pricing_payload(trigger_refresh=True)
+
+
+@app.post("/api/v1/compute/quote")
+def api_compute_quote(req: ComputeQuoteRequest) -> dict:
+    """Quote On-Demand or Spot GPU/server capacity with thermal headroom checks."""
+    sched = _get_fleet_scheduler(app)
+    try:
+        return sched.create_quote(
+            tier=req.tier,
+            unit_mode=req.unit_mode,
+            gpu_or_sku=req.gpu_or_sku,
+            quantity=req.quantity,
+            duration_hours=req.duration_hours,
+            preferred_site_id=req.preferred_site_id,
+            workload_type=req.workload_type,
+            job_name=req.job_name,
+        )
+    except ValidationInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ThermalCapacityConflictError, BookingConflictError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/compute/book")
+def api_compute_book(
+    req: ComputeBookRequest,
+    idempotency_key_header: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> dict:
+    """Book a compute quote atomically with Idempotency-Key deduplication."""
+    hdr = idempotency_key_header.strip() if isinstance(idempotency_key_header, str) else None
+    body_key = req.idempotency_key.strip() if isinstance(req.idempotency_key, str) else None
+    if hdr and body_key and hdr != body_key:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Idempotency-Key header and body idempotency_key must match "
+                "when both are provided"
+            ),
+        )
+    effective_key = hdr or body_key
+    if not effective_key:
+        raise HTTPException(
+            status_code=422,
+            detail="Idempotency-Key header or body idempotency_key is required",
+        )
+
+    sched = _get_fleet_scheduler(app)
+    try:
+        return sched.book_quote(
+            quote_id=req.quote_id,
+            idempotency_key=effective_key,
+            job_name=req.job_name,
+        )
+    except ValidationInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except BookingNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except QuoteExpiredError as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
+    except (IdempotencyConflictError, BookingConflictError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 if ASSETS_DIR.is_dir():

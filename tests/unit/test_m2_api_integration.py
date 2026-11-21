@@ -365,3 +365,207 @@ def test_verbund_scenes_single_flight_coalesces_cold_concurrency(
     finally:
         monkeypatch.undo()
         api_module._cached_verbund_scenes.cache_clear()
+
+
+def test_m2_logs_telemetry_and_fleet_immutability() -> None:
+    with TestClient(api_module.app) as client:
+        logs = client.get("/api/v1/logs?limit=50")
+        assert logs.status_code == 200
+        lj = logs.json()
+        assert lj["buffer_capacity"] == 500
+        assert lj["total_buffered"] >= 1
+        assert set(lj["category_counts"].keys()) == {
+            "simulation_run",
+            "analysis_task",
+            "scheduler_dispatch",
+            "worker_lifecycle",
+            "customer_booking",
+            "thermal_rebalance",
+        }
+
+        alias_logs = client.get("/api/v1/logs?site_id=basel_pool_st_jakob")
+        assert alias_logs.status_code == 200
+        assert client.get("/api/v1/logs?site_id=unknown_canton_xyz").status_code == 422
+
+        tel = client.get("/api/v1/fleet/telemetry")
+        assert tel.status_code == 200
+        tj = tel.json()
+        assert tj["summary"]["total_sites"] == 18
+        assert tj["summary"]["total_gpus"] > 0
+        assert client.get("/api/v1/fleet/telemetry?site_id=unknown_site").status_code == 422
+
+        tick = client.post("/api/v1/fleet/telemetry/tick", json={"hours": 1.0})
+        assert tick.status_code == 200
+        assert tick.json()["state_version"] > tj["state_version"]
+
+        # Verify /api/v1/fleet @lru_cache remains clean & untouched
+        fl = client.get("/api/v1/fleet?day_of_year=196&hour=14&strategy=smart")
+        assert fl.status_code == 200
+        fj = fl.json()
+        assert fj["fleet_annual"]["total_nodes"] == 14
+        assert fj["fleet_annual"]["annual_dumped_kwh"] == 0.0
+
+
+def test_m2_compute_pricing_quote_book_and_error_codes(tmp_path: Path) -> None:
+    isolated_pricing = api_module.CloudPricingService(
+        data_dir=api_module.DATA_DIR,
+        cache_path=tmp_path / "api_pricing.json",
+        enable_live_fetch=False,
+    )
+
+    with TestClient(api_module.app) as client:
+        orig_pricing = api_module.app.state.pricing_service
+        api_module.app.state.pricing_service = isolated_pricing
+        api_module.app.state.fleet_scheduler.set_pricing_service(isolated_pricing)
+        try:
+            _run_compute_pricing_quote_book_assertions(client)
+        finally:
+            api_module.app.state.pricing_service = orig_pricing
+            api_module.app.state.fleet_scheduler.set_pricing_service(orig_pricing)
+
+
+def _run_compute_pricing_quote_book_assertions(client: TestClient) -> None:
+    if True:
+
+        pr = client.get("/api/v1/compute/pricing")
+        assert pr.status_code == 200
+        pj = pr.json()
+        assert len(pj["gpu_comparisons"]) == 5
+        assert len(pj["server_sku_comparisons"]) == 4
+        assert len(pj["summer_sinks"]) == 5
+
+        # Invalid GPU SKU / site -> 422
+        assert (
+            client.post(
+                "/api/v1/compute/quote",
+                json={"tier": "on_demand", "unit_mode": "gpu", "gpu_or_sku": "bad_gpu"},
+            ).status_code
+            == 422
+        )
+        assert (
+            client.post(
+                "/api/v1/compute/quote",
+                json={
+                    "tier": "on_demand",
+                    "unit_mode": "gpu",
+                    "gpu_or_sku": "b200_sxm_180gb",
+                    "preferred_site_id": "invalid_site_99",
+                },
+            ).status_code
+            == 422
+        )
+
+        # Quote + Book flow with Idempotency-Key
+        q_resp = client.post(
+            "/api/v1/compute/quote",
+            json={
+                "tier": "on_demand",
+                "unit_mode": "gpu",
+                "gpu_or_sku": "b200_sxm_180gb",
+                "quantity": 2,
+                "duration_hours": 2.0,
+                "preferred_site_id": "sole_uno",
+                "job_name": "api-test-b200",
+            },
+        )
+        assert q_resp.status_code == 200
+        qj = q_resp.json()
+        assert qj["assigned_site_id"] == "sole_uno"
+        assert qj["wait_time_min"] == 0
+
+        # Missing Idempotency-Key -> 422
+        assert (
+            client.post("/api/v1/compute/book", json={"quote_id": qj["quote_id"]}).status_code
+            == 422
+        )
+        # Mismatched header vs body key -> 400
+        assert (
+            client.post(
+                "/api/v1/compute/book",
+                headers={"Idempotency-Key": "hdr-key"},
+                json={"quote_id": qj["quote_id"], "idempotency_key": "body-key"},
+            ).status_code
+            == 400
+        )
+        # Unknown quote_id -> 404
+        assert (
+            client.post(
+                "/api/v1/compute/book",
+                headers={"Idempotency-Key": "missing-q"},
+                json={"quote_id": "nonexistent_quote_1234"},
+            ).status_code
+            == 404
+        )
+
+        # Valid book -> 200, replay -> 200 idempotent_replay=True
+        b1 = client.post(
+            "/api/v1/compute/book",
+            headers={"Idempotency-Key": "api-idem-1"},
+            json={"quote_id": qj["quote_id"]},
+        )
+        assert b1.status_code == 200
+        assert b1.json()["idempotent_replay"] is False
+        b2 = client.post(
+            "/api/v1/compute/book",
+            headers={"Idempotency-Key": "api-idem-1"},
+            json={"quote_id": qj["quote_id"]},
+        )
+        assert b2.status_code == 200
+        assert b2.json()["idempotent_replay"] is True
+        assert b2.json()["booking_id"] == b1.json()["booking_id"]
+
+        # Same Idempotency-Key + different quote -> 409
+        q2 = client.post(
+            "/api/v1/compute/quote",
+            json={
+                "tier": "spot",
+                "unit_mode": "gpu",
+                "gpu_or_sku": "a100_sxm_80gb",
+                "quantity": 1,
+                "duration_hours": 1.0,
+            },
+        ).json()
+        assert (
+            client.post(
+                "/api/v1/compute/book",
+                headers={"Idempotency-Key": "api-idem-1"},
+                json={"quote_id": q2["quote_id"]},
+            ).status_code
+            == 409
+        )
+
+        # Expired quote -> 410
+        api_module.app.state.fleet_scheduler._quotes[q2["quote_id"]].expires_at_mono -= 1000.0
+        assert (
+            client.post(
+                "/api/v1/compute/book",
+                headers={"Idempotency-Key": "api-idem-exp"},
+                json={"quote_id": q2["quote_id"]},
+            ).status_code
+            == 410
+        )
+
+
+def test_m2_configurator_strict_bounds_and_csp_headers() -> None:
+    with TestClient(api_module.app) as client:
+        for bad_url in (
+            "/api/v1/configurator/quote?heat_target_pct=19",
+            "/api/v1/configurator/quote?heat_target_pct=141",
+            "/api/v1/configurator/quote?indoor_target_c=17.9",
+            "/api/v1/configurator/quote?indoor_target_c=24.1",
+            "/api/v1/configurator/quote?deployment_id=unknown_site_xyz",
+            "/api/v1/configurator/quote?server_model_id=unknown_srv_xyz",
+            "/api/v1/configurator/quote?server_model_id=b200_ai_10kw&server_count=4",
+            "/api/v1/weather/forecast?deployment_id=unknown_site_xyz",
+        ):
+            assert client.get(bad_url).status_code == 422, f"Expected 422 for {bad_url}"
+
+        # CSP header assertions
+        for route in ("/", "/api/v1/health"):
+            resp = client.get(route)
+            assert resp.status_code == 200
+            csp = resp.headers.get("content-security-policy", "")
+            assert "default-src 'self'" in csp
+            assert "'wasm-unsafe-eval'" in csp
+            assert "'sha256-" in csp
+            assert "worker-src 'self' blob:" in csp

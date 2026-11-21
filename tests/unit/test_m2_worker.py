@@ -134,9 +134,24 @@ def test_finite_worker_post_exit_sleep_does_not_inflate_runtime_or_energy() -> N
     mgr = WorkerManager()
     try:
         t0 = time.monotonic()
-        mgr.start(job_type="iiif_embeddings", max_units=1)
-        # Sleep well past child exit without polling
-        time.sleep(3.5)
+        started = mgr.start(job_type="iiif_embeddings", max_units=1)
+        assert started.pid is not None
+        proc = psutil.Process(started.pid)
+
+        # Wait for subprocess exit at the OS level WITHOUT polling WorkerManager.get_status()
+        deadline = time.monotonic() + 25.0
+        while time.monotonic() < deadline:
+            try:
+                if not proc.is_running() or proc.status() == psutil.STATUS_ZOMBIE:
+                    break
+            except psutil.NoSuchProcess:
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("Worker subprocess did not exit within timeout")
+
+        # Sleep well past child exit without calling get_status()
+        time.sleep(1.5)
         total_slept = time.monotonic() - t0
         st = mgr.get_status()
         assert st.state == "idle"
