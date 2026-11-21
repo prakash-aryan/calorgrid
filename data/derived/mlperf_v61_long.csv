@@ -1,0 +1,493 @@
+sheet,id,system,accelerator,n_acc,model,scenario,unit,result
+datacenter - closed,6.1-0001,8xMI350X_2xEPYC_9575F,AMD Instinct MI350X 288GB HBM3e,8,dlrm-v3,Server,Queries/s,9297.78
+datacenter - closed,6.1-0001,8xMI350X_2xEPYC_9575F,AMD Instinct MI350X 288GB HBM3e,8,dlrm-v3,Offline,Samples/s,10891.1
+datacenter - closed,6.1-0002,Quanta Grand Teton 1.5 MI350,AMD Instinct MI350X 288GB HBM3e,8,text_to_video,SingleStream,Latency (s),20.603024726
+datacenter - closed,6.1-0002,Quanta Grand Teton 1.5 MI350,AMD Instinct MI350X 288GB HBM3e,8,text_to_video,Offline,Samples/s,0.0565013
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,dlrm-v3,Server,Queries/s,12198.8
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,dlrm-v3,Offline,Samples/s,13027.7
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,103275.0
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,106517.0
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,73191.5
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,text_to_video,SingleStream,Latency (s),16.124484197
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,text_to_video,Offline,Samples/s,0.0731282
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,113241.0
+datacenter - closed,6.1-0003,smci355-ccs-aus-m13-13 (AS -4126GS-NMR-LCC),AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,121818.0
+datacenter - closed,6.1-0004,9x8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,72,gpt-oss-120b,Server,Tokens/s,964468.0
+datacenter - closed,6.1-0004,9x8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,72,gpt-oss-120b,Offline,Tokens/s,1039900.0
+datacenter - closed,6.1-0005,XA NB3I-E12,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,113455.0
+datacenter - closed,6.1-0005,XA NB3I-E12,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,113007.0
+datacenter - closed,6.1-0005,XA NB3I-E12,NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,54568.6
+datacenter - closed,6.1-0005,XA NB3I-E12,NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,69846.9
+datacenter - closed,6.1-0005,XA NB3I-E12,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,109949.0
+datacenter - closed,6.1-0005,XA NB3I-E12,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,109368.0
+datacenter - closed,6.1-0008,"Azure GB200 NVL72 (288x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,288,deepseek-r1,Server,Tokens/s,1598510.0
+datacenter - closed,6.1-0008,"Azure GB200 NVL72 (288x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,288,deepseek-r1,Offline,Tokens/s,2091190.0
+datacenter - closed,6.1-0009,"Azure GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Server,Tokens/s,426796.0
+datacenter - closed,6.1-0009,"Azure GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Offline,Tokens/s,542075.0
+datacenter - closed,6.1-0010,Azure GB300 NVL72 (72x GB300-288GB_aarch64 TensorRT),NVIDIA GB300,72,deepseek-r1,Server,Tokens/s,589391.0
+datacenter - closed,6.1-0010,Azure GB300 NVL72 (72x GB300-288GB_aarch64 TensorRT),NVIDIA GB300,72,deepseek-r1,Offline,Tokens/s,661143.0
+datacenter - closed,6.1-0010,Azure GB300 NVL72 (72x GB300-288GB_aarch64 TensorRT),NVIDIA GB300,72,deepseek-r1,Interactive,Tokens/s,260098.0
+datacenter - closed,6.1-0011,"Cisco UCS C240 M8 - (5x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,5,llama3.1-8b,Server,Tokens/s,11426.1
+datacenter - closed,6.1-0011,"Cisco UCS C240 M8 - (5x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,5,llama3.1-8b,Offline,Tokens/s,12017.7
+datacenter - closed,6.1-0011,"Cisco UCS C240 M8 - (5x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,5,llama3.1-8b,Interactive,Tokens/s,8494.68
+datacenter - closed,6.1-0011,"Cisco UCS C240 M8 - (5x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,5,whisper,Offline,Samples/s,4808.98
+datacenter - closed,6.1-0012,"Cisco UCS C845A M8 (8x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,8,llama3.1-8b,Server,Tokens/s,18186.2
+datacenter - closed,6.1-0012,"Cisco UCS C845A M8 (8x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,8,llama3.1-8b,Offline,Tokens/s,18800.9
+datacenter - closed,6.1-0012,"Cisco UCS C845A M8 (8x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,8,llama3.1-8b,Interactive,Tokens/s,14316.2
+datacenter - closed,6.1-0012,"Cisco UCS C845A M8 (8x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,8,whisper,Offline,Samples/s,7777.66
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama3.1-8b,Server,Tokens/s,49174.7
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama3.1-8b,Offline,Tokens/s,50453.7
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama3.1-8b,Interactive,Tokens/s,46164.4
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Server,Tokens/s,29316.4
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Offline,Tokens/s,29904.0
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,whisper,Offline,Samples/s,18991.8
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,gpt-oss-120b,Server,Tokens/s,14817.4
+datacenter - closed,6.1-0013,"Cisco UCS C845A M8 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,gpt-oss-120b,Offline,Tokens/s,15508.4
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama3.1-8b,Server,Tokens/s,173950.0
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama3.1-8b,Offline,Tokens/s,171114.0
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama3.1-8b,Interactive,Tokens/s,129168.0
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,66171.6
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,70325.4
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,whisper,Offline,Samples/s,52221.8
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,text_to_video,SingleStream,Latency (s),20.00421451803472
+datacenter - closed,6.1-0014,"Cisco UCS C880A M8 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,text_to_video,Offline,Samples/s,0.0612749682980279
+datacenter - closed,6.1-0015,Cisco_UCS_B300x16_G200_4x2_RO,NVIDIA B300-SXM-270GB,16,llama2-70b-99.9,Server,Tokens/s,179597.0
+datacenter - closed,6.1-0015,Cisco_UCS_B300x16_G200_4x2_RO,NVIDIA B300-SXM-270GB,16,llama2-70b-99.9,Offline,Tokens/s,227570.0
+datacenter - closed,6.1-0015,Cisco_UCS_B300x16_G200_4x2_RO,NVIDIA B300-SXM-270GB,16,deepseek-r1,Server,Tokens/s,88915.5
+datacenter - closed,6.1-0015,Cisco_UCS_B300x16_G200_4x2_RO,NVIDIA B300-SXM-270GB,16,deepseek-r1,Offline,Tokens/s,137067.0
+datacenter - closed,6.1-0015,Cisco_UCS_B300x16_G200_4x2_RO,NVIDIA B300-SXM-270GB,16,gpt-oss-120b,Server,Tokens/s,214774.0
+datacenter - closed,6.1-0015,Cisco_UCS_B300x16_G200_4x2_RO,NVIDIA B300-SXM-270GB,16,gpt-oss-120b,Offline,Tokens/s,220527.0
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,llama3.1-8b,Server,Tokens/s,161110.0
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,llama3.1-8b,Offline,Tokens/s,163292.0
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,llama3.1-8b,Interactive,Tokens/s,121557.0
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,llama2-70b-99.9,Server,Tokens/s,95104.6
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,llama2-70b-99.9,Offline,Tokens/s,99683.8
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,llama2-70b-99.9,Interactive,Tokens/s,70354.5
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,gpt-oss-120b,Server,Tokens/s,73357.6
+datacenter - closed,6.1-0016,Cisco UCS H200 x8 + MI350X x8 G200 2x2 TOR,NVIDIA H200-SXM-141GB + AMD Instinct MI350X 288GB HBM3e,16,gpt-oss-120b,Offline,Tokens/s,94249.3
+datacenter - closed,6.1-0017,"Cisco UCS X210 M8 - X580P PCIe Node (4x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,4,llama3.1-8b,Server,Tokens/s,9277.73
+datacenter - closed,6.1-0017,"Cisco UCS X210 M8 - X580P PCIe Node (4x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,4,llama3.1-8b,Offline,Tokens/s,9518.66
+datacenter - closed,6.1-0017,"Cisco UCS X210 M8 - X580P PCIe Node (4x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,4,llama3.1-8b,Interactive,Tokens/s,6883.94
+datacenter - closed,6.1-0017,"Cisco UCS X210 M8 - X580P PCIe Node (4x NVIDIA RTX PRO 4500 Blackwell-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,4,whisper,Offline,Samples/s,3877.67
+datacenter - closed,6.1-0018,"Cisco UCS X210c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama2-70b-99.9,Server,Tokens/s,14333.3
+datacenter - closed,6.1-0018,"Cisco UCS X210c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama2-70b-99.9,Offline,Tokens/s,14860.7
+datacenter - closed,6.1-0018,"Cisco UCS X210c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,gpt-oss-120b,Server,Tokens/s,6950.76
+datacenter - closed,6.1-0018,"Cisco UCS X210c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,gpt-oss-120b,Offline,Tokens/s,7801.36
+datacenter - closed,6.1-0019,"Cisco UCS X215c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama3.1-8b,Server,Tokens/s,24498.6
+datacenter - closed,6.1-0019,"Cisco UCS X215c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama3.1-8b,Offline,Tokens/s,24913.5
+datacenter - closed,6.1-0019,"Cisco UCS X215c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama3.1-8b,Interactive,Tokens/s,22447.0
+datacenter - closed,6.1-0019,"Cisco UCS X215c M8 - X580P PCIe Node (4x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,whisper,Offline,Samples/s,9236.94
+datacenter - closed,6.1-0020,X410M8_1_node_4S_GNR_86C,,0,llama3.1-8b,Server,Tokens/s,1030.45
+datacenter - closed,6.1-0020,X410M8_1_node_4S_GNR_86C,,0,llama3.1-8b,Offline,Tokens/s,2068.63
+datacenter - closed,6.1-0020,X410M8_1_node_4S_GNR_86C,,0,whisper,Offline,Samples/s,2970.57
+datacenter - closed,6.1-0021,CoreWeave B200 SXM (8x B200-SXM-180GB),NVIDIA B200-SXM-180GB,8,llama2-70b-99.9,Server,Tokens/s,102398.0
+datacenter - closed,6.1-0021,CoreWeave B200 SXM (8x B200-SXM-180GB),NVIDIA B200-SXM-180GB,8,llama2-70b-99.9,Offline,Tokens/s,102703.0
+datacenter - closed,6.1-0021,CoreWeave B200 SXM (8x B200-SXM-180GB),NVIDIA B200-SXM-180GB,8,deepseek-r1,Server,Tokens/s,56121.3
+datacenter - closed,6.1-0021,CoreWeave B200 SXM (8x B200-SXM-180GB),NVIDIA B200-SXM-180GB,8,deepseek-r1,Offline,Tokens/s,58913.2
+datacenter - closed,6.1-0021,CoreWeave B200 SXM (8x B200-SXM-180GB),NVIDIA B200-SXM-180GB,8,gpt-oss-120b,Server,Tokens/s,90204.7
+datacenter - closed,6.1-0021,CoreWeave B200 SXM (8x B200-SXM-180GB),NVIDIA B200-SXM-180GB,8,gpt-oss-120b,Offline,Tokens/s,91487.4
+datacenter - closed,6.1-0022,CoreWeave B300 SXM (8x B300-SXM-270GB),NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,114576.0
+datacenter - closed,6.1-0022,CoreWeave B300 SXM (8x B300-SXM-270GB),NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,115530.0
+datacenter - closed,6.1-0022,CoreWeave B300 SXM (8x B300-SXM-270GB),NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,111247.0
+datacenter - closed,6.1-0022,CoreWeave B300 SXM (8x B300-SXM-270GB),NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,112840.0
+datacenter - closed,6.1-0023,CoreWeave GB200 NVL72 (72x GB200-186GB_aarch64),NVIDIA GB200,72,llama2-70b-99.9,Server,Tokens/s,910621.0
+datacenter - closed,6.1-0023,CoreWeave GB200 NVL72 (72x GB200-186GB_aarch64),NVIDIA GB200,72,llama2-70b-99.9,Offline,Tokens/s,894002.0
+datacenter - closed,6.1-0023,CoreWeave GB200 NVL72 (72x GB200-186GB_aarch64),NVIDIA GB200,72,deepseek-r1,Server,Tokens/s,419778.0
+datacenter - closed,6.1-0023,CoreWeave GB200 NVL72 (72x GB200-186GB_aarch64),NVIDIA GB200,72,deepseek-r1,Offline,Tokens/s,529991.0
+datacenter - closed,6.1-0023,CoreWeave GB200 NVL72 (72x GB200-186GB_aarch64),NVIDIA GB200,72,gpt-oss-120b,Server,Tokens/s,901058.0
+datacenter - closed,6.1-0023,CoreWeave GB200 NVL72 (72x GB200-186GB_aarch64),NVIDIA GB200,72,gpt-oss-120b,Offline,Tokens/s,911566.0
+datacenter - closed,6.1-0024,CoreWeave GB300 NVL72 (4x GB300-288GB_aarch64),NVIDIA GB300,4,VLM,Server,Queries/s,64.13202030676248
+datacenter - closed,6.1-0024,CoreWeave GB300 NVL72 (4x GB300-288GB_aarch64),NVIDIA GB300,4,VLM,Offline,Samples/s,72.59800294104302
+datacenter - closed,6.1-0025,CoreWeave GB300 NVL72 (72x GB300-288GB_aarch64),NVIDIA GB300,72,llama2-70b-99.9,Server,Tokens/s,944902.0
+datacenter - closed,6.1-0025,CoreWeave GB300 NVL72 (72x GB300-288GB_aarch64),NVIDIA GB300,72,llama2-70b-99.9,Offline,Tokens/s,1136100.0
+datacenter - closed,6.1-0025,CoreWeave GB300 NVL72 (72x GB300-288GB_aarch64),NVIDIA GB300,72,VLM,Server,Queries/s,1195.590758633778
+datacenter - closed,6.1-0025,CoreWeave GB300 NVL72 (72x GB300-288GB_aarch64),NVIDIA GB300,72,VLM,Offline,Samples/s,1135.25001579439
+datacenter - closed,6.1-0025,CoreWeave GB300 NVL72 (72x GB300-288GB_aarch64),NVIDIA GB300,72,gpt-oss-120b,Server,Tokens/s,1160490.0
+datacenter - closed,6.1-0025,CoreWeave GB300 NVL72 (72x GB300-288GB_aarch64),NVIDIA GB300,72,gpt-oss-120b,Offline,Tokens/s,1197710.0
+datacenter - closed,6.1-0026,Crusoe Cloud 64x8 MI355X (512 GPU) — DeepSeek-R1 / SGLang,AMD Instinct MI355X 288GB HBM3e,512,deepseek-r1,Server,Tokens/s,2405310.0
+datacenter - closed,6.1-0026,Crusoe Cloud 64x8 MI355X (512 GPU) — DeepSeek-R1 / SGLang,AMD Instinct MI355X 288GB HBM3e,512,deepseek-r1,Offline,Tokens/s,2901950.0
+datacenter - closed,6.1-0027,Crusoe Cloud 64x8 MI355X (512 GPU) — gpt-oss-120b / vLLM,AMD Instinct MI355X 288GB HBM3e,512,gpt-oss-120b,Server,Tokens/s,5392930.0
+datacenter - closed,6.1-0027,Crusoe Cloud 64x8 MI355X (512 GPU) — gpt-oss-120b / vLLM,AMD Instinct MI355X 288GB HBM3e,512,gpt-oss-120b,Offline,Tokens/s,5749440.0
+datacenter - closed,6.1-0028,"NVIDIA GB200 NVL72 (16x GB200-186GB_aarch64, Dynamo)",NVIDIA GB200,16,VLM,Server,Queries/s,198.9444574056901
+datacenter - closed,6.1-0028,"NVIDIA GB200 NVL72 (16x GB200-186GB_aarch64, Dynamo)",NVIDIA GB200,16,VLM,Offline,Samples/s,230.088792881784
+datacenter - closed,6.1-0028,"NVIDIA GB200 NVL72 (16x GB200-186GB_aarch64, Dynamo)",NVIDIA GB200,16,VLM,Interactive,Queries/s,39.85079133425917
+datacenter - closed,6.1-0029,"NVIDIA GB200 NVL72 (4x GB200-186GB_aarch64, Dynamo)",NVIDIA GB200,4,VLM,Server,Queries/s,49.6962883240102
+datacenter - closed,6.1-0029,"NVIDIA GB200 NVL72 (4x GB200-186GB_aarch64, Dynamo)",NVIDIA GB200,4,VLM,Offline,Samples/s,58.39587523885307
+datacenter - closed,6.1-0029,"NVIDIA GB200 NVL72 (4x GB200-186GB_aarch64, Dynamo)",NVIDIA GB200,4,VLM,Interactive,Queries/s,3.994056744750478
+datacenter - closed,6.1-0030,"NVIDIA GB200 NVL72 (4x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,4,gpt-oss-120b,Server,Tokens/s,50613.5
+datacenter - closed,6.1-0030,"NVIDIA GB200 NVL72 (4x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,4,gpt-oss-120b,Offline,Tokens/s,50912.9
+datacenter - closed,6.1-0031,PowerEdge R770AP_128C 24x96GB (6400 MT/s),,0,rgat,Offline,Samples/s,21835.4
+datacenter - closed,6.1-0031,PowerEdge R770AP_128C 24x96GB (6400 MT/s),,0,whisper,Offline,Samples/s,2275.93
+datacenter - closed,6.1-0032,PowerEdge R770_86C 16x64GB (6400 MT/s),,0,llama3.1-8b,Server,Tokens/s,516.012
+datacenter - closed,6.1-0032,PowerEdge R770_86C 16x64GB (6400 MT/s),,0,llama3.1-8b,Offline,Tokens/s,1227.99
+datacenter - closed,6.1-0032,PowerEdge R770_86C 16x64GB (6400 MT/s),,0,rgat,Offline,Samples/s,16042.8
+datacenter - closed,6.1-0032,PowerEdge R770_86C 16x64GB (6400 MT/s),,0,whisper,Offline,Samples/s,1539.49
+datacenter - closed,6.1-0033,"PowerEdge XE7740 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Server,Tokens/s,28973.3
+datacenter - closed,6.1-0033,"PowerEdge XE7740 (8x RTXPro6000-PCIe-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Offline,Tokens/s,29796.7
+datacenter - closed,6.1-0034,"PowerEdge XE7745 (8x NVIDIA RTX PRO 4500 Blackwell, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,8,llama2-70b-99.9,Server,Tokens/s,3012.33
+datacenter - closed,6.1-0034,"PowerEdge XE7745 (8x NVIDIA RTX PRO 4500 Blackwell, TensorRT)",NVIDIA RTX PRO 4500 Blackwell,8,llama2-70b-99.9,Offline,Tokens/s,4374.06
+datacenter - closed,6.1-0035,Dell PowerEdge XE9712,NVIDIA GB300,72,text_to_video,SingleStream,Latency (s),10.58500054065278
+datacenter - closed,6.1-0035,Dell PowerEdge XE9712,NVIDIA GB300,72,text_to_video,Offline,Samples/s,0.6455254875195523
+datacenter - closed,6.1-0036,"Dell XE9780 (8x B300-SXM-270GB, TensorRT)",Nvidia B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,96180.6
+datacenter - closed,6.1-0036,"Dell XE9780 (8x B300-SXM-270GB, TensorRT)",Nvidia B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,104006.0
+datacenter - closed,6.1-0036,"Dell XE9780 (8x B300-SXM-270GB, TensorRT)",Nvidia B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,103332.0
+datacenter - closed,6.1-0036,"Dell XE9780 (8x B300-SXM-270GB, TensorRT)",Nvidia B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,109257.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Server,Tokens/s,148563.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Offline,Tokens/s,158458.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Interactive,Tokens/s,130540.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,103932.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,103792.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,73238.1
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,110188.0
+datacenter - closed,6.1-0037,XE9785L_8xMI355X,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,117804.0
+datacenter - closed,6.1-0038,"Dell XE9785L (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106898.0
+datacenter - closed,6.1-0038,"Dell XE9785L (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,113101.0
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,dlrm-v3,Server,Queries/s,4503.53
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,dlrm-v3,Offline,Samples/s,4837.63
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,llama3.1-8b,Server,Tokens/s,72305.1
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,llama3.1-8b,Offline,Tokens/s,73643.0
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,llama3.1-8b,Interactive,Tokens/s,62723.7
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,llama2-70b-99.9,Server,Tokens/s,41830.0
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,llama2-70b-99.9,Offline,Tokens/s,42286.2
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,llama2-70b-99.9,Interactive,Tokens/s,22860.5
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,text_to_video,SingleStream,Latency (s),41.83792310800001
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,text_to_video,Offline,Samples/s,0.0345875
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,gpt-oss-120b,Server,Tokens/s,40867.9
+datacenter - closed,6.1-0040,XE7745_8xMI350P_2xEPYC_9455,AMD Instinct MI350P,8,gpt-oss-120b,Offline,Tokens/s,48971.1
+datacenter - closed,6.1-0041,"Heterogeneous Four-Cluster (2x8x MI300X + 2x8x MI355X, LLMBoost)",AMD Instinct MI300X 192GB HBM3 (x2x8) and AMD Instinct MI355X 288GB HBM3e (x2x8),32,gpt-oss-120b,Server,Tokens/s,253501.0
+datacenter - closed,6.1-0041,"Heterogeneous Four-Cluster (2x8x MI300X + 2x8x MI355X, LLMBoost)",AMD Instinct MI300X 192GB HBM3 (x2x8) and AMD Instinct MI355X 288GB HBM3e (x2x8),32,gpt-oss-120b,Offline,Tokens/s,285454.0
+datacenter - closed,6.1-0042,PowerEdge XE9785,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,109065.0
+datacenter - closed,6.1-0042,PowerEdge XE9785,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,115294.0
+datacenter - closed,6.1-0042,PowerEdge XE9785,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Interactive,Tokens/s,28265.9
+datacenter - closed,6.1-0043,PowerEdge XE9785L,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,110153.0
+datacenter - closed,6.1-0043,PowerEdge XE9785L,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,116953.0
+datacenter - closed,6.1-0043,PowerEdge XE9785L,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Interactive,Tokens/s,29585.5
+datacenter - closed,6.1-0044,"PRIMERGY_CDI_RTX_PRO_6000_PCIE_96GBx8, TensorRT)",NVIDIA RTX PRO 6000 Blackwell,8,llama2-70b-99.9,Server,Tokens/s,27340.9
+datacenter - closed,6.1-0044,"PRIMERGY_CDI_RTX_PRO_6000_PCIE_96GBx8, TensorRT)",NVIDIA RTX PRO 6000 Blackwell,8,llama2-70b-99.9,Offline,Tokens/s,26626.5
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,114832.0
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,115034.0
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,70495.7
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,72445.1
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,text_to_video,SingleStream,Latency (s),19.07940438844444
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,text_to_video,Offline,Samples/s,0.0629152672355444
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,VLM,Server,Queries/s,111.7532977914224
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,131.2852847183584
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,VLM,Interactive,Queries/s,12.48543213240489
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,111218.0
+datacenter - closed,6.1-0045,G894-AD3-AAX7,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,111625.0
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,114578.0
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,114826.0
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,70771.7
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,72327.1
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,text_to_video,SingleStream,Latency (s),18.05179867184028
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,text_to_video,Offline,Samples/s,0.0625123079679506
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,VLM,Server,Queries/s,115.7839399384009
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,132.0547880616454
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,VLM,Interactive,Queries/s,12.88177974080564
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,110592.0
+datacenter - closed,6.1-0046,G894-ZD3-AAX7,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,111541.0
+datacenter - closed,6.1-0047,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Server,Tokens/s,388590.0
+datacenter - closed,6.1-0047,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Offline,Tokens/s,510781.0
+datacenter - closed,6.1-0047,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Interactive,Tokens/s,232160.0
+datacenter - closed,6.1-0048,"NVIDIA GB200 NVL72 by HPE (8x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,8,gpt-oss-120b,Server,Tokens/s,100714.0
+datacenter - closed,6.1-0048,"NVIDIA GB200 NVL72 by HPE (8x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,8,gpt-oss-120b,Offline,Tokens/s,101453.0
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama3.1-8b,Server,Tokens/s,49523.3
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama3.1-8b,Offline,Tokens/s,50965.3
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama3.1-8b,Interactive,Tokens/s,39986.3
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Server,Tokens/s,28643.3
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Offline,Tokens/s,29284.8
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,whisper,Offline,Samples/s,19278.3
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,gpt-oss-120b,Server,Tokens/s,14581.7
+datacenter - closed,6.1-0049,"HPE ProLiant Compute DL380a Gen12 (8x RTX Pro 6000 Blackwell Server Edition 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,gpt-oss-120b,Offline,Tokens/s,15256.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Server,Tokens/s,148118.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Offline,Tokens/s,157694.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Interactive,Tokens/s,130613.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,101979.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,102991.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,72977.2
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,text_to_video,SingleStream,Latency (s),16.397060151
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,text_to_video,Offline,Samples/s,0.0707035
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,108836.0
+datacenter - closed,6.1-0050,"HPE ProLiant Compute XD685 (8x AMD MI355X-288GB, vLLM)",AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,117355.0
+datacenter - closed,6.1-0051,"HPE Compute XD690 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,16,deepseek-r1,Server,Tokens/s,80536.9
+datacenter - closed,6.1-0051,"HPE Compute XD690 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,16,deepseek-r1,Offline,Tokens/s,136854.0
+datacenter - closed,6.1-0052,"HPE Compute XD690 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,113685.0
+datacenter - closed,6.1-0052,"HPE Compute XD690 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,114569.0
+datacenter - closed,6.1-0059,1-node-2S-GNR_128C,,0,llama3.1-8b,Server,Tokens/s,1139.51
+datacenter - closed,6.1-0059,1-node-2S-GNR_128C,,0,llama3.1-8b,Offline,Tokens/s,1916.74
+datacenter - closed,6.1-0059,1-node-2S-GNR_128C,,0,rgat,Offline,Samples/s,24573.7
+datacenter - closed,6.1-0059,1-node-2S-GNR_128C,,0,whisper,Offline,Samples/s,2319.02
+datacenter - closed,6.1-0060,1-node-2S-Xeon_6787P,Intel(R) Arc(TM) Pro B70,4,end to end question-answering,Offline,Tasks/s,0.464076
+datacenter - closed,6.1-0060,1-node-2S-Xeon_6787P,Intel(R) Arc(TM) Pro B70,4,end to end vector-database,Offline,Samples/s,22.6141
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama3.1-8b,Server,Tokens/s,4173.25
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama3.1-8b,Offline,Tokens/s,4613.28
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama2-70b-99.9,Server,Tokens/s,1745.48
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama2-70b-99.9,Offline,Tokens/s,2464.98
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,whisper,Offline,Samples/s,5539.77
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,gpt-oss-120b,Server,Tokens/s,1296.87
+datacenter - closed,6.1-0061,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,gpt-oss-120b,Offline,Tokens/s,1956.4
+datacenter - closed,6.1-0062,"Inventec P5800G7(LC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106617.0
+datacenter - closed,6.1-0062,"Inventec P5800G7(LC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,109933.0
+datacenter - closed,6.1-0062,"Inventec P5800G7(LC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,57432.0
+datacenter - closed,6.1-0062,"Inventec P5800G7(LC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,70269.6
+datacenter - closed,6.1-0062,"Inventec P5800G7(LC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,100299.0
+datacenter - closed,6.1-0062,"Inventec P5800G7(LC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,106280.0
+datacenter - closed,6.1-0063,"Inventec P9000G7(AC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106645.0
+datacenter - closed,6.1-0063,"Inventec P9000G7(AC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,109755.0
+datacenter - closed,6.1-0063,"Inventec P9000G7(AC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,57517.4
+datacenter - closed,6.1-0063,"Inventec P9000G7(AC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,69062.2
+datacenter - closed,6.1-0063,"Inventec P9000G7(AC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,100300.0
+datacenter - closed,6.1-0063,"Inventec P9000G7(AC) (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,105617.0
+datacenter - closed,6.1-0064,Lambda Cloud 8x B200-SXM-180GB,NVIDIA B200-SXM-180GB,8,VLM,Server,Queries/s,69.41536196217709
+datacenter - closed,6.1-0064,Lambda Cloud 8x B200-SXM-180GB,NVIDIA B200-SXM-180GB,8,VLM,Offline,Samples/s,101.5607239508195
+datacenter - closed,6.1-0065,"Lambda 4x GB300-288GB (GB300 NVL4, aarch64)",NVIDIA GB300,4,VLM,Server,Queries/s,64.62448277938189
+datacenter - closed,6.1-0065,"Lambda 4x GB300-288GB (GB300 NVL4, aarch64)",NVIDIA GB300,4,VLM,Offline,Samples/s,71.1217334486934
+datacenter - closed,6.1-0065,"Lambda 4x GB300-288GB (GB300 NVL4, aarch64)",NVIDIA GB300,4,gpt-oss-120b,Server,Tokens/s,58195.8
+datacenter - closed,6.1-0065,"Lambda 4x GB300-288GB (GB300 NVL4, aarch64)",NVIDIA GB300,4,gpt-oss-120b,Offline,Tokens/s,65511.9
+datacenter - closed,6.1-0066,"MangoBoost 2x8 MI355X (16x MI355X, LLMBoost P/D Disaggregated Interactive Engine)",AMD Instinct MI355X 288GB HBM3e,16,gpt-oss-120b,Offline,Tokens/s,228488.0
+datacenter - closed,6.1-0066,"MangoBoost 2x8 MI355X (16x MI355X, LLMBoost P/D Disaggregated Interactive Engine)",AMD Instinct MI355X 288GB HBM3e,16,gpt-oss-120b,Interactive,Tokens/s,59297.4
+datacenter - closed,6.1-0067,8xMI300X_2xEPYC_9534,AMD Instinct MI300X 192GB HBM3,8,gpt-oss-120b,Server,Tokens/s,24863.0
+datacenter - closed,6.1-0067,8xMI300X_2xEPYC_9534,AMD Instinct MI300X 192GB HBM3,8,gpt-oss-120b,Offline,Tokens/s,30198.4
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,llama3.1-8b,Server,Tokens/s,121706.0
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,llama3.1-8b,Offline,Tokens/s,129943.0
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,llama3.1-8b,Interactive,Tokens/s,104368.0
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,85004.8
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,84016.4
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,56673.0
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,87549.5
+datacenter - closed,6.1-0068,G8825Z5,AMD Instinct MI350X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,97019.7
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Server,Tokens/s,151116.0
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Offline,Tokens/s,159278.0
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Interactive,Tokens/s,136999.0
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,104541.0
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,104904.0
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,74385.6
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,108861.0
+datacenter - closed,6.1-0069,G4826,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,118042.0
+datacenter - closed,6.1-0070,MiTAC_G4520G6_RTX_PRO_6000_PCIE_96GBx8,NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Server,Tokens/s,29203.3
+datacenter - closed,6.1-0070,MiTAC_G4520G6_RTX_PRO_6000_PCIE_96GBx8,NVIDIA RTX PRO 6000 Blackwell Server Edition,8,llama2-70b-99.9,Offline,Tokens/s,30034.2
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106949.0
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,109277.0
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,59867.8
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,70132.3
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,text_to_video,SingleStream,Latency (s),17.97718330692361
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,text_to_video,Offline,Samples/s,0.0621886628274087
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Server,Queries/s,104.5781916389203
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,129.3583917213701
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Interactive,Queries/s,3.994428963207542
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,100630.0
+datacenter - closed,6.1-0071,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,106637.0
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Server,Tokens/s,395940.0
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Offline,Tokens/s,523790.0
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,deepseek-r1,Interactive,Tokens/s,240274.0
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,text_to_video,SingleStream,Latency (s),5.731549943319444
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,text_to_video,Offline,Samples/s,0.4960942571652712
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,gpt-oss-120b,Server,Tokens/s,899005.0
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,gpt-oss-120b,Offline,Tokens/s,883761.0
+datacenter - closed,6.1-0072,"NVIDIA GB200 NVL72 (72x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,72,gpt-oss-120b,Interactive,Tokens/s,625205.0
+datacenter - closed,6.1-0073,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,288,deepseek-r1,Server,Tokens/s,2028030.0
+datacenter - closed,6.1-0073,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,288,deepseek-r1,Offline,Tokens/s,2705130.0
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Server,Tokens/s,596944.0
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Offline,Tokens/s,679740.0
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Interactive,Tokens/s,253506.0
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,text_to_video,SingleStream,Latency (s),5.807651162902777
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,text_to_video,Offline,Samples/s,0.6546111599325777
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,VLM,Server,Queries/s,1210.48823482974
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,VLM,Offline,Samples/s,1304.985262579748
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,VLM,Interactive,Queries/s,349.2921988473666
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Server,Tokens/s,1120710.0
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Offline,Tokens/s,1124500.0
+datacenter - closed,6.1-0074,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Interactive,Tokens/s,669305.0
+datacenter - closed,6.1-0075,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,llama2-70b-99.9,Server,Tokens/s,127911.0
+datacenter - closed,6.1-0075,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,llama2-70b-99.9,Offline,Tokens/s,131464.0
+datacenter - closed,6.1-0075,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,deepseek-r1,Server,Tokens/s,67578.3
+datacenter - closed,6.1-0075,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,deepseek-r1,Offline,Tokens/s,75918.2
+datacenter - closed,6.1-0075,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,gpt-oss-120b,Server,Tokens/s,128173.0
+datacenter - closed,6.1-0075,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,gpt-oss-120b,Offline,Tokens/s,131619.0
+datacenter - closed,6.1-0077,"Nebius B200 n1 (8x B200-SXM-180GB, TensorRT)",NVIDIA B200-SXM-180GB,8,deepseek-r1,Server,Tokens/s,55869.0
+datacenter - closed,6.1-0077,"Nebius B200 n1 (8x B200-SXM-180GB, TensorRT)",NVIDIA B200-SXM-180GB,8,deepseek-r1,Offline,Tokens/s,56929.9
+datacenter - closed,6.1-0077,"Nebius B200 n1 (8x B200-SXM-180GB, TensorRT)",NVIDIA B200-SXM-180GB,8,gpt-oss-120b,Server,Tokens/s,89856.3
+datacenter - closed,6.1-0077,"Nebius B200 n1 (8x B200-SXM-180GB, TensorRT)",NVIDIA B200-SXM-180GB,8,gpt-oss-120b,Offline,Tokens/s,88491.0
+datacenter - closed,6.1-0078,"Nebius B300 n1 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,63909.3
+datacenter - closed,6.1-0078,"Nebius B300 n1 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,69655.1
+datacenter - closed,6.1-0078,"Nebius B300 n1 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Server,Queries/s,112.2858237129371
+datacenter - closed,6.1-0078,"Nebius B300 n1 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,131.4771630075575
+datacenter - closed,6.1-0078,"Nebius B300 n1 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,108124.0
+datacenter - closed,6.1-0078,"Nebius B300 n1 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,108529.0
+datacenter - closed,6.1-0079,"Nebius GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,VLM,Server,Queries/s,64.61995222586359
+datacenter - closed,6.1-0079,"Nebius GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,VLM,Offline,Samples/s,73.18605442300793
+datacenter - closed,6.1-0080,"Nebius GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Server,Tokens/s,603023.0
+datacenter - closed,6.1-0080,"Nebius GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Offline,Tokens/s,689961.0
+datacenter - closed,6.1-0080,"Nebius GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Server,Tokens/s,1122490.0
+datacenter - closed,6.1-0080,"Nebius GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Offline,Tokens/s,1186750.0
+datacenter - closed,6.1-0081,"Nebius GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,gpt-oss-120b,Server,Tokens/s,127921.0
+datacenter - closed,6.1-0081,"Nebius GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,gpt-oss-120b,Offline,Tokens/s,132236.0
+datacenter - closed,6.1-0082,"Nebius RTX PRO 6000 n1 (8x RTX-PRO-6000-PCIE-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,gpt-oss-120b,Server,Tokens/s,14784.3
+datacenter - closed,6.1-0082,"Nebius RTX PRO 6000 n1 (8x RTX-PRO-6000-PCIE-96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,8,gpt-oss-120b,Offline,Tokens/s,15738.5
+datacenter - closed,6.1-0083,BM.Standard4.Ax.120,,0,llama3.1-8b,Server,Tokens/s,324.995
+datacenter - closed,6.1-0083,BM.Standard4.Ax.120,,0,llama3.1-8b,Offline,Tokens/s,853.14
+datacenter - closed,6.1-0083,BM.Standard4.Ax.120,,0,whisper,Offline,Samples/s,1099.64
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Server,Tokens/s,148594.0
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Offline,Tokens/s,144321.0
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Interactive,Tokens/s,130625.0
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,100392.0
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,101553.0
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,70421.7
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,text_to_video,SingleStream,Latency (s),16.334597792
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,text_to_video,Offline,Samples/s,0.0706215
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,109083.0
+datacenter - closed,6.1-0084,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,115567.0
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106696.0
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,108026.0
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,60745.5
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,70354.0
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,124.3859737873004
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Interactive,Queries/s,3.9944621629557
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,100608.0
+datacenter - closed,6.1-0085,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,109931.0
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,llama2-70b-99.9,Server,Tokens/s,58991.9
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,llama2-70b-99.9,Offline,Tokens/s,66001.9
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,text_to_video,SingleStream,Latency (s),30.653359842875
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,text_to_video,Offline,Samples/s,0.0138372212111634
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,VLM,Server,Queries/s,64.60782589940354
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,VLM,Offline,Samples/s,72.78618281809769
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,VLM,Interactive,Queries/s,4.992209807647115
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,gpt-oss-120b,Server,Tokens/s,59996.0
+datacenter - closed,6.1-0086,"NVIDIA GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,gpt-oss-120b,Offline,Tokens/s,60745.8
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Server,Tokens/s,586852.0
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Offline,Tokens/s,666613.0
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,deepseek-r1,Interactive,Tokens/s,235807.0
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,text_to_video,SingleStream,Latency (s),5.895425553486111
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,text_to_video,Offline,Samples/s,0.3997628673298144
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,VLM,Server,Queries/s,1146.388942892591
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,VLM,Offline,Samples/s,1297.490941230584
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Server,Tokens/s,1092610.0
+datacenter - closed,6.1-0087,"NVIDIA GB300 NVL72 (72x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,72,gpt-oss-120b,Offline,Tokens/s,1097620.0
+datacenter - closed,6.1-0088,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,llama2-70b-99.9,Server,Tokens/s,127984.0
+datacenter - closed,6.1-0088,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,llama2-70b-99.9,Offline,Tokens/s,132253.0
+datacenter - closed,6.1-0088,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,deepseek-r1,Server,Tokens/s,68138.0
+datacenter - closed,6.1-0088,"NVIDIA GB300 NVL72 (8x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,8,deepseek-r1,Offline,Tokens/s,77031.7
+datacenter - closed,6.1-0089,1-node-2S-GNR_86C,,0,llama3.1-8b,Server,Tokens/s,516.012
+datacenter - closed,6.1-0089,1-node-2S-GNR_86C,,0,llama3.1-8b,Offline,Tokens/s,1170.51
+datacenter - closed,6.1-0089,1-node-2S-GNR_86C,,0,rgat,Offline,Samples/s,15633.3
+datacenter - closed,6.1-0089,1-node-2S-GNR_86C,,0,whisper,Offline,Samples/s,1548.1
+datacenter - closed,6.1-0090,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama3.1-8b,Server,Tokens/s,4122.73
+datacenter - closed,6.1-0090,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama3.1-8b,Offline,Tokens/s,4977.67
+datacenter - closed,6.1-0090,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,whisper,Offline,Samples/s,5401.23
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106285.0
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,113985.0
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,59622.2
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,69841.6
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,whisper,Offline,Samples/s,45408.2
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Server,Queries/s,104.8118239643209
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,131.7949949301423
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,100183.0
+datacenter - closed,6.1-0091,"QuantaGrid D75H-10U (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,108293.0
+datacenter - closed,6.1-0092,1-node-2S-GNR_96C,,0,llama3.1-8b,Server,Tokens/s,644.788
+datacenter - closed,6.1-0092,1-node-2S-GNR_96C,,0,llama3.1-8b,Offline,Tokens/s,1507.21
+datacenter - closed,6.1-0092,1-node-2S-GNR_96C,,0,whisper,Offline,Samples/s,1966.11
+datacenter - closed,6.1-0093,"NVIDIA GB200 NVL4 (4x GB200-192GB_aarch64, vLLM)",NVIDIA GB200,4,VLM,Server,Queries/s,50.68378958948414
+datacenter - closed,6.1-0093,"NVIDIA GB200 NVL4 (4x GB200-192GB_aarch64, vLLM)",NVIDIA GB200,4,VLM,Offline,Samples/s,58.07798401246531
+datacenter - closed,6.1-0094,SMC Lab OpenShift GB200-NVL4 4xGB200-186GB,NVIDIA GB200,4,gpt-oss-120b,Server,Tokens/s,51095.2
+datacenter - closed,6.1-0094,SMC Lab OpenShift GB200-NVL4 4xGB200-186GB,NVIDIA GB200,4,gpt-oss-120b,Offline,Tokens/s,61205.6
+datacenter - closed,6.1-0095,1-node-2S-GNR_128C,,0,llama3.1-8b,Server,Tokens/s,1101.19
+datacenter - closed,6.1-0095,1-node-2S-GNR_128C,,0,llama3.1-8b,Offline,Tokens/s,1833.97
+datacenter - closed,6.1-0095,1-node-2S-GNR_128C,,0,whisper,Offline,Samples/s,2248.15
+datacenter - closed,6.1-0096,1-node-2S-GNR_86C,,0,llama3.1-8b,Server,Tokens/s,516.059
+datacenter - closed,6.1-0096,1-node-2S-GNR_86C,,0,llama3.1-8b,Offline,Tokens/s,1189.89
+datacenter - closed,6.1-0096,1-node-2S-GNR_86C,,0,rgat,Offline,Samples/s,13273.7
+datacenter - closed,6.1-0096,1-node-2S-GNR_86C,,0,whisper,Offline,Samples/s,1477.4
+datacenter - closed,6.1-0097,1-node-4S-GNR_86C,,0,llama3.1-8b,Server,Tokens/s,966.241
+datacenter - closed,6.1-0097,1-node-4S-GNR_86C,,0,llama3.1-8b,Offline,Tokens/s,2063.24
+datacenter - closed,6.1-0097,1-node-4S-GNR_86C,,0,whisper,Offline,Samples/s,2881.28
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama3.1-8b,Server,Tokens/s,4208.73
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama3.1-8b,Offline,Tokens/s,4596.62
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama2-70b-99.9,Server,Tokens/s,1759.95
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,llama2-70b-99.9,Offline,Tokens/s,2484.14
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,whisper,Offline,Samples/s,5854.85
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,gpt-oss-120b,Server,Tokens/s,1351.13
+datacenter - closed,6.1-0098,1-node-4x-BMG-B70,Intel(R) Arc(TM) Pro B70,4,gpt-oss-120b,Offline,Tokens/s,2063.93
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Server,Tokens/s,148710.0
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,llama3.1-8b,Offline,Tokens/s,159060.0
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Server,Tokens/s,103032.0
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Offline,Tokens/s,102243.0
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,llama2-70b-99.9,Interactive,Tokens/s,73181.5
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Server,Tokens/s,109184.0
+datacenter - closed,6.1-0099,AS-4126GS-NMR-LCC,AMD Instinct MI355X 288GB HBM3e,8,gpt-oss-120b,Offline,Tokens/s,117005.0
+datacenter - closed,6.1-0100,AS-8126GS-NB3RT,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,106872.0
+datacenter - closed,6.1-0100,AS-8126GS-NB3RT,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,110802.0
+datacenter - closed,6.1-0100,AS-8126GS-NB3RT,NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,61164.9
+datacenter - closed,6.1-0100,AS-8126GS-NB3RT,NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,69830.0
+datacenter - closed,6.1-0100,AS-8126GS-NB3RT,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,107288.0
+datacenter - closed,6.1-0100,AS-8126GS-NB3RT,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,108727.0
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Server,Tokens/s,109848.0
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,llama2-70b-99.9,Offline,Tokens/s,111247.0
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,66754.3
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,69104.0
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,VLM,Server,Queries/s,111.7738365067543
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,VLM,Offline,Samples/s,128.9061241200454
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Server,Tokens/s,107205.0
+datacenter - closed,6.1-0101,SYS-822GS-NB3RT,NVIDIA B300-SXM-270GB,8,gpt-oss-120b,Offline,Tokens/s,107851.0
+datacenter - closed,6.1-0102,"ManyCoreSoft DeepGadget dg5W (4x NVIDIA RTX PRO 6000 Blackwell 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama3.1-8b,Server,Tokens/s,24510.5
+datacenter - closed,6.1-0102,"ManyCoreSoft DeepGadget dg5W (4x NVIDIA RTX PRO 6000 Blackwell 96GB, TensorRT)",NVIDIA RTX PRO 6000 Blackwell Server Edition,4,llama3.1-8b,Offline,Tokens/s,24511.8
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,llama3.1-8b,Server,Tokens/s,20420.4
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,llama3.1-8b,Offline,Tokens/s,21266.1
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,llama2-70b-99.9,Server,Tokens/s,14495.6
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,llama2-70b-99.9,Offline,Tokens/s,14636.8
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,whisper,Offline,Samples/s,7058.95
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,gpt-oss-120b,Server,Tokens/s,13854.0
+datacenter - closed,6.1-0103,B300-SXM-270GBx1_TRT,NVIDIA B300-SXM-270GB,1,gpt-oss-120b,Offline,Tokens/s,14130.6
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama3.1-8b,Server,Tokens/s,156867.0
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,llama3.1-8b,Offline,Tokens/s,161767.0
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Server,Tokens/s,33415.2
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,36639.6
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,whisper,Offline,Samples/s,53267.2
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,text_to_video,SingleStream,Latency (s),21.279754716
+datacenter - closed,6.1-0104,"NVIDIA DGX B300 (8x B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,text_to_video,Offline,Samples/s,0.0783824
+datacenter - closed,6.1-0105,"OneW GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,gpt-oss-120b,Server,Tokens/s,60466.2
+datacenter - closed,6.1-0105,"OneW GB300 NVL72 (4x GB300-288GB_aarch64, TensorRT)",NVIDIA GB300,4,gpt-oss-120b,Offline,Tokens/s,63990.5
+datacenter - closed,6.1-0106,NVIDIA Vera Rubin NVL72 (72x VR-288GB_aarch64),NVIDIA Vera Rubin,72,deepseek-r1,Server,Tokens/s,1175890.220816824
+datacenter - closed,6.1-0106,NVIDIA Vera Rubin NVL72 (72x VR-288GB_aarch64),NVIDIA Vera Rubin,72,deepseek-r1,Offline,Tokens/s,1183326.854032202
+datacenter - closed,6.1-0106,NVIDIA Vera Rubin NVL72 (72x VR-288GB_aarch64),NVIDIA Vera Rubin,72,deepseek-r1,Interactive,Tokens/s,652750.1447708113
+datacenter - closed,6.1-0106,NVIDIA Vera Rubin NVL72 (72x VR-288GB_aarch64),NVIDIA Vera Rubin,72,VLM,Server,Queries/s,2323.269841782506
+datacenter - closed,6.1-0106,NVIDIA Vera Rubin NVL72 (72x VR-288GB_aarch64),NVIDIA Vera Rubin,72,VLM,Offline,Samples/s,2392.69791945877
+datacenter - closed,6.1-0106,NVIDIA Vera Rubin NVL72 (72x VR-288GB_aarch64),NVIDIA Vera Rubin,72,VLM,Interactive,Queries/s,1306.607844683451
+datacenter - closed,6.1-0107,"Nebius VR200 NVL72 (36x VR200-288GB_aarch64, TensorRT)",NVIDIA VR200,36,deepseek-r1,Server,Tokens/s,591368.312764167
+datacenter - closed,6.1-0107,"Nebius VR200 NVL72 (36x VR200-288GB_aarch64, TensorRT)",NVIDIA VR200,36,deepseek-r1,Offline,Tokens/s,558802.8293934778
+datacenter - closed,6.1-0108,H200-1xGPU,NVIDIA H200-SXM-141GB,1,llama3.1-8b,Server,Tokens/s,7376.597666232419
+datacenter - closed,6.1-0108,H200-1xGPU,NVIDIA H200-SXM-141GB,1,llama3.1-8b,Offline,Tokens/s,7796.585132594509
+edge - closed,6.1-0006,NVIDIA DGX Spark (GB10 Grace Blackwell Superchip),NVIDIA GB10,1,agentic edge,SingleStream,Latency (ms),3807.66351136147
+edge - closed,6.1-0007,AMD Strix Halo desktop (Ryzen AI Max+ 395 / Radeon 8060S),AMD Radeon 8060S Graphics,1,agentic edge,SingleStream,Latency (ms),7058.989199685204
+edge - closed,6.1-0039,Dell Pro Max (1x GB10),NVIDIA GB10,1,yolo-95,SingleStream,Latency (ms),13.865536
+edge - closed,6.1-0039,Dell Pro Max (1x GB10),NVIDIA GB10,1,yolo-95,MultiStream,Latency (ms),105.162072
+edge - closed,6.1-0039,Dell Pro Max (1x GB10),NVIDIA GB10,1,yolo-95,Offline,Samples/s,78.7257
+edge - closed,6.1-0039,Dell Pro Max (1x GB10),NVIDIA GB10,1,yolo-99,SingleStream,Latency (ms),13.865536
+edge - closed,6.1-0039,Dell Pro Max (1x GB10),NVIDIA GB10,1,yolo-99,MultiStream,Latency (ms),105.162072
+edge - closed,6.1-0039,Dell Pro Max (1x GB10),NVIDIA GB10,1,yolo-99,Offline,Samples/s,78.7257
+edge - closed,6.1-0053,"HPE ProLiant DL145 Gen11 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell Server Edition,1,agentic edge,SingleStream,Latency (ms),2757.954404037736
+edge - closed,6.1-0054,"HPE ProLiant Compute DL345 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell Server Edition,1,yolo-95,SingleStream,Latency (ms),76.664039
+edge - closed,6.1-0054,"HPE ProLiant Compute DL345 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell Server Edition,1,yolo-95,MultiStream,Latency (ms),676.268814
+edge - closed,6.1-0054,"HPE ProLiant Compute DL345 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell Server Edition,1,yolo-95,Offline,Samples/s,146.207
+edge - closed,6.1-0055,"HPE ProLiant Compute DL345 Gen12 (4x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT",NVIDIA RTX PRO 4500 Blackwell Server Edition,4,agentic edge,SingleStream,Latency (ms),2616.15900548858
+edge - closed,6.1-0056,"HPE ProLiant Compute DL345 Gen12 (4x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT",NVIDIA RTX PRO 4500 Blackwell Server Edition,4,whisper,Offline,Samples/s,3685.7
+edge - closed,6.1-0057,HPE ProLiant Compute DL380 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB),NVIDIA RTX PRO 4500 Blackwell Server Edition,1,yolo-95,SingleStream,Latency (ms),14.136709
+edge - closed,6.1-0057,HPE ProLiant Compute DL380 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB),NVIDIA RTX PRO 4500 Blackwell Server Edition,1,yolo-95,MultiStream,Latency (ms),116.101325
+edge - closed,6.1-0057,HPE ProLiant Compute DL380 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB),NVIDIA RTX PRO 4500 Blackwell Server Edition,1,yolo-95,Offline,Samples/s,72.1855
+edge - closed,6.1-0058,"HPE ProLiant Compute DL380 Gen12 (5x NVIDIA RTX PRO 4500 Blackwell Server Edition 32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell Server Edition,5,whisper,Offline,Samples/s,4719.46
+edge - closed,6.1-0076,NVIDIA Jetson AGX Thor Developer Kit 128G (TensorRT),NVIDIA Jetson AGX Thor 128G,1,agentic edge,SingleStream,Latency (ms),1466.007675716981
+datacenter - open,6.1-0109,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X,8,dlrm-v3,Server,Queries/s,16194.4
+datacenter - open,6.1-0109,8xMI355X_2xEPYC_9575F,AMD Instinct MI355X,8,dlrm-v3,Offline,Samples/s,16363.0
+datacenter - open,6.1-0110,"NVIDIA GB200 NVL72 by HPE (16x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,16,deepseek-r1,Offline,Tokens/s,126223.0
+datacenter - open,6.1-0111,"NVIDIA GB200 NVL72 by HPE (32x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,32,deepseek-r1,Offline,Tokens/s,245352.0
+datacenter - open,6.1-0112,"NVIDIA GB200 NVL72 by HPE (56x GB200-186GB_aarch64, TensorRT)",NVIDIA GB200,56,deepseek-r1,Offline,Tokens/s,336125.0
+datacenter - open,6.1-0113,"HPE Compute XD690 (8x NVIDIA B300-SXM-270GB, TensorRT)",NVIDIA B300-SXM-270GB,8,deepseek-r1,Offline,Tokens/s,71053.4
+datacenter - open,6.1-0116,"HPE Cray XD670 (8x H200-SXM-141GB, Krai/Gentic)",NVIDIA H200-SXM-141GB,8,VLM,Offline,Samples/s,9.221680429087034
+datacenter - open,6.1-0118,"ScitiX B200 (8x B200-SXM-180GB, TensorRT-LLM)",NVIDIA B200-SXM-180GB,8,deepseek-r1,Server,Tokens/s,59668.3
+datacenter - open,6.1-0118,"ScitiX B200 (8x B200-SXM-180GB, TensorRT-LLM)",NVIDIA B200-SXM-180GB,8,deepseek-r1,Offline,Tokens/s,60410.9
+datacenter - open,6.1-0119,Orrick Optimized 6x NVIDIA B200,NVIDIA B200-SXM-180GB,6,llama3.1-8b,Offline,Tokens/s,274927.0
+datacenter - open,6.1-0120,Orrick Optimized 6x NVIDIA B200 L2,NVIDIA B200-SXM-180GB,6,llama2-70b-99.9,Offline,Tokens/s,130928.0
+edge - open,6.1-0114,"HPE ProLiant DL345 Gen12 (4x NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB,4,llama3.1-8b-edge,SingleStream,Latency (ms),1203.785699
+edge - open,6.1-0114,"HPE ProLiant DL345 Gen12 (4x NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB, TensorRT)",NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB,4,llama3.1-8b-edge,Offline,Tokens/s,9557.69
+edge - open,6.1-0115,HPE ProLiant Compute DL380 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB),NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB,1,resnet,SingleStream,Latency (ms),1.480867
+edge - open,6.1-0115,HPE ProLiant Compute DL380 Gen12 (1x NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB),NVIDIA RTX PRO 4500 Blackwell-PCIe-32GB,1,resnet,MultiStream,Latency (ms),5.030642
+edge - open,6.1-0117,"Lambda 8x B200-SXM-180GB (SGLang, Kimi-K2.6 edge-agentic / BFCL v4)",NVIDIA B200-SXM-180GB,8,agentic edge,SingleStream,Latency (ms),770.827765960278

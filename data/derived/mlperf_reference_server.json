@@ -1,0 +1,25 @@
+{
+  "server": "HPE ProLiant DL345 Gen12, 1x AMD EPYC 9375F + 4x NVIDIA RTX PRO 4500 Blackwell (32 GB)",
+  "assumed_power_kw": 1.0,
+  "note": "MLPerf summary has no power column; system power assumed = 4x200 W GPU TDP + ~200 W host = 1 kW (DigitalHeat 1 kW server).",
+  "benchmarks": {
+    "whisper_samples_per_s": {
+      "value": 3685.7,
+      "id": "6.1-0056",
+      "system": "HPE DL345 Gen12, 4x RTX PRO 4500, TensorRT (edge/closed)"
+    },
+    "llama31_8b_tokens_per_s": {
+      "value": 9557.69,
+      "id": "6.1-0114",
+      "system": "HPE DL345 Gen12, 4x RTX PRO 4500, TensorRT (edge/open)"
+    },
+    "yolo_images_per_s_1gpu": {
+      "value": 146.207,
+      "id": "6.1-0054",
+      "system": "HPE DL345 Gen12, 1x RTX PRO 4500, TensorRT (edge/closed)"
+    },
+    "whisper_samples_per_kwh": 13268520.0,
+    "llama31_8b_tokens_per_kwh": 34407684.0,
+    "yolo_images_per_kwh": 2105380.8
+  }
+}

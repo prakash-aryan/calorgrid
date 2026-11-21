@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HeatShift - compute that follows the cold</title>
+<link rel="stylesheet" href="style.css?v=1795370010">
+<script src="vendor/chart.umd.min.js"></script>
+</head>
+<body class="viz-root">
+<header>
+  <div class="brand">
+    <span class="bar"></span>
+    <div>
+      <div class="eyebrow">DigitalHeat challenge · sprintd Basel GreenTech</div>
+      <h1>HeatShift <span class="muted">· compute that follows the cold</span></h1>
+    </div>
+  </div>
+  <nav>
+    <a href="#live">Live demo</a><a href="#year">Year</a><a href="#profile">Demand profiles</a><a href="#sched">Scheduler</a>
+    <a href="#econ">Break-even</a><a href="#map">Map</a><a href="#fleet">Fleet</a><a href="#edge">Edge cases</a><a href="#work">Workloads</a><a href="#assume">Assumptions</a>
+  </nav>
+</header>
+
+<main>
+<section id="kpis">
+  <p class="lead">Reference house, Basel 2025 · <b id="k-servers">8</b> × 1 kW servers · weather Open-Meteo, IWB tariff 33.25 Rp/kWh</p>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<!-- LIVE -->
+<section id="live">
+  <h2>Live: the scheduler drives a real job on this laptop</h2>
+  <p class="sub">The same <code>HeatShift.allocate()</code> as the 8,760-hour simulation runs once per simulated hour.
+    When the house has no use for heat, the real process is frozen (SIGSTOP). When heat is needed again, it continues (SIGCONT).
+    Migration sends SIGTERM: the job saves a checkpoint, then resumes on another server.</p>
+  <div class="controls">
+    <div class="seg" id="day-buttons"></div>
+    <label>Real job
+      <select id="job"><option value="image_tag">Image tagging · ResNet-50</option><option value="embed">Embeddings · MiniLM</option></select></label>
+    <label>Speed
+      <select id="speed"><option value="2">1 h = 2 s</option><option value="4" selected>1 h = 4 s</option><option value="8">1 h = 8 s</option></select></label>
+    <button id="btn-start" class="primary">▶ Run day</button>
+    <button id="btn-stop">■ Stop</button>
+  </div>
+  <div class="live-grid">
+    <div class="card house-card">
+      <svg id="house" viewBox="0 0 360 300" role="img" aria-label="House with server rack and heat tank">
+        <polygon points="40,120 180,30 320,120" class="roof"/>
+        <rect x="60" y="120" width="240" height="110" class="wall"/>
+        <g id="windows"></g>
+        <rect x="40" y="230" width="280" height="62" class="basement"/>
+        <text x="50" y="246" class="svg-label">BASEMENT</text>
+        <g id="rack"></g>
+        <rect x="235" y="246" width="40" height="42" rx="6" class="tank-shell"/>
+        <rect id="tank-fill" x="237" y="286" width="36" height="0" rx="4" class="tank-fill"/>
+        <text x="255" y="243" class="svg-label" text-anchor="middle">TANK</text>
+        <path id="pipe" d="M 205 268 L 235 268 M 275 260 L 300 260 L 300 140" class="pipe"/>
+        <text id="svg-temp" x="12" y="22" class="svg-big">-</text>
+        <text id="svg-hour" x="348" y="20" class="svg-label" text-anchor="end"></text>
+      </svg>
+      <div class="house-stats" id="house-stats"></div>
+    </div>
+    <div class="card">
+      <div class="chart-title">Server power by job class vs house heat demand <span class="unit">(kW)</span></div>
+      <div class="chart-box"><canvas id="c-live"></canvas></div>
+      <div class="chart-title">Heat tank state of charge <span class="unit">(kWh, 35 usable)</span></div>
+      <div class="chart-box short"><canvas id="c-live-tank"></canvas></div>
+    </div>
+    <div class="card job-card">
+      <div class="chart-title">Real job on this machine</div>
+      <div id="job-status" class="status idle">idle</div>
+      <div class="progress"><div id="job-bar"></div></div>
+      <div id="job-meta" class="meta"></div>
+      <div id="job-sample" class="sample"></div>
+      <div class="override">
+        <div class="chart-title">Change the heat signal</div>
+        <button id="btn-tankfull">Tank full now</button>
+        <button data-hf="0">Heat demand × 0</button>
+        <button data-hf="1">Heat demand × 1</button>
+        <button id="btn-migrate">Migrate → Hotel Davos</button>
+      </div>
+      <div class="chart-title">Scheduler log</div>
+      <ol id="log" class="log"></ol>
+    </div>
+  </div>
+</section>
+
+<!-- YEAR -->
+<section id="year">
+  <h2>A full year, hour by hour</h2>
+  <p class="sub" id="year-sub"></p>
+  <div class="grid2">
+    <div class="card"><div class="chart-title">Monthly heat demand: covered by servers vs backup <span class="unit">(kWh)</span></div><div class="chart-box"><canvas id="c-month-heat"></canvas></div></div>
+    <div class="card"><div class="chart-title">Monthly computing in the house <span class="unit">(server-hours)</span></div><div class="chart-box"><canvas id="c-month-compute"></canvas></div></div>
+  </div>
+  <div class="card"><div class="chart-title">Daily heat: demand vs server heat used <span class="unit">(kWh/day)</span></div><div class="chart-box"><canvas id="c-daily"></canvas></div></div>
+  <div class="card" id="balance-card"></div>
+</section>
+
+<section id="profile">
+  <h2>House demand changes the sizing story</h2>
+  <p class="sub">The case uses one 27 MWh/year space-heating reference. Four hourly HSR residential profiles show how building type can shift the size of the useful heat sink.</p>
+  <div class="profile-grid">
+    <div class="card">
+      <div class="chart-title">Annual space-heat demand <span class="unit">(kWh, HSR profiles normalized to 365 days)</span></div>
+      <div class="chart-box profile-chart"><canvas id="c-profiles"></canvas></div>
+      <table class="tbl profile-table" id="profile-table"></table>
+    </div>
+    <div class="card profile-insight" id="profile-insight">
+      <div class="profile-tag">MODEL CHECK · FROM THE COMPARISON PROJECT</div>
+      <h3>Same technology. Different heat sink.</h3>
+      <p>Loading the hourly profile comparison…</p>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEDULER -->
+<section id="sched">
+  <h2>Why scheduling matters: same jobs, same houses, four policies</h2>
+  <p class="sub">Same fleet, same 2025 weather, same job stream from the Alibaba PAI trace. Only the scheduler changes.</p>
+  <div class="grid4" id="policy-charts"></div>
+  <div class="card"><table class="tbl" id="policy-table"></table><p class="sub" id="policy-note" style="margin:12px 0 0"></p></div>
+</section>
+
+<!-- ECON -->
+<section id="econ">
+  <h2>When does it pay off? Servers per house</h2>
+  <p class="sub" id="econ-sub"></p>
+  <div class="grid2">
+    <div class="card"><div class="chart-title">Heat demand covered <span class="unit">(%)</span></div><div class="chart-box"><canvas id="c-cover"></canvas></div></div>
+    <div class="card"><div class="chart-title">Break-even computing price vs market <span class="unit">(CHF per server-hour)</span></div><div class="chart-box"><canvas id="c-breakeven"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="chart-title">Yearly profit per house at mid-market price <span class="unit">(CHF/year)</span></div><div class="chart-box"><canvas id="c-profit"></canvas></div></div>
+    <div class="card" id="payoff-card"></div>
+  </div>
+</section>
+
+<!-- MAP -->
+<section id="map">
+  <h2>Switzerland: where the heat goes, month by month</h2>
+  <p class="sub">Each circle is a DigitalHeat site, sized by installed servers. The glow shows how much computing runs there that month.
+    The blue dots are 106 locations across Switzerland, scored with real 2025 weather: how many summer days still need heating.
+    That's where summer computing (and the next 1,000 servers) should go.</p>
+  <div class="map-grid">
+    <div class="card map-card">
+      <div class="map-controls">
+        <button id="map-play" class="primary">▶ Play the year</button>
+        <input type="range" id="map-month" min="0" max="11" value="0">
+        <span id="map-month-label" class="map-month">January</span>
+        <div class="seg" id="map-layer">
+          <button data-layer="summer" class="on">Summer heat-sink days</button>
+          <button data-layer="annual">Heating days per year</button>
+        </div>
+      </div>
+      <svg id="ch-map" viewBox="0 0 900 580" role="img" aria-label="Map of Switzerland with DigitalHeat sites"></svg>
+      <div id="map-legend" class="map-legend"></div>
+      <div id="map-tip" class="map-tip" hidden></div>
+    </div>
+    <div class="card">
+      <div class="chart-title">This month in the fleet</div>
+      <div id="map-month-stats" class="balance one"></div>
+      <div class="chart-title" style="margin-top:14px">Electricity price by site <span class="unit">(ElCom 2026 H4, Rp/kWh)</span></div>
+      <div class="chart-box" style="height:250px"><canvas id="c-prices"></canvas></div>
+      <div id="map-insights" class="verdict"></div>
+    </div>
+  </div>
+</section>
+
+<!-- FLEET -->
+<section id="fleet">
+  <h2>Distribute the work: House → Basel → Nordwestschweiz → Schweiz</h2>
+  <p class="sub">In summer the reference house only needs hot water. Deadline jobs move to sites that still need heat: indoor pools, alpine hotels, St. Moritz.</p>
+  <div class="grid2">
+    <div class="card"><div class="chart-title">Fleet computing by type of heat sink <span class="unit">(server-hours per month)</span></div><div class="chart-box"><canvas id="c-fleet"></canvas></div></div>
+    <div class="card"><table class="tbl" id="site-table"></table></div>
+  </div>
+  <div class="card" id="fleet-kpis"></div>
+</section>
+
+<!-- EDGE -->
+<section id="edge">
+  <h2>Edge cases: what can go wrong, and what HeatShift does</h2>
+  <div class="card"><table class="tbl" id="edge-table"></table></div>
+</section>
+
+<!-- WORK -->
+<section id="work">
+  <h2>Workloads: useful computing, measured and sourced</h2>
+  <div class="grid2">
+    <div class="card"><div class="chart-title">Job types</div><table class="tbl" id="job-table"></table></div>
+    <div class="card"><div class="chart-title">Useful computing delivered by the reference house in 2025</div><table class="tbl" id="output-table"></table>
+      <div class="chart-title" style="margin-top:18px">Measured on this machine</div><table class="tbl" id="measured-table"></table></div>
+  </div>
+</section>
+
+<!-- ASSUMPTIONS -->
+<section id="assume">
+  <h2>Every assumption, with its source</h2>
+  <p class="sub">All numbers come from <code>config/assumptions.json</code>. Change one, run <code>make year</code>, and every number on this page updates.</p>
+  <div class="card"><table class="tbl small" id="assume-table"></table></div>
+  <div class="card repro">
+    <div class="chart-title">Reproduce everything</div>
+<pre>make setup      # python env + models
+make data       # Open-Meteo, ElCom API, MLPerf summary.xlsx, Alibaba trace
+make bench      # measure runtime + energy of the real jobs on this machine
+make year       # 8,760 h x 4 policies + sweeps  -> results/results.json
+make demo       # this dashboard + live controller on http://localhost:8050</pre>
+  </div>
+</section>
+</main>
+<footer>HeatShift · built for DigitalHeat at sprintd Basel GreenTech · <span id="gen"></span></footer>
+<script src="app.js?v=1795370010"></script>
+</body>
+</html>
