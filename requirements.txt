@@ -1,0 +1,10 @@
+numpy
+pandas
+scipy
+openpyxl
+pyarrow
+torch
+torchvision
+sentence-transformers
+pillow
+pytest

@@ -1,0 +1,74 @@
+{
+  "machine": "Apple M5 (arm64), CPU only, 4 threads",
+  "measured_at": "2026-11-21 00:38",
+  "method": "ioreg AppleSmartBattery PowerTelemetryData AccumulatedSystemLoad/SystemLoadAccumulatorCount; A/B/A protocol: job frozen (SIGSTOP) vs running windows of one full telemetry interval each, incremental = running - mean(neighbouring paused)",
+  "image_tag": {
+    "windows": [
+      {
+        "state": "I",
+        "w": 4.58915,
+        "s": 59.75763297080994,
+        "items": 0
+      },
+      {
+        "state": "J",
+        "w": 23.345172413793104,
+        "s": 58.13470387458801,
+        "items": 672
+      },
+      {
+        "state": "I",
+        "w": 4.527416666666667,
+        "s": 59.38894009590149,
+        "items": 0
+      }
+    ],
+    "model_load_s": 1.129486083984375,
+    "items_per_s": 11.559360506070218,
+    "mean_w": 23.345172413793104,
+    "paused_w": 4.558283333333334,
+    "incremental_w": 18.786889080459773,
+    "incremental_w_runs": [
+      18.786889080459773
+    ],
+    "j_per_item_incremental": 1.6252533235375892,
+    "j_per_item_system": 2.019590305323011,
+    "items_per_kwh": 2215039.309788397,
+    "items_per_kwh_system": 1782539.7510136196
+  },
+  "embed": {
+    "windows": [
+      {
+        "state": "I",
+        "w": 0.5944285714285714,
+        "s": 98.16951489448547,
+        "items": 0
+      },
+      {
+        "state": "J",
+        "w": 21.466316666666664,
+        "s": 59.509432792663574,
+        "items": 8288
+      },
+      {
+        "state": "I",
+        "w": 8.148816666666667,
+        "s": 59.99496674537659,
+        "items": 0
+      }
+    ],
+    "model_load_s": 3.43196702003479,
+    "items_per_s": 139.27203824772062,
+    "mean_w": 21.466316666666664,
+    "paused_w": 4.371622619047619,
+    "incremental_w": 17.094694047619043,
+    "incremental_w_runs": [
+      17.094694047619043
+    ],
+    "j_per_item_incremental": 0.12274318853015581,
+    "j_per_item_system": 0.1541322790758969,
+    "items_per_kwh": 29329529.75321758,
+    "items_per_kwh_system": 23356561.14075436
+  },
+  "idle_w": 4.371622619047619
+}

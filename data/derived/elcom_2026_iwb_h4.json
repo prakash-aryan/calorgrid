@@ -1,0 +1,9 @@
+{
+  "period": "2026",
+  "municipality": "2701",
+  "operatorLabel": "IWB Industrielle Werke Basel",
+  "category": "H4",
+  "value": 33.25,
+  "unit": "Rp./kWh",
+  "source": "https://www.strompreis.elcom.admin.ch (GraphQL API)"
+}
