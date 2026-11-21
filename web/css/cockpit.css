@@ -7227,3 +7227,65 @@ body:not(.app-mode-atlas) .brand-cluster {
     pointer-events: auto !important;
   }
 }
+
+/* Compact floating Season selector tucked cleanly at the bottom of the 3D Switzerland map */
+.sn-map-overlay-ctrl {
+  top: auto !important;
+  bottom: 10px !important;
+  left: 10px !important;
+  right: 10px !important;
+  gap: 6px !important;
+}
+.sn-season-pills {
+  padding: 2px !important;
+  border-radius: 8px !important;
+}
+.sn-season-pills button {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  min-height: 26px !important;
+  border-radius: 6px !important;
+}
+.sn-map-temp-tag {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  border-radius: 7px !important;
+}
+.sn-map-strategy {
+  padding: 2px !important;
+  border-radius: 8px !important;
+}
+.sn-map-strategy .sn-pill {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  min-height: 26px !important;
+}
+@media (max-width: 1080px) {
+  .sn-map-overlay-ctrl {
+    top: auto !important;
+    bottom: 8px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    width: auto !important;
+    max-width: calc(100% - 16px);
+  }
+  .sn-season-pills {
+    width: auto !important;
+    display: inline-flex !important;
+    padding: 2px !important;
+  }
+  .sn-season-pills button {
+    font-size: 11px !important;
+    padding: 5px 9px !important;
+    min-height: 28px !important;
+  }
+  /* Keep Reset view cleanly top-right on mobile now that seasons sit at bottom */
+  .sn-map-host .sn-3d-reset,
+  .sn-map-host button[title*="Reset"],
+  .sn-map-host .sn-reset-btn {
+    top: 8px !important;
+    bottom: auto !important;
+    right: 8px !important;
+  }
+}
