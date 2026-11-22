@@ -1,3 +1,25 @@
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/space-grotesk-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/plus-jakarta-sans-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2");
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg-canvas: #dce7f2;
   --surface: rgba(251, 250, 247, 0.94);
@@ -14,8 +36,9 @@
   --accent-amber: #b45309;
   --accent-violet: #6d28d9;
   --shadow-panel: 0 1px 2px rgba(20, 20, 24, 0.06), 0 10px 26px rgba(20, 20, 24, 0.08);
-  --font-sans: "Helvetica Neue", "Liberation Sans", "DejaVu Sans", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Liberation Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -8380,8 +8403,8 @@ body:not(.app-mode-atlas) .brand-cluster {
   background: #f7f6f2;
   color: #3f3f3c;
   border-radius: 7px;
-  padding: 5px 4px;
-  font-size: 10.5px;
+  padding: 5px 3px;
+  font-size: 10px;
   font-weight: 600;
   text-align: center;
   cursor: pointer;
@@ -8601,11 +8624,12 @@ body:not(.app-mode-atlas) .brand-cluster {
   filter: drop-shadow(0 2px 5px rgba(217, 72, 15, 0.24)) !important;
 }
 .brand-home-btn .brand-title {
+  font-family: var(--font-display) !important;
   display: inline-flex !important;
   align-items: baseline !important;
-  font-size: 16.5px !important;
+  font-size: 18px !important;
   line-height: 1 !important;
-  letter-spacing: -0.032em !important;
+  letter-spacing: -0.04em !important;
   color: #111214 !important;
 }
 .brand-home-btn .brand-calor {
@@ -8619,8 +8643,53 @@ body:not(.app-mode-atlas) .brand-cluster {
 .brand-home-btn .brand-title::after {
   content: ".";
   color: #d9480f;
-  font-weight: 800;
+  font-weight: 700;
   margin-left: 0.5px;
+}
+
+/* Standout Display Typography (Space Grotesk) + Crisp Body (Plus Jakarta Sans) */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sans);
+}
+h1,
+h2,
+h3,
+.sn-title-group h2,
+.cc-topbar-copy h2,
+.hl-site-header h2,
+.hl-stage-heading,
+.sn-detail-head h3,
+.sn-kpi-val,
+.cc-quote-price,
+.cc-six-tier-rate,
+.cg-metric-cell strong,
+.card-section-head > span,
+.card-section-head > div > span {
+  font-family: var(--font-display) !important;
+  letter-spacing: -0.028em;
+}
+.sn-title-group h2,
+.cc-topbar-copy h2 {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.036em !important;
+}
+.sn-kpi-val {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+}
+.cc-price-main,
+.cc-price-spot,
+.cc-quote-usd,
+.cc-cell-sub,
+.sn-3d-pin span,
+.sn-3d-flow-tag {
+  font-family: var(--font-mono) !important;
 }
 
 /* 3. Zero-Jitter Translucent Pill Nav Rail (Locked Font Weight = Zero Width Shift!) */
