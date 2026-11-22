@@ -110,6 +110,8 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     bookingReceipt: document.getElementById("cc-booking-receipt"),
     gpuTableHost: document.getElementById("cc-gpu-table-host"),
     skuTableHost: document.getElementById("cc-sku-table-host"),
+    sixTierTitle: document.getElementById("cc-six-tier-title"),
+    sixTierStrip: document.getElementById("cc-six-tier-strip"),
     summerSinksHost: document.getElementById("cc-summer-sinks"),
     fleetSummaryHost: document.getElementById("cc-fleet-summary"),
     activeJobsHost: document.getElementById("cc-active-jobs"),
@@ -642,6 +644,72 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       table.appendChild(tbody);
       els.skuTableHost.replaceChildren(table);
     }
+
+    renderSixTierStrip();
+  }
+
+  function renderSixTierStrip() {
+    if (!els.sixTierStrip || !pricingData) return;
+    const fx = Number(pricingData.fx_chf_per_usd || 0.83922);
+    let baseChf = 0;
+    let hwLabel = "";
+    if (state.unitMode === "gpu") {
+      const g = (pricingData.gpu_comparisons || []).find((x) => x.gpu_id === state.gpuOrSku);
+      if (g) {
+        baseChf = Number(g.calorgrid?.on_demand_chf_per_gpu_hr || 0);
+        hwLabel = `${g.name.replace(/^NVIDIA\s+/, "")} · 6 Demand Tiers`;
+      }
+    } else {
+      const s = (pricingData.server_sku_comparisons || []).find((x) => x.server_model_id === state.gpuOrSku);
+      if (s) {
+        baseChf = Number(s.calorgrid?.on_demand_chf_per_server_hr || 0);
+        hwLabel = `${s.name} · 6 Demand Tiers`;
+      }
+    }
+    if (els.sixTierTitle && hwLabel) {
+      els.sixTierTitle.textContent = hwLabel;
+    }
+
+    const tierMeta = [
+      { id: "spot", name: "Spot", tag: "Interruptible", mult: 0.5, note: "-50% thermal window" },
+      { id: "reserved", name: "Reserved", tag: "Firm · Evicts", mult: 0.6, note: "-40% committed" },
+      { id: "block", name: "Block", tag: "24h Ahead", mult: 0.9, note: "-10% scheduled" },
+      { id: "on_demand", name: "On-Demand", tag: "Firm · Evicts", mult: 1.0, note: "0 min instant" },
+      { id: "dedicated", name: "Dedicated", tag: "Full Host", mult: 1.1, note: "+10% isolated" },
+      { id: "serverless", name: "Serverless", tag: "Active Only", mult: 1.5, note: "50% duty billed" },
+    ];
+
+    const frag = document.createDocumentFragment();
+    for (const t of tierMeta) {
+      const spec = pricingData.demand_tiers?.[t.id];
+      const mult = typeof spec?.price_multiplier === "number" ? spec.price_multiplier : t.mult;
+      const chfHr = baseChf * mult;
+      const usdHr = chfHr / fx;
+      const isAct = state.tier === t.id;
+      const btn = domEl(
+        "button",
+        {
+          type: "button",
+          className: `cc-six-tier-card${isAct ? " is-active" : ""}`,
+          dataset: { tierCard: t.id },
+        },
+        [
+          domEl("div", { className: "cc-six-tier-top" }, [
+            domEl("strong", { text: t.name }),
+            domEl("span", { className: "cc-six-tier-tag", text: t.tag }),
+          ]),
+          domEl("div", { className: "cc-six-tier-rate", text: `${fmtChf(chfHr, 2)}/h` }),
+          domEl("div", { className: "cc-six-tier-sub", text: `${fmtUsd(usdHr, 2)} · ${t.note}` }),
+        ]
+      );
+      btn.addEventListener("click", () => {
+        state.tier = t.id;
+        syncFormState();
+        requestQuote().catch(() => {});
+      });
+      frag.appendChild(btn);
+    }
+    els.sixTierStrip.replaceChildren(frag);
   }
 
   function renderSummerSinks() {

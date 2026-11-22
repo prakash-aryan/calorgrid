@@ -1442,13 +1442,24 @@ def compute_configuration_quote(
             "Exceeds single-site summer demand; CalorGrid routes surplus compute over Swiss fiber."
         )
 
+    if chosen_heater == "gas_boiler":
+        savings_note = (
+            "Building Hosts save on their variable heating bill by displacing gas boiler output "
+            "(capped at min(CalorGrid heat, building demand); Basel MESSPUNKT_004 2025 variable "
+            "tariff CHF 0.1355/kWh_gas / 90% eff. = CHF 0.1506/kWh_th, excluding the "
+            "non-avoidable CHF 39.29/mo fixed meter fee). Server hardware is CHF 0 and server "
+            "electricity is paid directly by CalorGrid."
+        )
+    else:
+        savings_note = (
+            "Building Hosts save specifically on their variable heating bill by displacing "
+            "default heater output (capped at min(CalorGrid heat, building demand)). Server "
+            "hardware is CHF 0 and server electricity is paid directly by CalorGrid."
+        )
+
     full_host_ledger = HostLedger(
         **annual_host.model_dump(),
-        savings_basis_note=(
-            "Building Hosts save specifically on their heating bill by displacing default "
-            "heater output (capped at min(CalorGrid heat, building demand)). Server hardware "
-            "is CHF 0 and server electricity is paid directly by CalorGrid."
-        ),
+        savings_basis_note=savings_note,
         electricity_reimbursement_mechanism=(
             "Dedicated sub-meter / direct CalorGrid utility billing "
             "(CHF 0 on host electricity bill)."

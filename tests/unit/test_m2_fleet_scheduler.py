@@ -865,3 +865,51 @@ def test_fractional_tick_quote_to_book_trajectory_alignment() -> None:
     assert b2["status"] == "queued"
     assert b2["wait_time_min"] == 84
     assert sched._jobs[b2["job_id"]].start_hour == pytest.approx(2.0, abs=1e-6)
+
+
+def test_firm_tier_preempts_and_evicts_spot_job() -> None:
+    """Firm immediate tier (Vaibhav Tier.evicts) preempts & migrates/requeues Spot jobs."""
+    log_store = TelemetryLogStore()
+    sched = FleetJobScheduler(
+        log_store=log_store,
+        simulation_clock_utc="2025-01-15T14:00:00Z",
+        seed_initial_workloads=False,
+    )
+    # Fill all 8 H100 NVL GPUs on sole_uno with an interruptible Spot job
+    q_spot = sched.create_quote(
+        tier="spot",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=3.0,
+        preferred_site_id="sole_uno",
+        job_name="spot-fill-sole-uno",
+    )
+    b_spot = sched.book_quote(quote_id=q_spot["quote_id"], idempotency_key="evict-spot-1")
+    spot_jid = b_spot["job_id"]
+    assert sched._jobs[spot_jid].status == "running"
+
+    # Incoming firm On-Demand job on sole_uno must succeed with 0 min wait via Spot preemption
+    q_firm = sched.create_quote(
+        tier="on_demand",
+        unit_mode="gpu",
+        gpu_or_sku="h100_nvl_94gb",
+        quantity=8,
+        duration_hours=2.0,
+        preferred_site_id="sole_uno",
+        job_name="firm-preempt-sole-uno",
+    )
+    assert q_firm["wait_time_min"] == 0
+    assert spot_jid in q_firm["preempted_job_ids"]
+
+    b_firm = sched.book_quote(quote_id=q_firm["quote_id"], idempotency_key="evict-firm-1")
+    assert b_firm["status"] == "running"
+    assert len(b_firm["preempted_jobs"]) == 1
+    assert b_firm["preempted_jobs"][0]["evicted_job_id"] == spot_jid
+    # Evicted Spot job must either have migrated to another H100 NVL site or been checkpoint-requeued
+    spot_after = sched._jobs[spot_jid]
+    assert spot_after.site_id != "sole_uno" or spot_after.status == "queued"
+    evict_logs = [
+        e for e in log_store.query(limit=50)["entries"] if e["event_type"] == "spot_job_evicted"
+    ]
+    assert len(evict_logs) >= 1

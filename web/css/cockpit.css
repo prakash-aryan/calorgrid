@@ -8407,6 +8407,107 @@ body:not(.app-mode-atlas) .brand-cluster {
   background: #e0f2fe;
   color: #0369a1;
 }
+.cc-six-tier-block {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e7e5e0;
+}
+.cc-six-tier-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.cc-six-tier-head span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #141413;
+}
+.cc-six-tier-head small {
+  font-size: 10.5px;
+  color: #6b6b66;
+}
+.cc-six-tier-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.cc-six-tier-card {
+  appearance: none;
+  text-align: left;
+  background: #faf9f5;
+  border: 1px solid #e2dfd8;
+  border-radius: 9px;
+  padding: 8px 9px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+.cc-six-tier-card:hover {
+  background: #ffffff;
+  border-color: #141413;
+}
+.cc-six-tier-card.is-active {
+  background: #141413;
+  border-color: #141413;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(20, 20, 19, 0.14);
+}
+.cc-six-tier-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+.cc-six-tier-top strong {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #141413;
+}
+.cc-six-tier-tag {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #575752;
+  background: #eceae4;
+  padding: 1.5px 5px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.cc-six-tier-rate {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #c84411;
+  font-variant-numeric: tabular-nums;
+}
+.cc-six-tier-sub {
+  font-size: 10px;
+  color: #6b6b66;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-six-tier-card.is-active .cc-six-tier-top strong {
+  color: #ffffff;
+}
+.cc-six-tier-card.is-active .cc-six-tier-tag {
+  background: rgba(255, 255, 255, 0.16);
+  color: #f3f2ee;
+}
+.cc-six-tier-card.is-active .cc-six-tier-rate {
+  color: #fb923c;
+}
+.cc-six-tier-card.is-active .cc-six-tier-sub {
+  color: #d6d3cd;
+}
+@media (max-width: 720px) {
+  .cc-six-tier-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (max-width: 540px) {
   .cc-tier-extra {
     grid-template-columns: repeat(2, minmax(0, 1fr));

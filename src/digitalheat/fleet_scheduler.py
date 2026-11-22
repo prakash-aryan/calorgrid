@@ -201,6 +201,7 @@ class ComputeQuote:
     whole_server: bool = False
     busy_share: float = 1.0
     lead_h: int = 0
+    preempted_job_ids: list[str] = field(default_factory=list)
 
 
 def _utc_now_iso() -> str:
@@ -623,10 +624,18 @@ class FleetJobScheduler:
             and self._sim_hours_elapsed < site.offline_until_hour
         )
 
-    def _site_committed_heat_kw_locked(self, site_id: str, hour_offset: int = 0) -> float:
+    def _site_committed_heat_kw_locked(
+        self,
+        site_id: str,
+        hour_offset: int = 0,
+        *,
+        exclude_job_ids: set[str] | None = None,
+    ) -> float:
         total = 0.0
         target_h = self._sim_hours_elapsed + hour_offset
         for job in self._jobs.values():
+            if exclude_job_ids and job.job_id in exclude_job_ids:
+                continue
             if job.site_id != site_id:
                 continue
             if job.status == "running":
@@ -643,13 +652,20 @@ class FleetJobScheduler:
         return total
 
     def _site_committed_energy_kwh_locked(
-        self, site_id: str, step_start_h: float, step_end_h: float
+        self,
+        site_id: str,
+        step_start_h: float,
+        step_end_h: float,
+        *,
+        exclude_job_ids: set[str] | None = None,
     ) -> float:
         """Return committed thermal energy (kWh) at site_id across [step_start_h, step_end_h)."""
         if step_end_h <= step_start_h:
             return 0.0
         total = 0.0
         for job in self._jobs.values():
+            if exclude_job_ids and job.job_id in exclude_job_ids:
+                continue
             if job.site_id != site_id:
                 continue
             if job.status == "running":
@@ -685,13 +701,17 @@ class FleetJobScheduler:
             return effective_demand
         return space_dhw_kw + proc_kw
 
-    def _instant_headroom_kw_locked(self, site_id: str) -> float:
+    def _instant_headroom_kw_locked(
+        self, site_id: str, *, exclude_job_ids: set[str] | None = None
+    ) -> float:
         site = self._sites[site_id]
         if self._site_is_offline_locked(site):
             return 0.0
         effective_demand = self._effective_site_demand_kw_locked(site_id, 0)
         tank_free_1h_kw = max(0.0, site.tank_capacity_kwh - site.tank_soc_kwh)
-        committed_now = self._site_committed_heat_kw_locked(site_id, hour_offset=0)
+        committed_now = self._site_committed_heat_kw_locked(
+            site_id, hour_offset=0, exclude_job_ids=exclude_job_ids
+        )
         return max(0.0, effective_demand + tank_free_1h_kw - committed_now)
 
     @staticmethod
@@ -736,6 +756,7 @@ class FleetJobScheduler:
         candidate_kw_th: float,
         *,
         cand_end_override_h: int | None = None,
+        exclude_job_ids: set[str] | None = None,
     ) -> bool:
         """Simulate conserved hourly tank SOC across [0, start_offset_h + duration_hours)."""
         site = self._sites[site_id]
@@ -755,7 +776,7 @@ class FleetJobScheduler:
             step_start_h = self._sim_hours_elapsed + rel_start
             step_end_h = self._sim_hours_elapsed + rel_end
             committed_kwh = self._site_committed_energy_kwh_locked(
-                site_id, step_start_h, step_end_h
+                site_id, step_start_h, step_end_h, exclude_job_ids=exclude_job_ids
             )
             dem_kw = self._effective_site_demand_kw_locked(site_id, h_off)
             trust = 1.0 if h_off == 0 else FORECAST_TRUST
@@ -782,6 +803,8 @@ class FleetJobScheduler:
         site_id: str,
         start_offset_h: float,
         duration_hours: float,
+        *,
+        exclude_job_ids: set[str] | None = None,
     ) -> float:
         """Return conserved absorbable heat (kWh) over the candidate horizon."""
         site = self._sites[site_id]
@@ -801,7 +824,7 @@ class FleetJobScheduler:
             step_start_h = self._sim_hours_elapsed + rel_start
             step_end_h = self._sim_hours_elapsed + rel_end
             committed_kwh = self._site_committed_energy_kwh_locked(
-                site_id, step_start_h, step_end_h
+                site_id, step_start_h, step_end_h, exclude_job_ids=exclude_job_ids
             )
             dem_kw = self._effective_site_demand_kw_locked(site_id, h_off)
             trust = 1.0 if h_off == 0 else FORECAST_TRUST
@@ -816,7 +839,9 @@ class FleetJobScheduler:
         if site.dump_allowed:
             return round(max(0.0, site.tank_capacity_kwh - soc + sum_sink), 4)
 
-        if not self._can_absorb_trajectory_locked(site_id, cand_offset, dur, 0.0):
+        if not self._can_absorb_trajectory_locked(
+            site_id, cand_offset, dur, 0.0, exclude_job_ids=exclude_job_ids
+        ):
             return 0.0
 
         raw_upper_kwh = max(0.0, (site.tank_capacity_kwh - soc) + sum_sink - sum_committed)
@@ -824,18 +849,41 @@ class FleetJobScheduler:
             return 0.0
 
         upper_kw = raw_upper_kwh / dur
-        if self._can_absorb_trajectory_locked(site_id, cand_offset, dur, upper_kw):
+        if self._can_absorb_trajectory_locked(
+            site_id, cand_offset, dur, upper_kw, exclude_job_ids=exclude_job_ids
+        ):
             return round(raw_upper_kwh, 4)
 
         lo_kw = 0.0
         hi_kw = upper_kw
         for _ in range(28):
             mid_kw = 0.5 * (lo_kw + hi_kw)
-            if self._can_absorb_trajectory_locked(site_id, cand_offset, dur, mid_kw):
+            if self._can_absorb_trajectory_locked(
+                site_id, cand_offset, dur, mid_kw, exclude_job_ids=exclude_job_ids
+            ):
                 lo_kw = mid_kw
             else:
                 hi_kw = mid_kw
         return round(max(0.0, lo_kw * dur), 4)
+
+    def _effective_server_bitmap_locked(
+        self, srv: ServerInstance, exclude_job_ids: set[str] | None = None
+    ) -> dict[int, set[int]]:
+        if not exclude_job_ids:
+            return srv.schedule_bitmap
+        bitmap: dict[int, set[int]] = {}
+        for job in self._jobs.values():
+            if job.job_id in exclude_job_ids or job.status not in ("running", "queued"):
+                continue
+            hours_range = self._job_abs_hours_locked(job)
+            if not hours_range:
+                continue
+            for srv_id, s_idx in job.gpu_slot_refs:
+                if srv_id != srv.server_id:
+                    continue
+                for abs_h in hours_range:
+                    bitmap.setdefault(abs_h, set()).add(s_idx)
+        return bitmap
 
     def _available_slots_on_server_locked(
         self,
@@ -844,10 +892,13 @@ class FleetJobScheduler:
         gpu_or_sku: str,
         start_offset_h: int,
         duration_hours: float,
+        *,
+        exclude_job_ids: set[str] | None = None,
     ) -> list[int]:
         if srv.status == "offline":
             return []
         hours_range = _abs_hour_range(self._sim_hours_elapsed + start_offset_h, duration_hours)
+        bitmap = self._effective_server_bitmap_locked(srv, exclude_job_ids)
 
         if unit_mode == "gpu":
             if srv.gpu_model_id != gpu_or_sku or not srv.gpu_slots:
@@ -858,7 +909,7 @@ class FleetJobScheduler:
                     continue
                 is_free = True
                 for abs_h in hours_range:
-                    busy_set = srv.schedule_bitmap.get(abs_h)
+                    busy_set = bitmap.get(abs_h)
                     if busy_set and (-1 in busy_set or slot.slot_index in busy_set):
                         is_free = False
                         break
@@ -870,7 +921,7 @@ class FleetJobScheduler:
         if srv.server_model_id != gpu_or_sku:
             return []
         for abs_h in hours_range:
-            if srv.schedule_bitmap.get(abs_h):
+            if bitmap.get(abs_h):
                 return []
         if srv.gpu_slots:
             return [slot.slot_index for slot in srv.gpu_slots]
@@ -885,6 +936,8 @@ class FleetJobScheduler:
         quantity: int,
         duration_hours: float,
         preferred_site_id: str | None,
+        exclude_job_ids: set[str] | None = None,
+        exclude_site_ids: set[str] | None = None,
     ) -> dict[str, Any] | None:
         tier_spec = DEMAND_TIER_SPECS[tier]
         is_firm = bool(tier_spec["firm"])
@@ -897,7 +950,11 @@ class FleetJobScheduler:
         if preferred_site_id is not None:
             candidate_site_ids = [resolve_site_id(preferred_site_id)]
         else:
-            candidate_site_ids = list(CANONICAL_SITES.keys())
+            candidate_site_ids = [
+                sid
+                for sid in CANONICAL_SITES.keys()
+                if not exclude_site_ids or sid not in exclude_site_ids
+            ]
 
         if unit_mode == "gpu":
             gpu_spec = self._gpu_catalog[gpu_or_sku]
@@ -941,7 +998,12 @@ class FleetJobScheduler:
                         break
                     srv = self._servers[srv_id]
                     free = self._available_slots_on_server_locked(
-                        srv, unit_mode, gpu_or_sku, wait_h, duration_hours
+                        srv,
+                        unit_mode,
+                        gpu_or_sku,
+                        wait_h,
+                        duration_hours,
+                        exclude_job_ids=exclude_job_ids,
                     )
                     if not free:
                         continue
@@ -978,24 +1040,38 @@ class FleetJobScheduler:
 
                 # Thermal admission check (conserved tank-SOC trajectory)
                 if is_firm and wait_h == 0:
-                    instant_room = self._instant_headroom_kw_locked(sid)
-                    horizon_room = self._forecast_headroom_kwh_locked(sid, 0, duration_hours)
+                    instant_room = self._instant_headroom_kw_locked(
+                        sid, exclude_job_ids=exclude_job_ids
+                    )
+                    horizon_room = self._forecast_headroom_kwh_locked(
+                        sid, 0, duration_hours, exclude_job_ids=exclude_job_ids
+                    )
                     if not site.dump_allowed:
                         if (
                             kw_th > instant_room + 1e-6
                             or total_heat_kwh > horizon_room + 1e-6
                             or not self._can_absorb_trajectory_locked(
-                                sid, 0, duration_hours, kw_th
+                                sid,
+                                0,
+                                duration_hours,
+                                kw_th,
+                                exclude_job_ids=exclude_job_ids,
                             )
                         ):
                             continue
                 else:
-                    horizon_room = self._forecast_headroom_kwh_locked(sid, wait_h, duration_hours)
+                    horizon_room = self._forecast_headroom_kwh_locked(
+                        sid, wait_h, duration_hours, exclude_job_ids=exclude_job_ids
+                    )
                     margin = 1.0 if is_firm else (ADMISSION_MARGIN if wait_h == 0 else 1.15)
                     if not site.dump_allowed and (
                         total_heat_kwh * margin > horizon_room + 1e-6
                         or not self._can_absorb_trajectory_locked(
-                            sid, wait_h, duration_hours, kw_th * margin
+                            sid,
+                            wait_h,
+                            duration_hours,
+                            kw_th * margin,
+                            exclude_job_ids=exclude_job_ids,
                         )
                     ):
                         continue
@@ -1056,6 +1132,172 @@ class FleetJobScheduler:
             if best is not None and tier == "spot" and wait_h == 0:
                 break
         return best
+
+    def _find_preemptive_placement_locked(
+        self,
+        *,
+        tier: ComputeTier,
+        unit_mode: Literal["gpu", "server"],
+        gpu_or_sku: str,
+        quantity: int,
+        duration_hours: float,
+        preferred_site_id: str | None,
+    ) -> dict[str, Any] | None:
+        """For firm immediate tiers (Vaibhav Tier.evicts), find minimal Spot preemption if needed."""
+        tier_spec = DEMAND_TIER_SPECS[tier]
+        if not bool(tier_spec["firm"]) or int(tier_spec["lead_h"]) != 0:
+            return None
+
+        zurich_month = self._sim_dt_utc.astimezone(ZURICH_TZ).month
+        is_summer_may_sep = 5 <= zurich_month <= 9
+        candidate_sites = (
+            [resolve_site_id(preferred_site_id)]
+            if preferred_site_id is not None
+            else list(CANONICAL_SITES.keys())
+        )
+
+        best_candidate: tuple[int, float, dict[str, Any], list[str]] | None = None
+        for sid in candidate_sites:
+            site = self._sites[sid]
+            spec = CANONICAL_SITES[sid]
+            if self._site_is_offline_locked(site):
+                continue
+            if is_summer_may_sep and preferred_site_id is None:
+                _, _, proc_kw_now, sink_active_now = _site_ambient_and_demand(
+                    spec, self._sim_dt_utc, site.target_temp_c
+                )
+                is_elig = (spec.is_summer_sink and sink_active_now) or (
+                    spec.is_year_round_sink and proc_kw_now > 1.0
+                )
+                if not is_elig:
+                    continue
+
+            interruptibles = [
+                j
+                for j in self._jobs.values()
+                if j.site_id == sid and j.interruptible and j.status in ("running", "queued")
+            ]
+            if not interruptibles:
+                continue
+
+            # Prioritize evicting backfill first, then matching hardware Spot jobs, then smallest remaining work
+            interruptibles.sort(
+                key=lambda j: (
+                    0 if j.tier == "backfill" else 1,
+                    0 if (j.unit_mode == unit_mode and j.gpu_or_sku == gpu_or_sku) else 1,
+                    j.remaining_hours,
+                    j.job_id,
+                )
+            )
+            evict_ids: list[str] = []
+            for j in interruptibles:
+                evict_ids.append(j.job_id)
+                placement = self._find_candidate_placement_locked(
+                    tier=tier,
+                    unit_mode=unit_mode,
+                    gpu_or_sku=gpu_or_sku,
+                    quantity=quantity,
+                    duration_hours=duration_hours,
+                    preferred_site_id=sid,
+                    exclude_job_ids=set(evict_ids),
+                )
+                if placement is not None:
+                    key = (len(evict_ids), -float(placement["score"]))
+                    if best_candidate is None or key < (best_candidate[0], -best_candidate[1]):
+                        best_candidate = (
+                            len(evict_ids),
+                            float(placement["score"]),
+                            placement,
+                            list(evict_ids),
+                        )
+                    break
+
+        if best_candidate is None:
+            return None
+        placement_out = dict(best_candidate[2])
+        placement_out["preempted_job_ids"] = best_candidate[3]
+        return placement_out
+
+    def _evict_spot_jobs_locked(
+        self,
+        job_ids: list[str],
+        *,
+        preempted_by_job_id: str,
+        incoming_tier: str,
+        incoming_end_hour: float,
+    ) -> list[dict[str, Any]]:
+        """Preempt interruptible Spot/Backfill jobs and migrate or checkpoint-requeue them cleanly."""
+        evictions: list[dict[str, Any]] = []
+        for jid in job_ids:
+            ev_job = self._jobs.get(jid)
+            if ev_job is None or not ev_job.interruptible or ev_job.status not in ("running", "queued"):
+                continue
+            old_site = ev_job.site_id
+            self._release_job_slots_locked(ev_job)
+
+            alt = self._find_candidate_placement_locked(
+                tier="spot",
+                unit_mode=ev_job.unit_mode,
+                gpu_or_sku=ev_job.gpu_or_sku,
+                quantity=ev_job.quantity,
+                duration_hours=max(0.5, ev_job.remaining_hours),
+                preferred_site_id=None,
+                exclude_site_ids={old_site},
+            )
+            if alt is not None:
+                ev_job.site_id = alt["site_id"]
+                ev_job.server_ids = list(alt["server_ids"])
+                ev_job.gpu_slot_refs = list(alt["gpu_slots"])
+                ev_job.start_hour = self._sim_hours_elapsed + alt["start_offset_h"]
+                ev_job.hold_until_hour = self._sim_hours_elapsed + 1.0
+                ev_job.status = "running" if alt["start_offset_h"] == 0 else "queued"
+                self._reserve_job_slots_locked(ev_job)
+                action = "migrated"
+                to_site = ev_job.site_id
+            else:
+                # Re-queue cleanly after the preempting firm job finishes on the same host
+                requeue_start = max(
+                    self._sim_hours_elapsed + 1.0,
+                    float(math.ceil(incoming_end_hour)),
+                )
+                ev_job.status = "queued"
+                ev_job.start_hour = requeue_start
+                ev_job.hold_until_hour = requeue_start
+                try:
+                    self._reserve_job_slots_locked(ev_job)
+                    action = "checkpointed_requeued"
+                    to_site = old_site
+                except BookingConflictError:
+                    ev_job.status = "missed"
+                    ev_job.gpu_slot_refs = []
+                    ev_job.server_ids = []
+                    action = "evicted_missed"
+                    to_site = old_site
+
+            rec = {
+                "evicted_job_id": ev_job.job_id,
+                "evicted_job_name": ev_job.job_name,
+                "from_site": old_site,
+                "to_site": to_site,
+                "action": action,
+                "preempted_by_job_id": preempted_by_job_id,
+                "incoming_tier": incoming_tier,
+            }
+            evictions.append(rec)
+            log_event(
+                "thermal_rebalance",
+                "spot_job_evicted",
+                (
+                    f"Firm {incoming_tier} job {preempted_by_job_id} preempted Spot job "
+                    f"{ev_job.job_id} ({action}: {old_site} -> {to_site})"
+                ),
+                source_module="fleet_scheduler",
+                site_id=old_site,
+                job_id=ev_job.job_id,
+                metrics=rec,
+                store=self._log_store,
+            )
+        return evictions
 
     def _lookup_rates_locked(
         self,
@@ -1143,6 +1385,19 @@ class FleetJobScheduler:
                 preferred_site_id=resolved_pref,
             )
 
+            preempted_job_ids: list[str] = []
+            if placement is None and is_firm and lead_h == 0:
+                placement = self._find_preemptive_placement_locked(
+                    tier=tier,
+                    unit_mode=unit_mode,
+                    gpu_or_sku=gpu_or_sku,
+                    quantity=quantity,
+                    duration_hours=duration_hours,
+                    preferred_site_id=resolved_pref,
+                )
+                if placement is not None:
+                    preempted_job_ids = list(placement.get("preempted_job_ids", []))
+
             if placement is None:
                 if is_firm:
                     spot_alt = self._find_candidate_placement_locked(
@@ -1192,6 +1447,10 @@ class FleetJobScheduler:
             )
 
             warnings: list[str] = []
+            if preempted_job_ids:
+                warnings.append(
+                    f"Firm priority will preempt and migrate {len(preempted_job_ids)} interruptible Spot job(s) for 0-min dispatch."
+                )
             if whole_server and unit_mode == "gpu" and billed_qty > quantity:
                 warnings.append(
                     f"Dedicated host isolates full physical machine ({billed_qty} GPUs held & billed)."
@@ -1288,6 +1547,7 @@ class FleetJobScheduler:
                 whole_server=whole_server,
                 busy_share=busy_share,
                 lead_h=lead_h,
+                preempted_job_ids=preempted_job_ids,
             )
 
             # Evict expired or oldest quotes if over cap
@@ -1369,6 +1629,7 @@ class FleetJobScheduler:
             "whole_server": q.whole_server,
             "busy_share": q.busy_share,
             "lead_h": q.lead_h,
+            "preempted_job_ids": list(q.preempted_job_ids),
         }
 
     def _job_abs_hours_locked(self, job: ScheduledJob) -> range:
@@ -1531,13 +1792,23 @@ class FleetJobScheduler:
                 0.0,
                 round(effective_start_hour - self._sim_hours_elapsed, 6),
             )
+            still_evict = [
+                jid
+                for jid in quote.preempted_job_ids
+                if jid in self._jobs
+                and self._jobs[jid].interruptible
+                and self._jobs[jid].status in ("running", "queued")
+            ]
+            evict_set = set(still_evict) if still_evict else None
+
             hours_range = _abs_hour_range(effective_start_hour, quote.duration_hours)
             for srv_id, s_idx in quote.assigned_gpu_slots:
                 srv = self._servers[srv_id]
                 if srv.status == "offline":
                     raise BookingConflictError(f"Assigned server '{srv_id}' went offline")
+                bitmap = self._effective_server_bitmap_locked(srv, evict_set)
                 for abs_h in hours_range:
-                    busy = srv.schedule_bitmap.get(abs_h, set())
+                    busy = bitmap.get(abs_h, set())
                     if busy and (s_idx == -1 or -1 in busy or s_idx in busy):
                         log_event(
                             "customer_booking",
@@ -1561,11 +1832,19 @@ class FleetJobScheduler:
                 )
                 if is_firm_immediate:
                     if (
-                        quote.kw_th > self._instant_headroom_kw_locked(sid) + 1e-6
+                        quote.kw_th
+                        > self._instant_headroom_kw_locked(sid, exclude_job_ids=evict_set) + 1e-6
                         or quote.total_heat_kwh
-                        > self._forecast_headroom_kwh_locked(sid, 0, quote.duration_hours) + 1e-6
+                        > self._forecast_headroom_kwh_locked(
+                            sid, 0, quote.duration_hours, exclude_job_ids=evict_set
+                        )
+                        + 1e-6
                         or not self._can_absorb_trajectory_locked(
-                            sid, 0, quote.duration_hours, quote.kw_th
+                            sid,
+                            0,
+                            quote.duration_hours,
+                            quote.kw_th,
+                            exclude_job_ids=evict_set,
                         )
                     ):
                         raise BookingConflictError(
@@ -1573,12 +1852,16 @@ class FleetJobScheduler:
                         )
                 else:
                     horizon_room = self._forecast_headroom_kwh_locked(
-                        sid, effective_offset_h, quote.duration_hours
+                        sid, effective_offset_h, quote.duration_hours, exclude_job_ids=evict_set
                     )
                     if (
                         quote.total_heat_kwh > horizon_room + 1e-6
                         or not self._can_absorb_trajectory_locked(
-                            sid, effective_offset_h, quote.duration_hours, quote.kw_th
+                            sid,
+                            effective_offset_h,
+                            quote.duration_hours,
+                            quote.kw_th,
+                            exclude_job_ids=evict_set,
                         )
                     ):
                         raise BookingConflictError(
@@ -1587,6 +1870,14 @@ class FleetJobScheduler:
 
             job_id = f"job-{uuid.uuid4().hex[:10]}"
             booking_id = f"bkg-{uuid.uuid4().hex[:10]}"
+            eviction_records: list[dict[str, Any]] = []
+            if still_evict:
+                eviction_records = self._evict_spot_jobs_locked(
+                    still_evict,
+                    preempted_by_job_id=job_id,
+                    incoming_tier=quote.tier,
+                    incoming_end_hour=effective_start_hour + quote.duration_hours,
+                )
             effective_name = (job_name or quote.job_name).strip()[:80]
             status_val: Literal["running", "queued"] = (
                 "running"
@@ -1690,6 +1981,7 @@ class FleetJobScheduler:
                 "total_heat_kwh": quote.total_heat_kwh,
                 "total_cost_chf": quote.total_cost_chf,
                 "total_cost_usd": quote.total_cost_usd,
+                "preempted_jobs": eviction_records,
                 "quote": self._quote_to_dict(quote),
                 "fleet_summary": copy.deepcopy(tel["summary"]),
                 "telemetry_snapshot": tel,

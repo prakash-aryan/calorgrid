@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121ag">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261122a">
   <script type="importmap">
   {
     "imports": {
@@ -872,6 +872,14 @@
               <div id="cc-gpu-table-host" class="cc-table-wrap"></div>
               <div id="cc-sku-table-host" class="cc-table-wrap" hidden></div>
 
+              <div class="cc-six-tier-block">
+                <div class="cc-six-tier-head">
+                  <span id="cc-six-tier-title">All 6 CalorGrid Demand Tiers</span>
+                  <small>Click any tier to recalculate live quote · Firm tiers preempt Spot</small>
+                </div>
+                <div id="cc-six-tier-strip" class="cc-six-tier-strip" data-testid="compute-six-tier-strip"></div>
+              </div>
+
               <div id="cc-pricing-meta" class="cc-pricing-meta" data-testid="compute-pricing-meta"></div>
             </div>
           </div>
@@ -965,6 +973,6 @@
     Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
   </footer>
 
-  <script type="module" src="/js/main.js?v=20261121af"></script>
+  <script type="module" src="/js/main.js?v=20261122a"></script>
 </body>
 </html>
