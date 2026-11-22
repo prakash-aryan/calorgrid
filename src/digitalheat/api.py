@@ -1038,7 +1038,7 @@ async def _no_stale_ui_cache(request: Request, call_next):
             "font-src 'self' data:",
             "object-src 'none'",
             "base-uri 'self'",
-            "frame-ancestors 'self'",
+            "frame-ancestors 'self' https://calorgrid-deck.pages.dev https://*.calorgrid-deck.pages.dev",
         ]
         response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
     return response
