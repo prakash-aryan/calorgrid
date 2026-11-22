@@ -1935,8 +1935,8 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
         const wKw = (mSpec.electrical_kw * mSpec.recovery_fraction).toFixed(2);
         capEl.textContent =
           mSpec.gpu_count > 0
-            ? `Up to ${mMax} racks (${mMax * mSpec.gpu_count} GPUs) · ${wKw} kW heat`
-            : `Up to ${mMax} units · ${wKw} kW hot water`;
+            ? `Up to ${mMax} racks (${mMax * mSpec.gpu_count} GPUs) · ${wKw} kW`
+            : `Up to ${mMax} units · ${wKw} kW heat`;
       }
     });
 
@@ -1950,8 +1950,8 @@ export function createConfiguratorAndLedgerController({ onOpenTab }) {
     if (countSub) {
       countSub.textContent =
         sz.installed_gpus > 0
-          ? `${sz.installed_gpus} GPUs (up to ${siteMaxU} racks / ${sz.site_max_gpus} GPUs) · ${sz.peak_water_kw.toFixed(1)} kW heat`
-          : `Up to ${siteMaxU} units for this building · ${sz.peak_water_kw.toFixed(1)} kW hot water`;
+          ? `${sz.installed_gpus} GPUs (max ${sz.site_max_gpus}) · ${sz.peak_water_kw.toFixed(1)} kW heat`
+          : `Max ${siteMaxU} units · ${sz.peak_water_kw.toFixed(1)} kW hot water`;
     }
 
     const fitEl = document.getElementById("cfg-fit-banner");

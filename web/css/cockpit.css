@@ -8518,3 +8518,376 @@ body:not(.app-mode-atlas) .brand-cluster {
     font-size: 11.5px;
   }
 }
+
+/* ============================================================================
+   75% TRANSLUCENT FROSTED-GLASS FLOATING TOP BAR, REFINED SWISS WORDMARK &
+   ZERO-JITTER LOCKED-GEOMETRY INTERACTION SYSTEM
+   ============================================================================ */
+
+html,
+body {
+  scrollbar-gutter: stable;
+}
+
+/* 1. Floating 75% Frosted-Glass Capsule Top Bar (Desktop & Mobile) */
+body:not(.app-mode-atlas) .cockpit-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 70px !important;
+  min-height: 70px !important;
+  padding: 10px 24px 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  z-index: 120 !important;
+}
+
+body:not(.app-mode-atlas) .brand-cluster {
+  pointer-events: auto !important;
+  width: 100% !important;
+  max-width: 1440px !important;
+  height: 52px !important;
+  margin: 0 auto !important;
+  padding: 0 8px 0 14px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(185%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(185%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.88) !important;
+  box-shadow:
+    0 10px 30px -10px rgba(15, 23, 42, 0.12),
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 0 0 1px rgba(15, 23, 42, 0.065) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  transition: background-color 180ms ease, box-shadow 180ms ease !important;
+}
+
+@supports not (backdrop-filter: blur(12px)) {
+  body:not(.app-mode-atlas) .brand-cluster {
+    background: rgba(255, 255, 255, 0.94) !important;
+  }
+}
+
+/* 2. Refined Swiss Brand Emblem & Two-Tone Wordmark */
+.brand-home-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 4px 6px 4px 0 !important;
+  border-radius: 999px !important;
+  transition: opacity 150ms ease !important;
+}
+.brand-home-btn:hover {
+  opacity: 0.88 !important;
+}
+.brand-mark,
+.brand-mark svg {
+  width: 30px !important;
+  height: 30px !important;
+  display: block !important;
+  border-radius: 8.5px !important;
+  filter: drop-shadow(0 2px 5px rgba(217, 72, 15, 0.24)) !important;
+}
+.brand-home-btn .brand-title {
+  display: inline-flex !important;
+  align-items: baseline !important;
+  font-size: 16.5px !important;
+  line-height: 1 !important;
+  letter-spacing: -0.032em !important;
+  color: #111214 !important;
+}
+.brand-home-btn .brand-calor {
+  font-weight: 700 !important;
+  color: #111214 !important;
+}
+.brand-home-btn .brand-grid {
+  font-weight: 500 !important;
+  color: #575752 !important;
+}
+.brand-home-btn .brand-title::after {
+  content: ".";
+  color: #d9480f;
+  font-weight: 800;
+  margin-left: 0.5px;
+}
+
+/* 3. Zero-Jitter Translucent Pill Nav Rail (Locked Font Weight = Zero Width Shift!) */
+body:not(.app-mode-atlas) .app-top-tabs {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  height: 38px !important;
+  padding: 3px !important;
+  border-radius: 999px !important;
+  background: rgba(15, 23, 42, 0.05) !important;
+  border: 1px solid rgba(15, 23, 42, 0.055) !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+}
+body:not(.app-mode-atlas) .app-tab-btn,
+body:not(.app-mode-atlas) .app-tab-btn.app-tab-compute {
+  position: relative !important;
+  height: 30px !important;
+  padding: 0 15px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #4b4b47 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  white-space: nowrap !important;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease !important;
+}
+body:not(.app-mode-atlas) .app-tab-btn::after,
+body:not(.app-mode-atlas) .app-tab-btn.app-tab-compute::after {
+  display: none !important;
+}
+body:not(.app-mode-atlas) .app-tab-btn:hover,
+body:not(.app-mode-atlas) .app-tab-btn.app-tab-compute:hover {
+  background: rgba(255, 255, 255, 0.65) !important;
+  color: #111214 !important;
+}
+body:not(.app-mode-atlas) .app-tab-btn.is-active {
+  background: #141413 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(20, 20, 19, 0.18) !important;
+}
+body:not(.app-mode-atlas) .app-tab-btn.app-tab-compute.is-active {
+  background: #c84411 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 10px rgba(200, 68, 17, 0.28) !important;
+}
+
+/* 4. Content Glides Cleanly Underneath the 75% Translucent Top Bar */
+body:not(.app-mode-atlas) .app-overlay,
+body:not(.app-mode-atlas) .swiss-network-overlay,
+body:not(.app-mode-atlas) .configurator-overlay,
+body:not(.app-mode-atlas) .heatledger-overlay,
+body:not(.app-mode-atlas) .compute-overlay {
+  top: 0 !important;
+  padding-top: 74px !important;
+  scrollbar-gutter: stable;
+}
+
+/* 5. Zero-Jitter / Zero-CLS Geometry Locks Across All 4 Tabs */
+.sn-kpi-val,
+.sn-kpi-sub,
+.sn-detail-stats strong,
+.cg-metric-cell strong,
+.cg-metric-cell small,
+.cc-price-main,
+.cc-price-spot,
+.cc-quote-price,
+.cc-quote-usd,
+.cc-six-tier-rate,
+.cc-six-tier-sub,
+.step-val,
+#hl-heat-readout,
+#hl-indoor-readout {
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Explore: lock detail flow, hardware summary, and bottom fiber-routes strip heights */
+.sn-detail-hw-line {
+  min-height: 32px !important;
+  line-height: 1.35 !important;
+}
+.sn-detail-flow {
+  min-height: 36px !important;
+  max-height: 36px !important;
+  line-height: 1.35 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+.sn-detail-thumb {
+  background: #141413 !important;
+}
+.sn-flows-bar,
+.sn-map-footer,
+#sn-flows-strip {
+  min-height: 40px !important;
+  max-height: 44px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+.sn-flows-bar::-webkit-scrollbar,
+#sn-flows-strip::-webkit-scrollbar {
+  display: none !important;
+}
+.sn-flow-chip,
+.sn-flow-empty {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+.sn-kpi {
+  min-width: 0 !important;
+}
+.sn-kpi-sub {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Configure & HeatLedger: lock model cards, fit banner, boiler caption, and chart heights */
+.stepper-row {
+  gap: 10px !important;
+}
+.stepper-info {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+}
+.stepper-ctrl {
+  flex: 0 0 auto !important;
+}
+.cfg-model-card {
+  min-height: 108px !important;
+  justify-content: space-between !important;
+}
+.cfg-model-cap,
+#cfg-count-sub,
+#cfg-boiler-sub,
+.cg-metric-cell small {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
+.cfg-fit-banner {
+  min-height: 70px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+.cg-host-breakdown {
+  min-height: 40px !important;
+}
+.cg-metric-cell {
+  min-height: 60px !important;
+}
+.stage-floating-badge {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: calc(100% - 28px) !important;
+}
+.hl-weather-card {
+  min-height: 60px !important;
+}
+.hl-hourly-chart {
+  height: 76px !important;
+  min-height: 76px !important;
+}
+
+/* Compute & GPUs: lock table container, quote box, warning slot, and visual stage */
+.cc-visual-stage .cc-vis-hw img,
+.cc-visual-stage .cc-vis-site video {
+  height: 78px !important;
+  min-height: 78px !important;
+  max-height: 78px !important;
+  background: #141413 !important;
+}
+.cc-vis-caption strong,
+.cc-vis-caption span {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
+.cc-table-wrap {
+  min-height: 344px !important;
+}
+.cc-hw-thumb {
+  width: 38px !important;
+  height: 28px !important;
+  flex: none !important;
+  background: #f5f4f0 !important;
+}
+.cc-quote-result {
+  min-height: 164px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+}
+.cc-quote-warnings {
+  min-height: 30px !important;
+  max-height: 30px !important;
+  margin-top: 8px !important;
+  padding: 5px 9px !important;
+  border-radius: 7px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+.cc-quote-warnings > div {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 11px !important;
+}
+.cc-quote-warnings.is-nominal {
+  background: #f7f6f2 !important;
+  border-left: 2.5px solid #d6d3cd !important;
+  color: #6b6b66 !important;
+}
+
+/* Mobile Responsive Floating 75% Frosted Glass Top Bar & Bottom Nav */
+@media (max-width: 1080px) {
+  body:not(.app-mode-atlas) .cockpit-header {
+    height: 62px !important;
+    min-height: 62px !important;
+    padding: 8px 12px 0 !important;
+  }
+  body:not(.app-mode-atlas) .brand-cluster {
+    height: 46px !important;
+    padding: 0 14px !important;
+  }
+  body:not(.app-mode-atlas) .app-top-tabs {
+    display: none !important;
+  }
+  body:not(.app-mode-atlas) .brand-cluster::after {
+    content: "14 Swiss Sites";
+    font-size: 11px;
+    font-weight: 600;
+    color: #575752;
+    background: rgba(15, 23, 42, 0.055);
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  body:not(.app-mode-atlas) .app-overlay,
+  body:not(.app-mode-atlas) .swiss-network-overlay,
+  body:not(.app-mode-atlas) .configurator-overlay,
+  body:not(.app-mode-atlas) .heatledger-overlay,
+  body:not(.app-mode-atlas) .compute-overlay {
+    top: 0 !important;
+    padding-top: 66px !important;
+  }
+  .cc-table-wrap {
+    min-height: 0 !important;
+  }
+  .app-mobile-nav {
+    background: rgba(255, 255, 255, 0.78) !important;
+    backdrop-filter: blur(18px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+    border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+  }
+}

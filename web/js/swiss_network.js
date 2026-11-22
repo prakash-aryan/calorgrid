@@ -583,6 +583,8 @@ export function createSwissNetworkController({
     }
   }
 
+  const pinCache = new Map();
+
   function renderMap() {
     if (!latestData) return;
     ensure3DMap();
@@ -593,7 +595,7 @@ export function createSwissNetworkController({
     beaconHitTargets = [];
     labelEntries = [];
     flowMidEntries = [];
-    labelLayer.innerHTML = "";
+    labelLayer.querySelectorAll(".sn-3d-flow-tag").forEach((el) => el.remove());
     const gTex = getGlowTexture();
 
     // 1. Build 14 slender architectural light-spire beacons + breathing terrain pulses
@@ -690,18 +692,33 @@ export function createSwissNetworkController({
       haloSprite.position.set(c[0], c[1] + pillarH + 0.09, c[2]);
       nodesGroup.add(haloSprite);
 
-      // Projected frosted-glass HTML callout pill with official Swiss cantonal flag (retains .sn-node selector for E2E & video tests)
-      const pill = document.createElement("button");
-      pill.type = "button";
-      pill.className = `sn-3d-pin sn-node${isSelected ? " is-selected" : ""}`;
-      pill.dataset.nodeId = n.node_id;
-      const flagHtml = n.canton ? `<img class="sn-canton-flag" src="/img/cantons/${n.canton}.svg" alt="${n.canton}" title="Canton ${n.canton}">` : "";
-      pill.innerHTML = `<i style="background:${badge.color}; box-shadow: 0 0 6px ${badge.color}88"></i>${flagHtml}<b>${SHORT_CITY[n.node_id] || n.city}</b><span>${n.live.heat_generated_kw.toFixed(1)} kW</span>`;
-      pill.addEventListener("click", () => {
-        selectedNodeId = n.node_id;
-        inspectTwinById(n.node_id);
-      });
-      labelLayer.appendChild(pill);
+      // Persistent projected frosted-glass HTML callout pill with official Swiss cantonal flag (zero flicker on season changes!)
+      let pill = pinCache.get(n.node_id);
+      if (!pill) {
+        pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "sn-3d-pin sn-node";
+        pill.dataset.nodeId = n.node_id;
+        const flagHtml = n.canton ? `<img class="sn-canton-flag" src="/img/cantons/${n.canton}.svg" alt="${n.canton}" title="Canton ${n.canton}">` : "";
+        pill.innerHTML = `<i></i>${flagHtml}<b>${SHORT_CITY[n.node_id] || n.city}</b><span></span>`;
+        pill.addEventListener("click", () => {
+          selectedNodeId = n.node_id;
+          inspectTwinById(n.node_id);
+        });
+        pinCache.set(n.node_id, pill);
+        labelLayer.appendChild(pill);
+      } else if (pill.parentNode !== labelLayer) {
+        labelLayer.appendChild(pill);
+      }
+      pill.classList.toggle("is-selected", isSelected);
+      const dotEl = pill.querySelector("i");
+      if (dotEl) {
+        dotEl.style.background = badge.color;
+        dotEl.style.boxShadow = `0 0 6px ${badge.color}88`;
+      }
+      const kwEl = pill.querySelector("span");
+      const kwTxt = `${n.live.heat_generated_kw.toFixed(1)} kW`;
+      if (kwEl && kwEl.textContent !== kwTxt) kwEl.textContent = kwTxt;
       labelEntries.push({
         el: pill,
         anchor: new THREE.Vector3(c[0], c[1] + pillarH + 0.52, c[2]),
@@ -843,6 +860,29 @@ export function createSwissNetworkController({
     const rtxUrl = `/media/twins/${n.node_id}.mp4`;
     const hwText = hardwareSummaryForNode(n);
     const detailFlag = n.canton ? `<img class="sn-canton-flag is-inline" src="/img/cantons/${n.canton}.svg" alt="${n.canton}">` : "";
+
+    // Update in place when the same site stays selected (prevents <video> flash & layout jitter on season clicks!)
+    if (detailEl.dataset.renderedNodeId === n.node_id && detailEl.querySelector("#sn-detail-state-pill")) {
+      const pill = detailEl.querySelector("#sn-detail-state-pill");
+      if (pill) {
+        pill.textContent = badge.text;
+        pill.style.color = badge.color;
+      }
+      const statAct = detailEl.querySelector("#sn-detail-stat-active");
+      const statHeat = detailEl.querySelector("#sn-detail-stat-heat");
+      const statCov = detailEl.querySelector("#sn-detail-stat-cov");
+      const flowEl = detailEl.querySelector(".sn-detail-flow");
+      if (statAct) statAct.textContent = `${Math.round(n.live.servers_active)} / ${n.servers_installed}`;
+      if (statHeat) statHeat.textContent = `${n.live.heat_generated_kw.toFixed(1)} kW (${n.target_supply_c}°C)`;
+      if (statCov) statCov.textContent = `${n.annual.annual_heat_covered_pct}%`;
+      if (flowEl) {
+        flowEl.textContent = flowNote;
+        flowEl.title = flowNote;
+      }
+      return;
+    }
+
+    detailEl.dataset.renderedNodeId = n.node_id;
     detailEl.innerHTML = `
       <div class="sn-detail-head">
         <div>
@@ -850,7 +890,7 @@ export function createSwissNetworkController({
           <h3>${n.name}</h3>
           <div class="sn-detail-arch">${n.archetype}</div>
         </div>
-        <span class="sn-state-pill" style="color:${badge.color}">${badge.text}</span>
+        <span class="sn-state-pill" id="sn-detail-state-pill" style="color:${badge.color}">${badge.text}</span>
       </div>
       <div class="sn-detail-thumb">
         <video src="${rtxUrl}" autoplay muted loop playsinline preload="auto"></video>
@@ -858,11 +898,11 @@ export function createSwissNetworkController({
       </div>
       <div class="sn-detail-hw-line">${hwText}</div>
       <div class="sn-detail-stats">
-        <div><span>Active</span><strong>${Math.round(n.live.servers_active)} / ${n.servers_installed}</strong></div>
-        <div><span>Heat out</span><strong class="accent-heat">${n.live.heat_generated_kw.toFixed(1)} kW (${n.target_supply_c}°C)</strong></div>
-        <div><span>Annual cov.</span><strong>${n.annual.annual_heat_covered_pct}%</strong></div>
+        <div><span>Active</span><strong id="sn-detail-stat-active">${Math.round(n.live.servers_active)} / ${n.servers_installed}</strong></div>
+        <div><span>Heat out</span><strong id="sn-detail-stat-heat" class="accent-heat">${n.live.heat_generated_kw.toFixed(1)} kW (${n.target_supply_c}°C)</strong></div>
+        <div><span>Annual cov.</span><strong id="sn-detail-stat-cov">${n.annual.annual_heat_covered_pct}%</strong></div>
       </div>
-      <div class="sn-detail-flow">${flowNote}</div>
+      <div class="sn-detail-flow" title="${flowNote}">${flowNote}</div>
       <div class="sn-detail-actions">
         <button type="button" class="sn-btn-primary" id="sn-inspect-3d-btn" data-testid="swiss-inspect-twin-btn">Open 3D view</button>
         <button type="button" class="sn-btn-outline" id="sn-detail-configure-btn">Configure similar</button>

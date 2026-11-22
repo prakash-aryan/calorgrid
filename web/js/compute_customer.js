@@ -231,6 +231,9 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
   let logCategoryFilter = "";
   let telemetrySiteFilter = "";
   let quoteDebounce = null;
+  let lastSkuSelectMode = null;
+  let sixTierBuilt = false;
+  let tablesBuilt = false;
 
   const state = {
     tier: "on_demand",
@@ -345,6 +348,24 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       state.gpuOrSku = opts[0].value;
     }
 
+    const existingOpts = els.skuSelect.options;
+    if (
+      lastSkuSelectMode === state.unitMode &&
+      existingOpts.length === opts.length &&
+      opts.every((o, i) => existingOpts[i].value === o.value)
+    ) {
+      for (let i = 0; i < opts.length; i += 1) {
+        if (existingOpts[i].textContent !== opts[i].label) {
+          existingOpts[i].textContent = opts[i].label;
+        }
+      }
+      if (els.skuSelect.value !== state.gpuOrSku) {
+        els.skuSelect.value = state.gpuOrSku;
+      }
+      return;
+    }
+
+    lastSkuSelectMode = state.unitMode;
     const frag = document.createDocumentFragment();
     for (const o of opts) {
       frag.appendChild(domEl("option", { value: o.value, text: o.label }));
@@ -644,7 +665,31 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       table.appendChild(tbody);
       els.skuTableHost.replaceChildren(table);
     }
+    tablesBuilt = true;
+    renderSixTierStrip();
+  }
 
+  function updateTableSelectionInPlace() {
+    if (!tablesBuilt) {
+      renderComparisonTables();
+      return;
+    }
+    if (els.gpuTableHost) {
+      els.gpuTableHost.querySelectorAll("tr[data-gpu-id]").forEach((tr) => {
+        tr.classList.toggle(
+          "is-selected",
+          state.unitMode === "gpu" && tr.dataset.gpuId === state.gpuOrSku
+        );
+      });
+    }
+    if (els.skuTableHost) {
+      els.skuTableHost.querySelectorAll("tr[data-server-model-id]").forEach((tr) => {
+        tr.classList.toggle(
+          "is-selected",
+          state.unitMode === "server" && tr.dataset.serverModelId === state.gpuOrSku
+        );
+      });
+    }
     renderSixTierStrip();
   }
 
@@ -666,7 +711,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
         hwLabel = `${s.name} · 6 Demand Tiers`;
       }
     }
-    if (els.sixTierTitle && hwLabel) {
+    if (els.sixTierTitle && hwLabel && els.sixTierTitle.textContent !== hwLabel) {
       els.sixTierTitle.textContent = hwLabel;
     }
 
@@ -678,6 +723,25 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       { id: "dedicated", name: "Dedicated", tag: "Full Host", mult: 1.1, note: "+10% isolated" },
       { id: "serverless", name: "Serverless", tag: "Active Only", mult: 1.5, note: "50% duty billed" },
     ];
+
+    if (sixTierBuilt && els.sixTierStrip.children.length === tierMeta.length) {
+      for (const t of tierMeta) {
+        const spec = pricingData.demand_tiers?.[t.id];
+        const mult = typeof spec?.price_multiplier === "number" ? spec.price_multiplier : t.mult;
+        const chfHr = baseChf * mult;
+        const usdHr = chfHr / fx;
+        const btn = els.sixTierStrip.querySelector(`[data-tier-card='${t.id}']`);
+        if (!btn) continue;
+        btn.classList.toggle("is-active", state.tier === t.id);
+        const rateEl = btn.querySelector(".cc-six-tier-rate");
+        const subEl = btn.querySelector(".cc-six-tier-sub");
+        const nextRate = `${fmtChf(chfHr, 2)}/h`;
+        const nextSub = `${fmtUsd(usdHr, 2)} · ${t.note}`;
+        if (rateEl && rateEl.textContent !== nextRate) rateEl.textContent = nextRate;
+        if (subEl && subEl.textContent !== nextSub) subEl.textContent = nextSub;
+      }
+      return;
+    }
 
     const frag = document.createDocumentFragment();
     for (const t of tierMeta) {
@@ -710,6 +774,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       frag.appendChild(btn);
     }
     els.sixTierStrip.replaceChildren(frag);
+    sixTierBuilt = true;
   }
 
   function renderSummerSinks() {
@@ -838,13 +903,15 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       ]),
     ];
 
-    if (Array.isArray(quote.warnings) && quote.warnings.length > 0) {
-      const warnBox = domEl("div", { className: "cc-quote-warnings" });
-      for (const w of quote.warnings) {
-        warnBox.appendChild(domEl("div", { text: w }));
-      }
-      children.push(warnBox);
-    }
+    const hasWarns = Array.isArray(quote.warnings) && quote.warnings.length > 0;
+    const warnSlot = domEl(
+      "div",
+      { className: `cc-quote-warnings${hasWarns ? "" : " is-nominal"}` },
+      hasWarns
+        ? [domEl("div", { text: quote.warnings[0], title: quote.warnings.join(" ") })]
+        : [domEl("div", { text: "Zero-dump Swiss thermal routing ready." })]
+    );
+    children.push(warnSlot);
 
     els.quoteResult.replaceChildren(...children);
   }
@@ -1054,7 +1121,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       els.siteSelect.value = state.preferredSiteId || "";
     }
     if (els.workloadSelect) els.workloadSelect.value = state.workloadType;
-    renderComparisonTables();
+    updateTableSelectionInPlace();
     updateVisualStage(latestQuote);
   }
 
@@ -1185,7 +1252,7 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
 
   els.skuSelect?.addEventListener("change", (e) => {
     state.gpuOrSku = e.target.value;
-    renderComparisonTables();
+    updateTableSelectionInPlace();
     requestQuote().catch(() => {});
   });
 
