@@ -24,6 +24,9 @@ GEODATA_FILES = [
 
 HARDWARE_FILES = [
     "hardware_server_rack.glb",
+    "hardware_gb300_rack.glb",
+    "hardware_ocp_populated_rack.glb",
+    "hardware_vr3307_rack.glb",
     "hardware_cdu_exchanger.glb",
     "hardware_buffer_tank.glb",
     "hardware_piping.glb",

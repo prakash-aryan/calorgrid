@@ -314,6 +314,81 @@
       "bytes": 181152,
       "sha256": "ea92415f39fa4f8dfcd7c408d8512c9f51cc31bc5ef2e4dfece3a1d672f6d753"
     },
+    "hardware_gb300_rack": {
+      "file": "glb/hardware_gb300_rack.glb",
+      "label": "NVIDIA SimReady DSX GB300 NVL72 Fully Populated Liquid-Cooled AI Rack",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "NVIDIA (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.2848,
+          0.0,
+          -0.7061
+        ],
+        [
+          0.2848,
+          2.0773,
+          0.7061
+        ]
+      ],
+      "extents_m": [
+        0.5696,
+        2.0773,
+        1.4121
+      ],
+      "bytes": 493964,
+      "sha256": "02d3b908f9d816bc3558402e98ae8dc88a4bd2abbe783c696f9a4709d347d14c"
+    },
+    "hardware_ocp_populated_rack": {
+      "file": "glb/hardware_ocp_populated_rack.glb",
+      "label": "Vertiv VR3307 Open-Bay Rack Populated with 18x Vertiv 33kVA OCP Blade Shelves",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "Vertiv (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.2693,
+          0.0007,
+          -0.5514
+        ],
+        [
+          0.2693,
+          2.0399,
+          0.5511
+        ]
+      ],
+      "extents_m": [
+        0.5385,
+        2.0392,
+        1.1025
+      ],
+      "bytes": 316540,
+      "sha256": "669dda1ad550e8e22301ccb0a56cffe5eb88f3a2fffb5415f1eede7164245292"
+    },
+    "hardware_vr3307_rack": {
+      "file": "glb/hardware_vr3307_rack.glb",
+      "label": "Vertiv VR3307 Enclosed 42U Cabinet Populated with 15x Vertiv OCP Blade Shelves",
+      "provenance_category": "geodata_cad_blueprint",
+      "attribution": "Vertiv (CC BY 4.0)",
+      "bounds": [
+        [
+          -0.2693,
+          0.0007,
+          -0.5663
+        ],
+        [
+          0.2693,
+          2.0399,
+          0.5692
+        ]
+      ],
+      "extents_m": [
+        0.5385,
+        2.0392,
+        1.1355
+      ],
+      "bytes": 290604,
+      "sha256": "59d6d17112702b7c937c57bfa73d4e058edd9dca9e23e6debe86125464b66301"
+    },
     "hardware_cdu_exchanger": {
       "file": "glb/hardware_cdu_exchanger.glb",
       "label": "Vertiv Liebert XDU1350 Coolant Distribution Unit",

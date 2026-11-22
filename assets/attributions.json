@@ -28,6 +28,7 @@
     },
     "nvidia_simready": {
       "datasets": [
+        "nvidia/simready-dsx (GB300)",
         "nvidia/simready-assets (ibcTank_steel_stainless_a01, pipe_plastic_gray_b08)",
         "NVIDIA SimReady basement enclosure (environment_floor_a01, structure_wall_straight_a01, structure_wall_column_a01)"
       ],
@@ -36,7 +37,7 @@
     },
     "vertiv_simready": {
       "datasets": [
-        "Vertiv/simready-assets (16OCP_ORV3_racks_Computer_racks, XDU1350, NVD_RPP_1200_480_XT210_FA)"
+        "Vertiv/simready-assets (VR3307, 33kVA_DC_power_shelf, 16OCP_ORV3_racks_Computer_racks, XDU1350, NVD_RPP_1200_480_XT210_FA)"
       ],
       "attribution": "Vertiv",
       "license": "CC BY 4.0"

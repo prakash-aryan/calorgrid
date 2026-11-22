@@ -18,10 +18,10 @@ const BASEMENT_HARDWARE_LAYOUT = [
   },
   {
     key: "rack",
-    url: "/assets/glb/hardware_server_rack.glb",
+    url: "/assets/glb/hardware_gb300_rack.glb",
     pos: [-1.0, Y_FLOOR, -1.35],
     rotY: 0,
-    scale: [1, 1, 1],
+    scale: [1, 1, 0.85],
   },
   {
     key: "cdu",

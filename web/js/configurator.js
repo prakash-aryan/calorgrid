@@ -13,54 +13,126 @@ import {
 function buildStudioEnvironment(renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color(0xe6eef6);
+  // Mid-dark architectural studio dome (matches Omniverse / SimReady Central viewport contrast)
+  // so brushed black aluminum stays deep obsidian & NVIDIA GB300 copper stays rich saturated bronze
+  envScene.background = new THREE.Color(0x465160);
+  const floorBounce = new THREE.Mesh(
+    new THREE.PlaneGeometry(36, 36),
+    new THREE.MeshBasicMaterial({ color: 0x2a313c, side: THREE.DoubleSide })
+  );
+  floorBounce.rotation.x = Math.PI / 2;
+  floorBounce.position.y = -8;
+  envScene.add(floorBounce);
   const topPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(24, 24),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(20, 14),
+    new THREE.MeshBasicMaterial({ color: 0xf8fafc, side: THREE.DoubleSide })
   );
   topPanel.rotation.x = Math.PI / 2;
-  topPanel.position.y = 10;
+  topPanel.position.y = 11;
   envScene.add(topPanel);
   const warmKey = new THREE.Mesh(
-    new THREE.PlaneGeometry(16, 12),
-    new THREE.MeshBasicMaterial({ color: 0xfff8eb, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xfff3de, side: THREE.DoubleSide })
   );
-  warmKey.position.set(10, 6, 10);
+  warmKey.position.set(11, 6.5, 10);
   warmKey.lookAt(0, 0, 0);
   envScene.add(warmKey);
   const coolFill = new THREE.Mesh(
-    new THREE.PlaneGeometry(16, 12),
-    new THREE.MeshBasicMaterial({ color: 0xdbeafe, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(9, 7),
+    new THREE.MeshBasicMaterial({ color: 0xd0e2f8, side: THREE.DoubleSide })
   );
-  coolFill.position.set(-10, 5, 8);
+  coolFill.position.set(-11, 5.0, 9);
   coolFill.lookAt(0, 0, 0);
   envScene.add(coolFill);
-  const tex = pmrem.fromScene(envScene, 0.04).texture;
+  // Crisp narrow studio rim strips for gleaming specular highlights along metallic rack bevels
+  const specMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  for (const [sx, sy, sz] of [[7.5, 4.5, 13], [-7.5, 5.0, 13]]) {
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 8.5), specMat);
+    strip.position.set(sx, sy, sz);
+    strip.lookAt(0, 1.0, 0);
+    envScene.add(strip);
+  }
+  const tex = pmrem.fromScene(envScene, 0.036).texture;
   pmrem.dispose();
   return tex;
+}
+
+let cachedShadowTex = null;
+function getContactShadowTexture() {
+  if (cachedShadowTex) return cachedShadowTex;
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext("2d");
+  const grad = ctx.createRadialGradient(64, 64, 10, 64, 64, 62);
+  grad.addColorStop(0, "rgba(15, 23, 42, 0.44)");
+  grad.addColorStop(0.58, "rgba(15, 23, 42, 0.22)");
+  grad.addColorStop(1, "rgba(15, 23, 42, 0.0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  cachedShadowTex = new THREE.CanvasTexture(c);
+  return cachedShadowTex;
+}
+
+function makeContactShadow(width, depth) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, depth),
+    new THREE.MeshBasicMaterial({
+      map: getContactShadowTexture(),
+      transparent: true,
+      depthWrite: false,
+    })
+  );
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.005;
+  return m;
 }
 
 function enhanceHardwareMaterials(root, key = "") {
   root.traverse((obj) => {
     if (!obj.isMesh || !obj.material) return;
+    obj.userData.sharedTemplate = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const mat of mats) {
+      if (key === "gb300") {
+        // Rich dark anodized NVIDIA chassis + gleaming saturated rose-copper 18-tray compute stack + vivid green LEDs
+        mat.color = new THREE.Color(0xdee2e8);
+        mat.envMapIntensity = 0.96;
+        if (mat.emissive && (mat.emissive.r + mat.emissive.g + mat.emissive.b) > 0.05) {
+          mat.color = new THREE.Color(0xffffff);
+          mat.emissiveIntensity = 1.80;
+        }
+        mat.needsUpdate = true;
+        continue;
+      }
+      if (key === "ocpPop" || key === "vr3307") {
+        // Authentic Vertiv dark steel cabinet + brushed stainless OCP shelves + vivid green hot-swap handles + crisp white Vertiv badge
+        mat.color = new THREE.Color(key === "ocpPop" ? 0xd4dae2 : 0xc4ccd6);
+        mat.envMapIntensity = 0.88;
+        mat.needsUpdate = true;
+        continue;
+      }
       const c = mat.color;
       const isVeryDark = c && c.r < 0.04 && c.g < 0.04 && c.b < 0.04;
       if (mat.name === "vertiv_black" || isVeryDark) {
-        mat.color = new THREE.Color(0x2d3748);
-        mat.metalness = Math.min(mat.metalness ?? 0.45, 0.52);
-        mat.roughness = 0.36;
-        mat.emissive = new THREE.Color(0x161f2e);
-        mat.emissiveIntensity = 0.28;
+        // Sleek brushed anodized charcoal (zero flat blue wash)
+        mat.color = new THREE.Color(0x1b2028);
+        mat.metalness = 0.66;
+        mat.roughness = 0.30;
+        mat.emissive = new THREE.Color(0x000000);
+        mat.emissiveIntensity = 0.0;
+        mat.envMapIntensity = 1.05;
         mat.needsUpdate = true;
       } else if (key === "tank") {
-        mat.color = new THREE.Color(0x8a99ab);
-        mat.metalness = 0.55;
-        mat.roughness = 0.38;
+        // Brushed stainless steel pressure vessel with distinct metallic reflection bands
+        mat.color = new THREE.Color(0x8c9aa8);
+        mat.metalness = 0.78;
+        mat.roughness = 0.28;
+        mat.envMapIntensity = 1.05;
         mat.needsUpdate = true;
       } else if (mat.metalness !== undefined && mat.metalness > 0.7) {
-        mat.roughness = Math.max(0.22, Math.min(0.45, mat.roughness ?? 0.3));
+        mat.roughness = Math.max(0.20, Math.min(0.42, mat.roughness ?? 0.28));
+        mat.envMapIntensity = 1.05;
         mat.needsUpdate = true;
       }
     }
@@ -88,28 +160,32 @@ function normalizeHardwareTemplate(sceneRoot, rotY = 0, key = "") {
 
 const MODEL_VISUALS = {
   hydronode_1kw: {
-    scale: [0.66, 0.74, 0.78],
+    templateKey: "vr3307",
+    scale: [0.96, 0.70, 0.74],
     accentHex: 0x06b6d4,
     ledHex: 0x22d3ee,
-    pipeRadius: 0.028,
+    pipeRadius: 0.026,
     badge: "1 kW Liquid Module",
   },
   ocp_winterfell_3kw: {
-    scale: [0.84, 0.90, 0.88],
+    templateKey: "ocpPop",
+    scale: [1.12, 0.98, 0.94],
     accentHex: 0xf59e0b,
     ledHex: 0xfbbf24,
-    pipeRadius: 0.036,
+    pipeRadius: 0.032,
     badge: "2.9 kW Hybrid Rack",
   },
   b200_ai_10kw: {
-    scale: [0.96, 0.96, 0.96],
+    templateKey: "gb300",
+    scale: [1.10, 1.0, 0.90],
     accentHex: 0xea580c,
-    ledHex: 0x34d399,
-    pipeRadius: 0.046,
+    ledHex: 0x76b900,
+    pipeRadius: 0.038,
     badge: "10.4 kW Liquid AI Rack",
   },
   edge_micro_250w: {
-    scale: [0.44, 0.42, 0.56],
+    templateKey: "vr3307",
+    scale: [0.76, 0.44, 0.56],
     accentHex: 0x10b981,
     ledHex: 0x4ade80,
     pipeRadius: 0.020,
@@ -486,12 +562,12 @@ export class Basement3DStudio {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.06;
     this.renderer.setSize(w, h, false);
 
-    // Bright studio PBR reflections for stainless steel buffer tank & brushed Vertiv racks
+    // Architectural studio PBR reflections for stainless steel buffer tank, NVIDIA GB300 copper & Vertiv racks
     this.scene.environment = buildStudioEnvironment(this.renderer);
-    this.scene.environmentIntensity = 1.05;
+    this.scene.environmentIntensity = 1.12;
 
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
@@ -592,6 +668,9 @@ export class Basement3DStudio {
 
   async loadHardwareTemplates() {
     const entries = [
+      ["gb300", "/assets/glb/hardware_gb300_rack.glb", 0],
+      ["ocpPop", "/assets/glb/hardware_ocp_populated_rack.glb", 0],
+      ["vr3307", "/assets/glb/hardware_vr3307_rack.glb", 0],
       ["rack", "/assets/glb/hardware_server_rack.glb", 0],
       ["cdu", "/assets/glb/hardware_cdu_exchanger.glb", -Math.PI / 2],
       ["tank", "/assets/glb/hardware_buffer_tank.glb", 0],
@@ -653,6 +732,9 @@ export class Basement3DStudio {
     } else {
       this.cduBox = new THREE.Box3(new THREE.Vector3(1.02, 0, -1.96), new THREE.Vector3(1.82, 1.87, -0.88));
     }
+    const cduShadow = makeContactShadow(1.38, 1.48);
+    cduShadow.position.set(1.42, 0.004, -1.42);
+    this.staticGroup.add(cduShadow);
 
     // 1,000 L Thermal Buffer Tank (right of heat exchanger)
     if (this.templates.tank) {
@@ -665,6 +747,9 @@ export class Basement3DStudio {
     } else {
       this.tankBox = new THREE.Box3(new THREE.Vector3(2.46, 0, -1.95), new THREE.Vector3(3.66, 1.23, -0.89));
     }
+    const tankShadow = makeContactShadow(1.56, 1.44);
+    tankShadow.position.set(3.06, 0.004, -1.42);
+    this.staticGroup.add(tankShadow);
 
     const cduRight = this.cduBox.max.x;
     const cduMidZ = (this.cduBox.min.z + this.cduBox.max.z) * 0.5;
@@ -1131,15 +1216,17 @@ export class Basement3DStudio {
     if (!this.ready || !this.templatesLoaded || !this.dynamicGroup) return;
     this.applyRoomStyle(roomStyle || "basement");
 
-    // Dispose previous dynamic server units & branch manifolds
+    // Dispose previous dynamic server units & branch manifolds (preserving shared SimReady template GPU buffers)
     while (this.dynamicGroup.children.length > 0) {
       const ch = this.dynamicGroup.children.pop();
       ch.traverse((o) => {
         if (o.isMesh) {
-          if (o.geometry) o.geometry.dispose();
+          if (!o.userData.sharedTemplate && o.geometry) o.geometry.dispose();
           if (o.material) {
-            if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
-            else o.material.dispose();
+            if (!o.userData.sharedTemplate || o.userData.clonedMaterial) {
+              if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
+              else o.material.dispose();
+            }
           }
         }
       });
@@ -1152,22 +1239,31 @@ export class Basement3DStudio {
     this.flowSpeed = 0.25 + (loadRatio || 0.7) * 0.95;
 
     const spec = MODEL_VISUALS[modelId] || MODEL_VISUALS.hydronode_1kw;
+    const activeTpl = this.templates[spec.templateKey] || this.templates.gb300 || this.templates.vr3307 || this.templates.rack;
+    const rawSz = activeTpl?.userData?.size || { x: 0.58, y: 2.12, z: 1.26 };
+    const rackW = rawSz.x * spec.scale[0];
+    const rackH = rawSz.y * spec.scale[1];
+    const rackD = rawSz.z * spec.scale[2];
+    const plinthH = modelId === "edge_micro_250w" ? 0.44 : 0.0;
+    const topH = plinthH + rackH;
+
     const total = Math.max(1, Math.min(8, Number(count) || 1));
     const activeN = activeCount === undefined ? total : Math.max(0, Math.min(total, Number(activeCount)));
 
-    // Arrange up to 4 servers in back row, 5..8 neatly in front-left row so zero clipping ever happens!
+    // Arrange up to 4 SimReady racks in back row, 5..8 in front aisle row with crisp service clearance
     const positions = [];
     const backCount = Math.min(total, 4);
-    const stepX = modelId === "b200_ai_10kw" ? 1.24 : 0.96;
-    const startX = -0.15 - (backCount - 1) * stepX;
+    const stepX = Math.max(0.84, rackW + 0.24);
+    const rightAnchorX = Math.min(0.18, (this.cduBox ? this.cduBox.min.x : 1.0) - rackW * 0.5 - 0.34);
+    const startX = rightAnchorX - (backCount - 1) * stepX;
     for (let i = 0; i < backCount; i++) {
-      positions.push([startX + i * stepX, 0.0, -1.48]);
+      positions.push([startX + i * stepX, 0.0, -1.44]);
     }
     const frontCount = total - backCount;
     if (frontCount > 0) {
-      const fStartX = -0.35 - (frontCount - 1) * stepX;
+      const fStartX = rightAnchorX - 0.12 - (frontCount - 1) * stepX;
       for (let i = 0; i < frontCount; i++) {
-        positions.push([fStartX + i * stepX, 0.0, 0.35]);
+        positions.push([fStartX + i * stepX, 0.0, 0.48]);
       }
     }
 
@@ -1190,12 +1286,11 @@ export class Basement3DStudio {
     this.pipeHotMats.push(dielHotMat);
     this.pipeColdMats.push(dielColdMat);
 
-    const rackSz = this.templates.rack?.userData?.size || { x: 1.08, y: 2.29, z: 0.60 };
-    const topH = modelId === "edge_micro_250w" ? 1.20 : rackSz.y * spec.scale[1];
-    const headerHotY = Math.max(2.44, topH + 0.28);
-    const headerColdY = headerHotY - 0.16;
-    const headerZ = -1.96;
-    const portOffX = modelId === "edge_micro_250w" ? 0.12 : Math.min(0.24, rackSz.x * spec.scale[0] * 0.28);
+    const headerHotY = Math.max(2.46, topH + 0.26);
+    const headerColdY = headerHotY - 0.15;
+    const headerZ = -2.14;
+    const portOffX = Math.min(0.18, rackW * 0.28);
+    const portOffZ = -Math.min(0.32, rackD * 0.24);
 
     const cduLeft = this.cduBox ? this.cduBox.min.x : 1.02;
     const cduTop = this.cduBox ? this.cduBox.max.y : 1.87;
@@ -1252,117 +1347,89 @@ export class Basement3DStudio {
       const unitGrp = new THREE.Group();
       unitGrp.position.set(px, py, pz);
 
-      if (modelId === "edge_micro_250w") {
-        // Sleek compact dark-slate pedestal + sealed dielectric micro-cluster enclosure
-        const stand = new THREE.Mesh(
-          new THREE.BoxGeometry(0.54, 0.62, 0.48),
-          new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.55, metalness: 0.2 })
+      if (plinthH > 0) {
+        const plinth = new THREE.Mesh(
+          new THREE.BoxGeometry(rackW * 1.04, plinthH, rackD * 1.02),
+          new THREE.MeshStandardMaterial({ color: 0x262c36, roughness: 0.44, metalness: 0.52 })
         );
-        stand.position.y = 0.31;
-        unitGrp.add(stand);
+        plinth.position.y = plinthH * 0.5;
+        unitGrp.add(plinth);
+      }
 
-        const chassis = new THREE.Mesh(
-          new THREE.BoxGeometry(0.46, 0.58, 0.42),
-          new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.34, metalness: 0.65 })
-        );
-        chassis.position.y = 0.91;
-        unitGrp.add(chassis);
-      } else if (this.templates.rack) {
-        const rack = this.templates.rack.clone(true);
+      let hasBuiltInLed = false;
+      if (activeTpl) {
+        const rack = activeTpl.clone(true);
+        rack.position.y = plinthH;
         rack.scale.set(...spec.scale);
-        unitGrp.add(rack);
-
-        // Model-specific hardware accents (anodized front sleds / AI manifold bar)
-        if (modelId === "b200_ai_10kw") {
-          const bezel = new THREE.Mesh(
-            new THREE.BoxGeometry(0.92, 0.10, 0.04),
-            new THREE.MeshStandardMaterial({ color: 0x0f172a, emissive: 0x10b981, emissiveIntensity: isRunning ? 0.65 : 0.08, roughness: 0.25 })
-          );
-          bezel.position.set(0, topH - 0.18, 0.32);
-          unitGrp.add(bezel);
+        if (spec.templateKey === "gb300") {
+          rack.traverse((o) => {
+            if (!o.isMesh || !o.material) return;
+            const m = o.material;
+            if (!Array.isArray(m) && m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.05) {
+              const clonedLed = m.clone();
+              clonedLed.emissiveIntensity = isRunning ? 1.65 : 0.08;
+              if (!isRunning) clonedLed.emissive.setHex(0x334155);
+              o.material = clonedLed;
+              o.userData.clonedMaterial = true;
+              this.ledMats.push({ mat: clonedLed, running: isRunning, phase: idx * 0.7 });
+              hasBuiltInLed = true;
+            }
+          });
         }
+        unitGrp.add(rack);
       } else {
         const box = new THREE.Mesh(
-          new THREE.BoxGeometry(0.75, 1.85, 0.65),
-          new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 })
+          new THREE.BoxGeometry(0.60, 2.0, 1.05),
+          new THREE.MeshStandardMaterial({ color: 0x20252d, roughness: 0.34, metalness: 0.65 })
         );
-        box.position.y = 0.925;
+        box.position.y = 1.0;
         unitGrp.add(box);
       }
 
-      // 8 high-fidelity brushed-metallic server blade sleds + internal dielectric manifold rails + live telemetry LEDs
-      const ledMat = new THREE.MeshStandardMaterial({
-        color: isRunning ? spec.ledHex : 0x64748b,
-        emissive: isRunning ? spec.ledHex : 0x334155,
-        emissiveIntensity: isRunning ? 1.35 : 0.12,
-        roughness: 0.18,
-      });
-      this.ledMats.push({ mat: ledMat, running: isRunning, phase: idx * 0.7 });
-      const topY = modelId === "edge_micro_250w" ? 1.12 : topH * 0.88;
-      const baseY = modelId === "edge_micro_250w" ? 0.68 : topH * 0.14;
-      const frontZ = modelId === "edge_micro_250w" ? 0.22 : rackSz.z * spec.scale[2] * 0.5 + 0.025;
-      const ledW = modelId === "edge_micro_250w" ? 0.34 : Math.min(0.54, rackSz.x * spec.scale[0] * 0.66);
-      const bladeMat = new THREE.MeshStandardMaterial({
-        color: 0x1e293b,
-        roughness: 0.32,
-        metalness: 0.70,
-      });
-      const faceplateMat = new THREE.MeshStandardMaterial({
-        color: 0x334155,
-        roughness: 0.26,
-        metalness: 0.78,
-      });
-      const bladeW = rackSz.x * spec.scale[0] * 0.78;
-      const bladeD = rackSz.z * spec.scale[2] * 0.76;
-      const nBlades = modelId === "edge_micro_250w" ? 4 : 8;
-      for (let b = 0; b < nBlades; b++) {
-        const ly = baseY + ((topY - baseY) * b) / (nBlades - 1);
-        if (modelId !== "edge_micro_250w") {
-          const blade = new THREE.Mesh(
-            new THREE.BoxGeometry(bladeW, 0.13 * spec.scale[1], bladeD),
-            b % 2 === 0 ? bladeMat : faceplateMat
-          );
-          blade.position.set(0, ly, 0);
-          unitGrp.add(blade);
-        }
-        const led = new THREE.Mesh(new THREE.BoxGeometry(ledW, 0.022, 0.020), ledMat);
-        led.position.set(0, ly, frontZ);
-        unitGrp.add(led);
+      // Slim architectural top-bezel status LED strip for Vertiv cabinets (zero obstruction of perforated door or Vertiv badge)
+      if (!hasBuiltInLed) {
+        const ledMat = new THREE.MeshStandardMaterial({
+          color: isRunning ? spec.ledHex : 0x64748b,
+          emissive: isRunning ? spec.ledHex : 0x334155,
+          emissiveIntensity: isRunning ? 1.25 : 0.10,
+          roughness: 0.18,
+        });
+        this.ledMats.push({ mat: ledMat, running: isRunning, phase: idx * 0.7 });
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(rackW * 0.68, 0.018, 0.016), ledMat);
+        strip.position.set(0, topH - 0.028, rackD * 0.5 + 0.008);
+        unitGrp.add(strip);
       }
 
-      // Internal vertical dielectric supply (gold) & return (teal) quick-disconnect manifolds connecting flush up to top bulkhead
-      if (modelId !== "edge_micro_250w") {
-        const railH = topH - baseY;
-        const railMidY = baseY + railH * 0.5;
-        const hotRail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, railH, 8), dielHotMat);
-        hotRail.position.set(-portOffX, railMidY, frontZ - 0.04);
-        unitGrp.add(hotRail);
-        const coldRail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, railH, 8), dielColdMat);
-        coldRail.position.set(portOffX, railMidY, frontZ - 0.04);
-        unitGrp.add(coldRail);
+      // Machined brass quick-disconnect bulkhead couplings on top-rear roof of each SimReady rack
+      for (const bx of [-portOffX, portOffX]) {
+        const coupling = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.042, 0.045, 14), brassMat);
+        coupling.position.set(bx, topH + 0.018, portOffZ);
+        unitGrp.add(coupling);
       }
 
-      // Floor footprint pad showing exact unit allocation
+      // Grounded studio contact shadow + subtle architectural floor bay outline under each unit
+      unitGrp.add(makeContactShadow(rackW + 0.44, rackD + 0.44));
       const pad = new THREE.Mesh(
-        new THREE.BoxGeometry(stepX * 0.84, 0.016, 0.86),
+        new THREE.BoxGeometry(rackW + 0.12, 0.008, rackD + 0.12),
         new THREE.MeshStandardMaterial({
           color: isRunning ? spec.accentHex : 0x94a3b8,
           transparent: true,
-          opacity: isRunning ? 0.24 : 0.10,
-          roughness: 0.8,
+          opacity: isRunning ? 0.14 : 0.06,
+          roughness: 0.85,
         })
       );
-      pad.position.y = 0.008;
+      pad.position.y = 0.004;
       unitGrp.add(pad);
 
       this.dynamicGroup.add(unitGrp);
 
-      // Clean 90-degree orthogonal branches from rack top ports straight up & back into overhead dielectric headers!
+      // Clean 90-degree orthogonal branches from top-rear rack bulkhead couplings straight up & back into overhead dielectric headers
+      const portZ = pz + portOffZ;
       const hotBranchCurve = buildOrthogonalPipe(
         this.dynamicGroup,
         [
-          [px - portOffX, topH - 0.02, pz],
-          [px - portOffX, headerHotY, pz],
+          [px - portOffX, topH + 0.01, portZ],
+          [px - portOffX, headerHotY, portZ],
           [px - portOffX, headerHotY, headerZ],
         ],
         spec.pipeRadius,
@@ -1374,8 +1441,8 @@ export class Basement3DStudio {
         this.dynamicGroup,
         [
           [px + portOffX, headerColdY, headerZ],
-          [px + portOffX, headerColdY, pz],
-          [px + portOffX, topH - 0.02, pz],
+          [px + portOffX, headerColdY, portZ],
+          [px + portOffX, topH + 0.01, portZ],
         ],
         spec.pipeRadius,
         dielColdMat,
