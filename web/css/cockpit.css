@@ -8367,3 +8367,53 @@ body:not(.app-mode-atlas) .brand-cluster {
     border-radius: 2px;
   }
 }
+
+/* 6-Tier Enterprise Cloud Demand Chips (Vaibhav demand tiers) */
+.cc-tier-extra {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+.cc-tier-chip {
+  appearance: none;
+  border: 1px solid #d6d3cd;
+  background: #f7f6f2;
+  color: #3f3f3c;
+  border-radius: 7px;
+  padding: 5px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.cc-tier-chip:hover {
+  background: #ffffff;
+  border-color: #141413;
+  color: #141413;
+}
+.cc-tier-chip.is-active {
+  background: #141413;
+  border-color: #141413;
+  color: #ffffff;
+}
+.cc-job-tier.tier-reserved,
+.cc-job-tier.tier-block,
+.cc-job-tier.tier-dedicated,
+.cc-job-tier.tier-serverless {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+@media (max-width: 540px) {
+  .cc-tier-extra {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .cc-tier-chip {
+    padding: 7px 6px;
+    font-size: 11.5px;
+  }
+}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CalorGrid | Swiss Thermal-Compute Network &amp; HeatLedger</title>
   <link rel="icon" type="image/svg+xml" href="/img/calorgrid-logo.svg">
-  <link rel="stylesheet" href="/css/cockpit.css?v=20261121ae">
+  <link rel="stylesheet" href="/css/cockpit.css?v=20261121ag">
   <script type="importmap">
   {
     "imports": {
@@ -800,6 +800,12 @@
                   <button type="button" class="seg-btn is-active" data-cc-tier="on_demand" data-testid="cc-tier-ondemand">On-Demand (instant)</button>
                   <button type="button" class="seg-btn" data-cc-tier="spot" data-testid="cc-tier-spot">Spot (50% off)</button>
                 </div>
+                <div class="cc-tier-extra" role="group" aria-label="Enterprise demand tiers">
+                  <button type="button" class="cc-tier-chip" data-cc-tier="reserved" data-testid="cc-tier-reserved">Reserved (-40%)</button>
+                  <button type="button" class="cc-tier-chip" data-cc-tier="block" data-testid="cc-tier-block">Block (24h)</button>
+                  <button type="button" class="cc-tier-chip" data-cc-tier="dedicated" data-testid="cc-tier-dedicated">Dedicated</button>
+                  <button type="button" class="cc-tier-chip" data-cc-tier="serverless" data-testid="cc-tier-serverless">Serverless</button>
+                </div>
                 <div class="seg-toggle cc-seg-full" data-testid="compute-unit-mode-toggle" role="group" aria-label="Unit mode">
                   <button type="button" class="seg-btn is-active" data-cc-unit-mode="gpu" data-testid="cc-mode-gpu">Individual GPU</button>
                   <button type="button" class="seg-btn" data-cc-unit-mode="server" data-testid="cc-mode-server">Full server</button>
@@ -959,6 +965,6 @@
     Source: Federal Office of Topography swisstopo | (c) OpenStreetMap contributors, ODbL | Open reference IFC 4.3 house blueprint (buildingSMART Simple-Scene), not a surveyed private Basel residence | SimReady 3D CAD stand-ins: NVIDIA, Vertiv and ForgeCAD (CC BY 4.0)
   </footer>
 
-  <script type="module" src="/js/main.js?v=20261121ae"></script>
+  <script type="module" src="/js/main.js?v=20261121af"></script>
 </body>
 </html>

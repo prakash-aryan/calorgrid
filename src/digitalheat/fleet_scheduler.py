@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-from digitalheat.cloud_pricing import CloudPricingService
+from digitalheat.cloud_pricing import (
+    DEMAND_TIER_SPECS,
+    CloudPricingService,
+    ComputeTier,
+)
 from digitalheat.config import DATA_DIR as CONFIG_DATA_DIR
 from digitalheat.config import HEAT_PUMP_REF_COP
 from digitalheat.data_loader import DatasetIntegrityError, load_hardware_catalog
@@ -130,7 +134,7 @@ class SiteThermalState:
 class ScheduledJob:
     job_id: str
     job_name: str
-    tier: Literal["on_demand", "spot", "backfill"]
+    tier: Literal["on_demand", "spot", "reserved", "block", "dedicated", "serverless", "backfill"]
     unit_mode: Literal["gpu", "server"]
     gpu_or_sku: str
     quantity: int
@@ -159,7 +163,7 @@ class ComputeQuote:
     created_at_utc: str
     expires_at_utc: str
     state_version: int
-    tier: Literal["on_demand", "spot"]
+    tier: ComputeTier
     unit_mode: Literal["gpu", "server"]
     gpu_or_sku: str
     quantity: int
@@ -191,6 +195,12 @@ class ComputeQuote:
     consumed: bool = False
     booked_job_id: str | None = None
     booked_idempotency_key: str | None = None
+    billed_quantity: int = 1
+    effective_billed_hours: float = 0.0
+    tier_label: str = "On-Demand"
+    whole_server: bool = False
+    busy_share: float = 1.0
+    lead_h: int = 0
 
 
 def _utc_now_iso() -> str:
@@ -869,13 +879,19 @@ class FleetJobScheduler:
     def _find_candidate_placement_locked(
         self,
         *,
-        tier: Literal["on_demand", "spot"],
+        tier: ComputeTier,
         unit_mode: Literal["gpu", "server"],
         gpu_or_sku: str,
         quantity: int,
         duration_hours: float,
         preferred_site_id: str | None,
     ) -> dict[str, Any] | None:
+        tier_spec = DEMAND_TIER_SPECS[tier]
+        is_firm = bool(tier_spec["firm"])
+        whole_server = bool(tier_spec["whole_server"])
+        busy_share = float(tier_spec["busy_share"])
+        lead_h = int(tier_spec["lead_h"])
+
         zurich_month = self._sim_dt_utc.astimezone(ZURICH_TZ).month
         is_summer_may_sep = 5 <= zurich_month <= 9
         if preferred_site_id is not None:
@@ -885,22 +901,19 @@ class FleetJobScheduler:
 
         if unit_mode == "gpu":
             gpu_spec = self._gpu_catalog[gpu_or_sku]
-            kw_e = round(float(gpu_spec["typical_kw_per_gpu"]) * quantity, 4)
+            per_unit_kw_e = float(gpu_spec["typical_kw_per_gpu"]) * busy_share
             eta = float(gpu_spec["eta"])
             supply_c = float(gpu_spec["supply_temp_c"])
         else:
             srv_spec = self._server_catalog[gpu_or_sku]
-            kw_e = round(float(srv_spec["typical_kw"]) * quantity, 4)
+            per_unit_kw_e = float(srv_spec["typical_kw"]) * busy_share
             eta = float(srv_spec["eta"])
             supply_c = float(srv_spec["supply_temp_c"])
 
-        kw_th = round(kw_e * eta, 4)
-        total_heat_kwh = round(kw_th * duration_hours, 4)
-
-        max_wait_h = 0 if tier == "on_demand" else 24
+        wait_candidates = [lead_h] if is_firm else list(range(25))
         best: dict[str, Any] | None = None
 
-        for wait_h in range(max_wait_h + 1):
+        for wait_h in wait_candidates:
             for sid in candidate_site_ids:
                 site = self._sites[sid]
                 spec = CANONICAL_SITES[sid]
@@ -911,38 +924,14 @@ class FleetJobScheduler:
                 _, _, proc_kw_now, sink_active_now = _site_ambient_and_demand(
                     spec, eval_dt, site.target_temp_c
                 )
-                if is_summer_may_sep and tier == "on_demand" and preferred_site_id is None:
+                if is_summer_may_sep and is_firm and preferred_site_id is None:
                     is_eligible_summer_sink = (spec.is_summer_sink and sink_active_now) or (
                         spec.is_year_round_sink and proc_kw_now > 1.0
                     )
                     if not is_eligible_summer_sink:
                         continue
 
-                # Thermal admission check (conserved tank-SOC trajectory)
-                if tier == "on_demand":
-                    instant_room = self._instant_headroom_kw_locked(sid)
-                    horizon_room = self._forecast_headroom_kwh_locked(sid, 0, duration_hours)
-                    if not site.dump_allowed:
-                        if (
-                            kw_th > instant_room + 1e-6
-                            or total_heat_kwh > horizon_room + 1e-6
-                            or not self._can_absorb_trajectory_locked(
-                                sid, 0, duration_hours, kw_th
-                            )
-                        ):
-                            continue
-                else:
-                    horizon_room = self._forecast_headroom_kwh_locked(sid, wait_h, duration_hours)
-                    margin = ADMISSION_MARGIN if wait_h == 0 else 1.15
-                    if not site.dump_allowed and (
-                        total_heat_kwh * margin > horizon_room + 1e-6
-                        or not self._can_absorb_trajectory_locked(
-                            sid, wait_h, duration_hours, kw_th * margin
-                        )
-                    ):
-                        continue
-
-                # Slot matching across site's servers
+                # Slot matching across site's servers (whole_server locks every GPU on the physical host)
                 chosen_server_ids: list[str] = []
                 chosen_slots: list[tuple[str, int]] = []
                 remaining_qty = quantity
@@ -957,11 +946,20 @@ class FleetJobScheduler:
                     if not free:
                         continue
                     if unit_mode == "gpu":
-                        take = free[:remaining_qty]
-                        chosen_server_ids.append(srv_id)
-                        for s_idx in take:
-                            chosen_slots.append((srv_id, s_idx))
-                        remaining_qty -= len(take)
+                        if whole_server:
+                            # Dedicated host requires a completely empty physical server
+                            if len(free) < srv.gpu_count:
+                                continue
+                            chosen_server_ids.append(srv_id)
+                            for s_idx in free:
+                                chosen_slots.append((srv_id, s_idx))
+                            remaining_qty -= len(free)
+                        else:
+                            take = free[:remaining_qty]
+                            chosen_server_ids.append(srv_id)
+                            for s_idx in take:
+                                chosen_slots.append((srv_id, s_idx))
+                            remaining_qty -= len(take)
                     else:
                         chosen_server_ids.append(srv_id)
                         for s_idx in free:
@@ -970,6 +968,37 @@ class FleetJobScheduler:
 
                 if remaining_qty > 0:
                     continue
+
+                billed_units = (
+                    len(chosen_slots) if (unit_mode == "gpu" and whole_server) else quantity
+                )
+                kw_e = round(per_unit_kw_e * billed_units, 4)
+                kw_th = round(kw_e * eta, 4)
+                total_heat_kwh = round(kw_th * duration_hours, 4)
+
+                # Thermal admission check (conserved tank-SOC trajectory)
+                if is_firm and wait_h == 0:
+                    instant_room = self._instant_headroom_kw_locked(sid)
+                    horizon_room = self._forecast_headroom_kwh_locked(sid, 0, duration_hours)
+                    if not site.dump_allowed:
+                        if (
+                            kw_th > instant_room + 1e-6
+                            or total_heat_kwh > horizon_room + 1e-6
+                            or not self._can_absorb_trajectory_locked(
+                                sid, 0, duration_hours, kw_th
+                            )
+                        ):
+                            continue
+                else:
+                    horizon_room = self._forecast_headroom_kwh_locked(sid, wait_h, duration_hours)
+                    margin = 1.0 if is_firm else (ADMISSION_MARGIN if wait_h == 0 else 1.15)
+                    if not site.dump_allowed and (
+                        total_heat_kwh * margin > horizon_room + 1e-6
+                        or not self._can_absorb_trajectory_locked(
+                            sid, wait_h, duration_hours, kw_th * margin
+                        )
+                    ):
+                        continue
 
                 # Score placement (Vaibhav saving_kwh + Vilas headroom + sink preference)
                 displaced_kwh = min(total_heat_kwh, site.heat_demand_kw * duration_hours)
@@ -988,7 +1017,7 @@ class FleetJobScheduler:
                 )
                 cold_bonus = 0.15 if site.indoor_temp_c < site.target_temp_c else 0.0
 
-                if tier == "on_demand":
+                if is_firm:
                     score = (
                         1.0 * (1.0 if spec.is_year_round_sink else 0.3)
                         + 0.4 * sink_bonus
@@ -1022,6 +1051,7 @@ class FleetJobScheduler:
                         "kw_th": kw_th,
                         "total_heat_kwh": total_heat_kwh,
                         "sink_active_now": sink_active_now,
+                        "billed_units": billed_units,
                     }
             if best is not None and tier == "spot" and wait_h == 0:
                 break
@@ -1031,7 +1061,7 @@ class FleetJobScheduler:
         self,
         unit_mode: Literal["gpu", "server"],
         gpu_or_sku: str,
-        tier: Literal["on_demand", "spot"],
+        tier: ComputeTier,
     ) -> dict[str, Any]:
         if self._pricing_service is not None:
             return self._pricing_service.get_unit_rates(unit_mode, gpu_or_sku, tier)
@@ -1051,7 +1081,8 @@ class FleetJobScheduler:
             "edge_micro_250w": 0.18,
         }
         base_chf = gpu_rates[gpu_or_sku] if unit_mode == "gpu" else srv_rates[gpu_or_sku]
-        rate_chf = base_chf if tier == "on_demand" else round(base_chf * SPOT_PRICE_RATIO, 4)
+        tier_spec = DEMAND_TIER_SPECS[tier]
+        rate_chf = round(base_chf * float(tier_spec["price_multiplier"]), 4)
         rate_usd = round(rate_chf / self._fx_chf_per_usd, 4)
         return {
             "unit_rate_chf_per_hr": rate_chf,
@@ -1060,12 +1091,13 @@ class FleetJobScheduler:
             "cloud_savings_pct": None,
             "cloud_benchmark_usd_per_hr": None,
             "cloud_benchmark_provider": None,
+            "tier_spec": dict(tier_spec),
         }
 
     def create_quote(
         self,
         *,
-        tier: Literal["on_demand", "spot"] = "on_demand",
+        tier: ComputeTier = "on_demand",
         unit_mode: Literal["gpu", "server"] = "gpu",
         gpu_or_sku: str,
         quantity: int = 1,
@@ -1074,7 +1106,9 @@ class FleetJobScheduler:
         workload_type: str = "llm_inference",
         job_name: str | None = None,
     ) -> dict[str, Any]:
-        """Quote GPU or server capacity with seasonal/thermal headroom enforcement."""
+        """Quote GPU or server capacity across all 6 cloud tiers with thermal headroom checks."""
+        if tier not in DEMAND_TIER_SPECS:
+            raise ValidationInputError(f"Unknown compute tier '{tier}'")
         if unit_mode == "gpu" and gpu_or_sku not in self._gpu_catalog:
             raise ValidationInputError(f"Unknown gpu_or_sku '{gpu_or_sku}' for unit_mode='gpu'")
         if unit_mode == "server" and gpu_or_sku not in self._server_catalog:
@@ -1085,6 +1119,12 @@ class FleetJobScheduler:
             raise ValidationInputError("quantity must be in [1, 64]")
         if not math.isfinite(duration_hours) or duration_hours <= 0.0 or duration_hours > 168.0:
             raise ValidationInputError("duration_hours must be finite in (0, 168]")
+
+        tier_spec = DEMAND_TIER_SPECS[tier]
+        is_firm = bool(tier_spec["firm"])
+        busy_share = float(tier_spec["busy_share"])
+        whole_server = bool(tier_spec["whole_server"])
+        lead_h = int(tier_spec["lead_h"])
 
         resolved_pref: str | None = None
         if preferred_site_id is not None:
@@ -1104,7 +1144,7 @@ class FleetJobScheduler:
             )
 
             if placement is None:
-                if tier == "on_demand":
+                if is_firm:
                     spot_alt = self._find_candidate_placement_locked(
                         tier="spot",
                         unit_mode=unit_mode,
@@ -1122,7 +1162,7 @@ class FleetJobScheduler:
                     log_event(
                         "customer_booking",
                         "compute_quote_rejected_thermal",
-                        f"Rejected On-Demand {quantity}x {gpu_or_sku}: thermal headroom saturated",
+                        f"Rejected {tier_spec['label']} {quantity}x {gpu_or_sku}: thermal headroom saturated",
                         level="warning",
                         source_module="fleet_scheduler",
                         site_id=resolved_pref,
@@ -1130,7 +1170,7 @@ class FleetJobScheduler:
                         store=self._log_store,
                     )
                     raise ThermalCapacityConflictError(
-                        f"thermal_headroom_saturated: zero-dump On-Demand cannot absorb "
+                        f"thermal_headroom_saturated: zero-dump {tier_spec['label']} cannot absorb "
                         f"{quantity}x {gpu_or_sku} immediately. {hint}"
                     )
                 raise BookingConflictError(
@@ -1140,16 +1180,30 @@ class FleetJobScheduler:
             rates = self._lookup_rates_locked(unit_mode, gpu_or_sku, tier)
             unit_chf = float(rates["unit_rate_chf_per_hr"])
             unit_usd = float(rates["unit_rate_usd_per_hr"])
-            total_cost_chf = round(unit_chf * quantity * duration_hours, 2)
-            total_cost_usd = round(unit_usd * quantity * duration_hours, 2)
+            billed_qty = int(placement["billed_units"])
+            billed_hours = round(float(duration_hours) * busy_share, 2)
+            total_cost_chf = round(unit_chf * billed_qty * billed_hours, 2)
+            total_cost_usd = round(unit_usd * billed_qty * billed_hours, 2)
             bench_usd = rates.get("cloud_benchmark_usd_per_hr")
             bench_total_usd = (
-                round(float(bench_usd) * quantity * duration_hours, 2)
+                round(float(bench_usd) * billed_qty * float(duration_hours), 2)
                 if bench_usd is not None
                 else None
             )
 
             warnings: list[str] = []
+            if whole_server and unit_mode == "gpu" and billed_qty > quantity:
+                warnings.append(
+                    f"Dedicated host isolates full physical machine ({billed_qty} GPUs held & billed)."
+                )
+            if tier == "serverless":
+                warnings.append(
+                    f"Serverless bills active duty only ({billed_hours:.1f}h active of {duration_hours:.1f}h window; CHF 0 idle)."
+                )
+            if tier == "block":
+                warnings.append(
+                    f"Capacity block reserved {lead_h}h ahead for guaranteed scheduled thermal capacity."
+                )
             preheat_only = False
             if placement["server_supply_c"] < placement["target_supply_c"]:
                 preheat_only = True
@@ -1228,6 +1282,12 @@ class FleetJobScheduler:
                 preheat_only=preheat_only,
                 warnings=warnings,
                 quoted_sim_hour=self._sim_hours_elapsed,
+                billed_quantity=billed_qty,
+                effective_billed_hours=billed_hours,
+                tier_label=str(tier_spec["label"]),
+                whole_server=whole_server,
+                busy_share=busy_share,
+                lead_h=lead_h,
             )
 
             # Evict expired or oldest quotes if over cap
@@ -1303,6 +1363,12 @@ class FleetJobScheduler:
             "sink_type": q.sink_type,
             "preheat_only": q.preheat_only,
             "warnings": list(q.warnings),
+            "billed_quantity": q.billed_quantity,
+            "effective_billed_hours": q.effective_billed_hours or q.duration_hours,
+            "tier_label": q.tier_label,
+            "whole_server": q.whole_server,
+            "busy_share": q.busy_share,
+            "lead_h": q.lead_h,
         }
 
     def _job_abs_hours_locked(self, job: ScheduledJob) -> range:
@@ -1489,7 +1555,11 @@ class FleetJobScheduler:
                         )
 
             if not site.dump_allowed:
-                if quote.tier == "on_demand":
+                is_firm_immediate = (
+                    bool(DEMAND_TIER_SPECS.get(quote.tier, {}).get("firm", False))
+                    and quote.start_offset_h == 0
+                )
+                if is_firm_immediate:
                     if (
                         quote.kw_th > self._instant_headroom_kw_locked(sid) + 1e-6
                         or quote.total_heat_kwh

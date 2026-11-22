@@ -41,6 +41,157 @@ DRY_COOLER_FAN_KWH_PER_KWH = 0.03
 
 ProviderId = Literal["aws", "gcp", "azure", "coreweave", "lambda"]
 PriceSource = Literal["fresh_live", "cached_live", "pinned_fallback", "unavailable"]
+ComputeTier = Literal[
+    "on_demand", "spot", "reserved", "block", "dedicated", "serverless"
+]
+
+# Unified 6-tier cloud compute taxonomy (reconciled with Vaibhav's fleet.py TIERS & TierPricing)
+DEMAND_TIER_SPECS: dict[str, dict[str, Any]] = {
+    "on_demand": {
+        "key": "on_demand",
+        "label": "On-Demand",
+        "short_label": "On-Demand",
+        "price_multiplier": 1.00,
+        "firm": True,
+        "whole_server": False,
+        "busy_share": 1.0,
+        "lead_h": 0,
+        "evicts_spot": True,
+        "summary": "Start and stop anytime, 0 min wait, routed to year-round thermal sinks.",
+    },
+    "spot": {
+        "key": "spot",
+        "label": "Spot (-50%)",
+        "short_label": "Spot",
+        "price_multiplier": SPOT_PRICE_RATIO,
+        "firm": False,
+        "whole_server": False,
+        "busy_share": 1.0,
+        "lead_h": 0,
+        "evicts_spot": False,
+        "summary": "Preemptible capacity routed to heat-demanding Swiss buildings with zero overflow.",
+    },
+    "reserved": {
+        "key": "reserved",
+        "label": "Reserved (-40%)",
+        "short_label": "Reserved",
+        "price_multiplier": 0.60,
+        "firm": True,
+        "whole_server": False,
+        "busy_share": 1.0,
+        "lead_h": 0,
+        "evicts_spot": True,
+        "summary": "1-3 year commitment at 40% below On-Demand with highest firm scheduling priority.",
+    },
+    "block": {
+        "key": "block",
+        "label": "Capacity Block (-10%)",
+        "short_label": "Block (24h)",
+        "price_multiplier": 0.90,
+        "firm": True,
+        "whole_server": False,
+        "busy_share": 1.0,
+        "lead_h": 24,
+        "evicts_spot": False,
+        "summary": "Scheduled GPU cluster window booked 24h in advance for guaranteed thermal capacity.",
+    },
+    "dedicated": {
+        "key": "dedicated",
+        "label": "Dedicated Host (+10%)",
+        "short_label": "Dedicated",
+        "price_multiplier": 1.10,
+        "firm": True,
+        "whole_server": True,
+        "busy_share": 1.0,
+        "lead_h": 0,
+        "evicts_spot": True,
+        "summary": "Whole physical liquid-cooled server exclusively isolated for one tenant.",
+    },
+    "serverless": {
+        "key": "serverless",
+        "label": "Serverless (per-req)",
+        "short_label": "Serverless",
+        "price_multiplier": 1.50,
+        "firm": True,
+        "whole_server": False,
+        "busy_share": 0.50,
+        "lead_h": 0,
+        "evicts_spot": True,
+        "summary": "Pay-per-request inference (1.5x active rate, 50% duty factor, CHF 0 while idle).",
+    },
+}
+
+_VAIBHAV_DATA_DIR = Path(__file__).resolve().parents[2] / "engines" / "vaibhav_scheduler" / "data"
+
+
+def load_specialist_cloud_benchmarks() -> dict[str, Any]:
+    """Load Vaibhav's 2026 verified specialist GPU cloud & hardware benchmark JSON."""
+    path = _VAIBHAV_DATA_DIR / "fleet_machine.json"
+    if path.is_file():
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            return {
+                "retrieved": raw.get("retrieved", "2026-11-21"),
+                "hardware": raw.get("hardware", {}),
+                "gpu_hour": raw.get("gpu_hour", []),
+                "exchange": raw.get("exchange", {}),
+                "speed": raw.get("speed", {}),
+                "source_file": "engines/vaibhav_scheduler/data/fleet_machine.json",
+            }
+        except (OSError, json.JSONDecodeError):
+            pass
+    return {
+        "retrieved": "2026-11-21",
+        "hardware": {"system": "8x NVIDIA H100 (HGX H100)", "usd": 285000, "low_usd": 250000, "high_usd": 320000},
+        "gpu_hour": [
+            {
+                "id": "h100-specialist",
+                "gpu": "NVIDIA H100",
+                "market": "specialist GPU clouds",
+                "provider": "median of RunPod, Lambda, CoreWeave, Together AI",
+                "on_demand_usd": 4.49,
+                "spot_usd": 2.4638,
+            },
+            {
+                "id": "h100-aws",
+                "gpu": "NVIDIA H100",
+                "market": "large cloud",
+                "provider": "AWS p5.48xlarge (US East)",
+                "on_demand_usd": 6.88,
+                "spot_usd": 3.9123,
+            },
+        ],
+        "source_file": "inline_fallback",
+    }
+
+
+def load_swiss_gas_history() -> dict[str, Any]:
+    """Load Vaibhav's 2021-2025 real Basel gas meter (MESSPUNKT_004) variable tariff data."""
+    path = _VAIBHAV_DATA_DIR / "gas_price.json"
+    if path.is_file():
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            raw["boiler_efficiency"] = 0.90
+            raw["effective_2025_chf_per_kwh_th"] = round(
+                float(raw["years"]["2025"]["chf_per_kwh"]) / 0.90, 4
+            )
+            return raw
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+            pass
+    return {
+        "meter": "MESSPUNKT_004",
+        "unit": "CHF per kWh of gas",
+        "boiler_efficiency": 0.90,
+        "effective_2025_chf_per_kwh_th": 0.1506,
+        "years": {
+            "2021": {"chf_per_kwh": 0.0848, "fixed_chf_per_month": 39.29, "kwh": 66317, "months": 12},
+            "2022": {"chf_per_kwh": 0.1144, "fixed_chf_per_month": 39.29, "kwh": 45268, "months": 12},
+            "2023": {"chf_per_kwh": 0.1587, "fixed_chf_per_month": 39.29, "kwh": 26191, "months": 12},
+            "2024": {"chf_per_kwh": 0.1501, "fixed_chf_per_month": 39.29, "kwh": 44464, "months": 12},
+            "2025": {"chf_per_kwh": 0.1355, "fixed_chf_per_month": 39.29, "kwh": 31275, "months": 9},
+        },
+        "note": "Fixed CHF 39.29/mo capacity charge is not avoided while the gas connection remains.",
+    }
 
 _PINNED_FALLBACK_AS_OF = "2026-11-20T00:00:00Z"
 
@@ -1139,11 +1290,14 @@ class CloudPricingService:
             }
 
             return {
-                "schema_version": "1.0.0",
+                "schema_version": "1.1.0",
                 "fx_chf_per_usd": fx,
                 "fx_as_of": self._fx_as_of,
                 "fx_source": self._fx_source,
                 "spot_price_ratio": SPOT_PRICE_RATIO,
+                "demand_tiers": copy.deepcopy(DEMAND_TIER_SPECS),
+                "specialist_cloud_benchmarks": load_specialist_cloud_benchmarks(),
+                "swiss_gas_history": load_swiss_gas_history(),
                 "cache_status": cache_status,
                 "gpu_comparisons": gpu_comparisons,
                 "server_sku_comparisons": server_comparisons,
@@ -1155,9 +1309,14 @@ class CloudPricingService:
         self,
         unit_mode: Literal["gpu", "server"],
         gpu_or_sku: str,
-        tier: Literal["on_demand", "spot"],
+        tier: ComputeTier,
     ) -> dict[str, Any]:
-        """Return unit CHF/USD rate and cloud savings % for quoting."""
+        """Return unit CHF/USD rate and cloud savings % across all 6 compute demand tiers."""
+        if tier not in DEMAND_TIER_SPECS:
+            raise ValueError(f"Unknown compute tier '{tier}'")
+        tier_spec = DEMAND_TIER_SPECS[tier]
+        mult = float(tier_spec["price_multiplier"])
+        busy_share = float(tier_spec["busy_share"])
         snap = self.get_pricing_snapshot(trigger_refresh=False)
         fx = snap["fx_chf_per_usd"]
         if unit_mode == "gpu":
@@ -1167,18 +1326,24 @@ class CloudPricingService:
             if row is None:
                 raise ValueError(f"Unknown gpu product '{gpu_or_sku}'")
             cg = row["calorgrid"]
-            rate_chf = (
-                cg["on_demand_chf_per_gpu_hr"]
-                if tier == "on_demand"
-                else cg["spot_chf_per_gpu_hr"]
-            )
+            od_chf = float(cg["on_demand_chf_per_gpu_hr"])
+            if tier == "on_demand":
+                rate_chf = od_chf
+            elif tier == "spot":
+                rate_chf = float(cg["spot_chf_per_gpu_hr"])
+            else:
+                rate_chf = round(od_chf * mult, 4)
             rate_usd = round(rate_chf / fx, 4)
-            sav_pct = (
-                row["on_demand_savings_vs_cloud_pct"]
-                if tier == "on_demand"
-                else row["spot_savings_vs_cloud_pct"]
-            )
             bench_usd = row["reference_cloud_on_demand_usd_per_gpu_hr"]
+            if tier == "on_demand":
+                sav_pct = row["on_demand_savings_vs_cloud_pct"]
+            elif tier == "spot":
+                sav_pct = row["spot_savings_vs_cloud_pct"]
+            elif bench_usd and bench_usd > 0:
+                effective_usd = rate_usd * busy_share
+                sav_pct = round(100.0 * (1.0 - effective_usd / float(bench_usd)), 1)
+            else:
+                sav_pct = None
             return {
                 "unit_rate_chf_per_hr": rate_chf,
                 "unit_rate_usd_per_hr": rate_usd,
@@ -1186,6 +1351,7 @@ class CloudPricingService:
                 "cloud_savings_pct": sav_pct,
                 "cloud_benchmark_usd_per_hr": bench_usd,
                 "cloud_benchmark_provider": "AWS/GCP/Azure mean" if bench_usd else None,
+                "tier_spec": dict(tier_spec),
             }
 
         row_srv = next(
@@ -1195,18 +1361,24 @@ class CloudPricingService:
         if row_srv is None:
             raise ValueError(f"Unknown server SKU '{gpu_or_sku}'")
         cg = row_srv["calorgrid"]
-        rate_chf = (
-            cg["on_demand_chf_per_server_hr"]
-            if tier == "on_demand"
-            else cg["spot_chf_per_server_hr"]
-        )
+        od_chf = float(cg["on_demand_chf_per_server_hr"])
+        if tier == "on_demand":
+            rate_chf = od_chf
+        elif tier == "spot":
+            rate_chf = float(cg["spot_chf_per_server_hr"])
+        else:
+            rate_chf = round(od_chf * mult, 4)
         rate_usd = round(rate_chf / fx, 4)
-        sav_pct = (
-            row_srv["on_demand_savings_vs_cloud_pct"]
-            if tier == "on_demand"
-            else row_srv["spot_savings_vs_cloud_pct"]
-        )
         bench_usd = row_srv["cloud_baseline"].get("aws_on_demand_usd_per_hr")
+        if tier == "on_demand":
+            sav_pct = row_srv["on_demand_savings_vs_cloud_pct"]
+        elif tier == "spot":
+            sav_pct = row_srv["spot_savings_vs_cloud_pct"]
+        elif bench_usd and bench_usd > 0:
+            effective_usd = rate_usd * busy_share
+            sav_pct = round(100.0 * (1.0 - effective_usd / float(bench_usd)), 1)
+        else:
+            sav_pct = None
         return {
             "unit_rate_chf_per_hr": rate_chf,
             "unit_rate_usd_per_hr": rate_usd,
@@ -1214,6 +1386,7 @@ class CloudPricingService:
             "cloud_savings_pct": sav_pct,
             "cloud_benchmark_usd_per_hr": bench_usd,
             "cloud_benchmark_provider": "AWS EC2 baseline" if bench_usd else None,
+            "tier_spec": dict(tier_spec),
         }
 
     def get_public_pricing_payload(self, trigger_refresh: bool = True) -> dict[str, Any]:

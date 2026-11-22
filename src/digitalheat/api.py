@@ -26,7 +26,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
-from digitalheat.cloud_pricing import CloudPricingService
+from digitalheat.cloud_pricing import (
+    CloudPricingService,
+    ComputeTier,
+    load_swiss_gas_history,
+)
 from digitalheat.config import (
     DATA_DIR as CONFIG_DATA_DIR,
 )
@@ -388,11 +392,11 @@ class AdapterScheduleRequest(BaseModel):
 
 
 class ComputeQuoteRequest(BaseModel):
-    """Customer GPU or full-server compute quote request."""
+    """Customer GPU or full-server compute quote request across all 6 cloud demand tiers."""
 
     model_config = ConfigDict(allow_inf_nan=False)
 
-    tier: Literal["on_demand", "spot"] = "on_demand"
+    tier: ComputeTier = "on_demand"
     unit_mode: Literal["gpu", "server"] = "gpu"
     gpu_or_sku: str = Field(..., min_length=1, max_length=64)
     quantity: StrictInt = Field(default=1, ge=1, le=64)
@@ -1604,9 +1608,15 @@ def api_fleet_telemetry_tick(req: TelemetryTickRequest | None = None) -> dict:
 
 @app.get("/api/v1/compute/pricing")
 def api_compute_pricing(refresh: bool = Query(False)) -> dict:
-    """Return non-blocking traditional cloud vs CalorGrid On-Demand/Spot pricing."""
+    """Return non-blocking traditional cloud vs CalorGrid 6-tier pricing and gas baselines."""
     svc = _get_pricing_service(app)
     return svc.get_public_pricing_payload(trigger_refresh=refresh)
+
+
+@app.get("/api/v1/market/gas-history")
+def api_market_gas_history() -> dict:
+    """Return real 2021-2025 Basel gas meter (MESSPUNKT_004) variable tariff history."""
+    return load_swiss_gas_history()
 
 
 @app.post("/api/v1/compute/quote")

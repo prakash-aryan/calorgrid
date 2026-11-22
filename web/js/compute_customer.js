@@ -195,8 +195,18 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
         els.visSiteName.textContent = quote.assigned_site_name || "Swiss Heat Sink";
       }
       if (els.visSiteWait) {
-        els.visSiteWait.textContent =
-          quote.wait_time_min === 0 ? "Instant allocation" : `${quote.wait_time_min} min Spot window`;
+        if (quote.tier === "block") {
+          els.visSiteWait.textContent = `Scheduled +${Math.round(quote.wait_time_min / 60)}h block`;
+        } else if (quote.wait_time_min === 0) {
+          els.visSiteWait.textContent =
+            quote.tier === "dedicated"
+              ? "Dedicated host"
+              : quote.tier === "serverless"
+                ? "Per-request active"
+                : "Instant allocation";
+        } else {
+          els.visSiteWait.textContent = `${quote.wait_time_min} min Spot window`;
+        }
       }
       const vSrc = siteVideoFor(quote.assigned_site_id, quote.sink_type);
       if (els.visSiteVideo && els.visSiteVideo.getAttribute("src") !== vSrc) {
@@ -290,15 +300,29 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     return logsData;
   }
 
+  function tierMultiplier(tier) {
+    const spec = pricingData?.demand_tiers?.[tier];
+    if (spec && typeof spec.price_multiplier === "number") return spec.price_multiplier;
+    return (
+      {
+        on_demand: 1.0,
+        spot: 0.5,
+        reserved: 0.6,
+        block: 0.9,
+        dedicated: 1.1,
+        serverless: 1.5,
+      }[tier] ?? 1.0
+    );
+  }
+
   function populateSkuOptions() {
     if (!els.skuSelect || !pricingData) return;
     const opts = [];
+    const mult = tierMultiplier(state.tier);
     if (state.unitMode === "gpu") {
       for (const g of pricingData.gpu_comparisons || []) {
-        const rate =
-          state.tier === "on_demand"
-            ? g.calorgrid?.on_demand_chf_per_gpu_hr
-            : g.calorgrid?.spot_chf_per_gpu_hr;
+        const od = Number(g.calorgrid?.on_demand_chf_per_gpu_hr || 0);
+        const rate = state.tier === "spot" ? g.calorgrid?.spot_chf_per_gpu_hr : od * mult;
         opts.push({
           value: g.gpu_id,
           label: `${g.name.replace(/^NVIDIA\s+/, "")} (${g.vram_gb} GB) - ${fmtChf(rate, 2)}/h`,
@@ -306,10 +330,8 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
       }
     } else {
       for (const s of pricingData.server_sku_comparisons || []) {
-        const rate =
-          state.tier === "on_demand"
-            ? s.calorgrid?.on_demand_chf_per_server_hr
-            : s.calorgrid?.spot_chf_per_server_hr;
+        const od = Number(s.calorgrid?.on_demand_chf_per_server_hr || 0);
+        const rate = state.tier === "spot" ? s.calorgrid?.spot_chf_per_server_hr : od * mult;
         opts.push({
           value: s.server_model_id,
           label: `${s.name} (${s.electrical_kw} kW) - ${fmtChf(rate, 2)}/h`,
@@ -338,9 +360,11 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
         domEl("option", {
           value: "",
           text:
-            state.tier === "on_demand"
-              ? "Auto-route (best year-round sink)"
-              : "Auto-route (cheapest thermal window)",
+            state.tier === "spot"
+              ? "Auto-route (cheapest thermal window)"
+              : state.tier === "block"
+                ? "Auto-route (24h scheduled thermal block)"
+                : "Auto-route (best year-round sink)",
         })
       );
       for (const s of telemetryData.sites) {
@@ -387,8 +411,24 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
           ? { text: `Cached Live (${azureCount} SKUs)`, cls: "is-cached" }
           : { text: "Pinned cloud matrix", cls: "is-pinned" };
 
+    const specBench = (pricingData.specialist_cloud_benchmarks?.gpu_hour || []).find(
+      (x) => x.id === "h100-specialist"
+    );
+    const gas2025 = pricingData.swiss_gas_history?.years?.["2025"];
     els.pricingMeta.replaceChildren(
       domEl("span", { className: `cc-source-badge ${badgeInfo.cls}`, text: badgeInfo.text }),
+      specBench
+        ? domEl("span", {
+            className: "cc-meta-item",
+            text: `Specialist H100 median: $${Number(specBench.on_demand_usd).toFixed(2)} OD / $${Number(specBench.spot_usd).toFixed(2)} Spot`,
+          })
+        : null,
+      gas2025
+        ? domEl("span", {
+            className: "cc-meta-item",
+            text: `Basel gas 2025: CHF ${Number(gas2025.chf_per_kwh).toFixed(4)}/kWh`,
+          })
+        : null,
       domEl("span", {
         className: "cc-meta-item",
         text: `1 USD = ${Number(pricingData.fx_chf_per_usd).toFixed(3)} CHF`,
@@ -816,6 +856,10 @@ export function createComputeCustomerController({ onOpenTab } = {}) {
     const tierLabelMap = {
       on_demand: "On-Demand",
       spot: "Spot",
+      reserved: "Reserved",
+      block: "Block",
+      dedicated: "Dedicated",
+      serverless: "Serverless",
       backfill: "Backfill",
     };
 

@@ -617,3 +617,77 @@ def test_cold_fleet_20_thread_burst_and_pricing_refresh_flag(
         assert client.get("/api/v1/compute/pricing?refresh=false").status_code == 200
         assert client.get("/api/v1/compute/pricing?refresh=true").status_code == 200
         assert seen_flags == [False, True]
+
+
+def test_vaibhav_six_demand_tiers_and_swiss_gas_history() -> None:
+    """Verify all 6 demand tiers (Reserved, Block, Dedicated, Serverless + OD/Spot) and gas API."""
+    with TestClient(api_module.app) as client:
+        # 1. Real 2021-2025 Basel gas meter tariff history endpoint
+        gas_resp = client.get("/api/v1/market/gas-history")
+        assert gas_resp.status_code == 200
+        gas = gas_resp.json()
+        assert gas["meter"] == "MESSPUNKT_004"
+        assert abs(gas["years"]["2025"]["chf_per_kwh"] - 0.1355) < 1e-4
+        assert abs(gas["years"]["2025"]["fixed_chf_per_month"] - 39.29) < 1e-2
+
+        # 2. Pricing payload exposes all 6 demand tiers + 2026 specialist H100 cloud benchmarks
+        pr = client.get("/api/v1/compute/pricing?refresh=false").json()
+        assert set(pr["demand_tiers"].keys()) == {
+            "on_demand",
+            "spot",
+            "reserved",
+            "block",
+            "dedicated",
+            "serverless",
+        }
+        assert pr["specialist_cloud_benchmarks"]["hardware"]["usd"] == 285000
+
+        # 3. Quote every new Vaibhav demand tier and verify exact pricing/scheduling semantics
+        q_od = client.post(
+            "/api/v1/compute/quote",
+            json={"tier": "on_demand", "unit_mode": "gpu", "gpu_or_sku": "h100_sxm_80gb", "quantity": 1, "duration_hours": 4},
+        ).json()
+        q_res = client.post(
+            "/api/v1/compute/quote",
+            json={"tier": "reserved", "unit_mode": "gpu", "gpu_or_sku": "h100_sxm_80gb", "quantity": 1, "duration_hours": 4},
+        ).json()
+        assert q_res["tier"] == "reserved"
+        assert abs(q_res["unit_rate_chf_per_hr"] - round(q_od["unit_rate_chf_per_hr"] * 0.60, 4)) < 1e-3
+        assert q_res["wait_time_min"] == 0
+
+        q_blk = client.post(
+            "/api/v1/compute/quote",
+            json={"tier": "block", "unit_mode": "gpu", "gpu_or_sku": "h100_sxm_80gb", "quantity": 1, "duration_hours": 4},
+        ).json()
+        assert q_blk["tier"] == "block"
+        assert q_blk["lead_h"] == 24
+        assert q_blk["wait_time_min"] == 24 * 60
+        assert abs(q_blk["unit_rate_chf_per_hr"] - round(q_od["unit_rate_chf_per_hr"] * 0.90, 4)) < 1e-3
+
+        q_ded = client.post(
+            "/api/v1/compute/quote",
+            json={"tier": "dedicated", "unit_mode": "gpu", "gpu_or_sku": "h100_sxm_80gb", "quantity": 1, "duration_hours": 2},
+        ).json()
+        assert q_ded["tier"] == "dedicated"
+        assert q_ded["whole_server"] is True
+        assert q_ded["billed_quantity"] == len(q_ded["assigned_gpu_slots"]) >= 1
+        assert abs(q_ded["unit_rate_chf_per_hr"] - round(q_od["unit_rate_chf_per_hr"] * 1.10, 4)) < 1e-3
+
+        q_sls = client.post(
+            "/api/v1/compute/quote",
+            json={"tier": "serverless", "unit_mode": "gpu", "gpu_or_sku": "h100_sxm_80gb", "quantity": 1, "duration_hours": 4},
+        ).json()
+        assert q_sls["tier"] == "serverless"
+        assert abs(q_sls["busy_share"] - 0.5) < 1e-6
+        assert abs(q_sls["effective_billed_hours"] - 2.0) < 1e-6
+        assert abs(q_sls["total_cost_chf"] - round(q_sls["unit_rate_chf_per_hr"] * 2.0, 2)) < 0.02
+
+        # Book Reserved quote atomically and confirm live dispatch
+        bk = client.post(
+            "/api/v1/compute/book",
+            json={"quote_id": q_res["quote_id"]},
+            headers={"Idempotency-Key": f"test-res-{q_res['quote_id']}"},
+        )
+        assert bk.status_code == 200
+        assert bk.json()["tier"] == "reserved"
+        assert bk.json()["status"] == "running"
