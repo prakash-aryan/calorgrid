@@ -690,12 +690,13 @@ export function createSwissNetworkController({
       haloSprite.position.set(c[0], c[1] + pillarH + 0.09, c[2]);
       nodesGroup.add(haloSprite);
 
-      // Projected frosted-glass HTML callout pill (retains .sn-node selector for E2E & video tests)
+      // Projected frosted-glass HTML callout pill with official Swiss cantonal flag (retains .sn-node selector for E2E & video tests)
       const pill = document.createElement("button");
       pill.type = "button";
       pill.className = `sn-3d-pin sn-node${isSelected ? " is-selected" : ""}`;
       pill.dataset.nodeId = n.node_id;
-      pill.innerHTML = `<i style="background:${badge.color}; box-shadow: 0 0 6px ${badge.color}88"></i><b>${SHORT_CITY[n.node_id] || n.city}</b><span>${n.live.heat_generated_kw.toFixed(1)} kW</span>`;
+      const flagHtml = n.canton ? `<img class="sn-canton-flag" src="/img/cantons/${n.canton}.svg" alt="${n.canton}" title="Canton ${n.canton}">` : "";
+      pill.innerHTML = `<i style="background:${badge.color}; box-shadow: 0 0 6px ${badge.color}88"></i>${flagHtml}<b>${SHORT_CITY[n.node_id] || n.city}</b><span>${n.live.heat_generated_kw.toFixed(1)} kW</span>`;
       pill.addEventListener("click", () => {
         selectedNodeId = n.node_id;
         inspectTwinById(n.node_id);
@@ -841,10 +842,11 @@ export function createSwissNetworkController({
 
     const rtxUrl = `/media/twins/${n.node_id}.mp4`;
     const hwText = hardwareSummaryForNode(n);
+    const detailFlag = n.canton ? `<img class="sn-canton-flag is-inline" src="/img/cantons/${n.canton}.svg" alt="${n.canton}">` : "";
     detailEl.innerHTML = `
       <div class="sn-detail-head">
         <div>
-          <div class="sn-detail-region">${n.city}, ${n.canton} (${n.elevation_m} m)</div>
+          <div class="sn-detail-region">${detailFlag}<span>${n.city}, ${n.canton} (${n.elevation_m} m)</span></div>
           <h3>${n.name}</h3>
           <div class="sn-detail-arch">${n.archetype}</div>
         </div>
@@ -885,10 +887,11 @@ export function createSwissNetworkController({
       .map((n) => {
         const badge = stateBadgeInfo(n.live.scheduler_state);
         const sel = n.node_id === selectedNodeId ? "is-selected" : "";
+        const rFlag = n.canton ? `<img class="sn-canton-flag is-inline" src="/img/cantons/${n.canton}.svg" alt="${n.canton}">` : "";
         return `
           <button type="button" class="sn-roster-row ${sel}" data-roster-id="${n.node_id}">
             <div class="sn-roster-main">
-              <strong>${n.name}</strong>
+              <strong class="sn-roster-name">${rFlag}<span>${n.name}</span></strong>
               <span>${n.city} (${n.canton}), ${n.servers_installed} servers, ${n.live.heat_generated_kw.toFixed(1)} kW</span>
             </div>
             <div class="sn-roster-right">
@@ -941,11 +944,12 @@ export function createSwissNetworkController({
       flowSummary = `Receiving extra compute workloads from ${inFlows.map((f) => `${f.from_name} (${f.kw_shifted.toFixed(1)} kW)`).join(", ")}.`;
     }
     const activeRounded = Math.round(node.live.servers_active);
+    const tbFlag = node.canton ? `<img class="sn-canton-flag is-inline" src="/img/cantons/${node.canton}.svg" alt="${node.canton}">` : "";
     twinBarInfo.innerHTML = `
       <div class="sn-tb-header">
         <div class="sn-tb-title">
           <strong>${node.name}</strong>
-          <span>${node.archetype} · ${node.city}, ${node.canton}</span>
+          <span class="sn-tb-subline">${tbFlag}<span>${node.archetype} · ${node.city}, ${node.canton}</span></span>
         </div>
         <span class="sn-state-pill" style="color:${badge.color}">${badge.text}</span>
       </div>

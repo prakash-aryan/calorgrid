@@ -8336,3 +8336,34 @@ body:not(.app-mode-atlas) .brand-cluster {
   padding: 2.5px 8px !important;
   letter-spacing: 0.01em;
 }
+
+/* Official Swiss Cantonal Flag Shields on 3D Map Pins, Roster & Site Detail */
+.sn-canton-flag {
+  width: 13px;
+  height: 13px;
+  border-radius: 2.5px;
+  object-fit: cover;
+  display: inline-block;
+  flex: none;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+}
+.sn-canton-flag.is-inline {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.sn-detail-region,
+.sn-roster-name,
+.sn-tb-subline {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+@media (max-width: 1080px) {
+  .sn-3d-pin .sn-canton-flag {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+  }
+}
