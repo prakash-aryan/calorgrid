@@ -8960,3 +8960,125 @@ body:not(.app-mode-atlas) .compute-overlay {
     border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
   }
 }
+
+/* ============================================================================
+   LAPTOP / SHORT-VIEWPORT & DPI-SCALED RESPONSIVENESS (1081px+ wide, <= 860px tall
+   and compact laptops 1081px-1380px): prevent cut corners, hidden Fiber routes,
+   clipped Explore site list, or unreachable bottom Logs/Quote panels.
+   ============================================================================ */
+@media (min-width: 1081px) and (max-height: 860px) {
+  .swiss-network-overlay,
+  .configurator-overlay,
+  .heatledger-overlay,
+  .compute-overlay,
+  .app-overlay {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 22px !important;
+  }
+
+  /* Explore: compact top chrome so Map + Fiber routes + Detail CTAs + Site list all stay reachable */
+  .swiss-network-overlay {
+    gap: 8px !important;
+  }
+  .sn-hero {
+    padding: 0 !important;
+    gap: 8px !important;
+  }
+  .sn-hero h1,
+  .sn-title-group h2 {
+    font-size: 20px !important;
+    line-height: 1.15 !important;
+  }
+  .sn-kpi-strip {
+    padding: 6px 0 !important;
+  }
+  .sn-kpi-val {
+    font-size: 15.5px !important;
+  }
+  .sn-body {
+    flex: 1 0 auto !important;
+    min-height: 520px !important;
+    align-items: stretch !important;
+  }
+  .sn-map-pane {
+    min-height: 520px !important;
+  }
+  .sn-map-host {
+    min-height: 410px !important;
+  }
+  .sn-side-pane {
+    min-height: 520px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .sn-detail-card {
+    padding: 10px 14px !important;
+  }
+  .sn-detail-thumb {
+    max-height: 112px !important;
+  }
+  .sn-roster-wrap {
+    min-height: 190px !important;
+    overflow: visible !important;
+  }
+  .sn-roster-list {
+    max-height: 220px !important;
+    overflow-y: auto !important;
+  }
+
+  /* Configure & HeatLedger: guarantee full scroll access to bottom savings, servers, and Logs */
+  .app-split-shell {
+    flex: 1 0 auto !important;
+    min-height: 560px !important;
+    align-items: start !important;
+    padding-bottom: 18px !important;
+  }
+  .app-stage-col {
+    position: sticky !important;
+    top: 8px !important;
+    height: calc(100vh - 118px) !important;
+    min-height: 440px !important;
+    max-height: 680px !important;
+  }
+  .app-panel-col,
+  .cfg-panel,
+  .hl-panel,
+  .hl-tab-panel,
+  .hl-logs-wrap,
+  #hl-tab-logs,
+  #cc-tab-logs {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    padding-bottom: 14px !important;
+  }
+  .cg-log-list,
+  .hl-log-list,
+  .cc-log-list {
+    max-height: 460px !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* Prevent horizontal corner clipping on medium/narrow desktop windows (1081px - 1340px) */
+@media (min-width: 1081px) and (max-width: 1340px) {
+  .swiss-network-overlay,
+  .app-overlay,
+  .compute-overlay {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+  .sn-body {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 30vw, 356px) !important;
+    gap: 12px !important;
+  }
+  .app-split-shell {
+    grid-template-columns: minmax(0, 1fr) clamp(330px, 35vw, 396px) !important;
+    gap: 12px !important;
+  }
+  .cc-main-grid {
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+}
