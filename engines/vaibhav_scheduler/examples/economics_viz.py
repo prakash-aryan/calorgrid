@@ -11,9 +11,14 @@ spot price, and the GPU-hour price that covers the costs with and without the
 heat savings. The electricity tariff, both GPU-hour prices, the hardware
 price, its life and the maintenance rate can be changed in the page.
 
-    prices   data/prices_2020.json, written by scripts/fetch_prices.py: every default is a
-             2020 price with its source (2020 is the year of the job trace)
+    prices   data/fleet_machine.json, written by scripts/fetch_prices.py: the fleet machine,
+             a server with eight H100 GPUs. Its purchase price, the market price of its
+             GPU-hours and the tariff are this year's, each with its source, and the page
+             opens with that same server, so cost and price describe one machine
     costs    ServerCosts in economics.py
+
+Job lengths on this page are as recorded in the trace, not shortened for the
+fleet's GPU as on the scheduler page and the dashboard.
 
 The page recomputes everything in the browser and checks itself against a
 configuration computed by the Python model.
@@ -31,18 +36,21 @@ import planner_viz
 import workload_viz
 from digitalheat import Scenario, ServerCosts
 
-PRICES_FILE = workload_viz.DATA / "prices_2020.json"
-DEFAULT_GPU = "v100-2020"            # the fastest GPU in the 2020 trace
+PRICES_FILE = workload_viz.DATA / "fleet_machine.json"
+DEFAULT_MARKET = "h100-specialist"   # where the fleet's GPU-hours compete
 HARDWARE_LIFE_YEARS = 10             # set by the team; can be changed in the page
 MAINTENANCE_PER_YEAR = 0.05          # share of the hardware price; team assumption, no public source
 
 
 def defaults(prices: dict) -> dict:
     a = Scenario("economics", 0, [], []).assumptions
-    tariff = next(e for e in prices["electricity"] if e["year"] == 2020)
+    fx, year = prices["exchange"]["chf_per_usd"], prices["machine"]["year"]
+    tariff = next(e for e in prices["electricity"] if e["year"] == year)
     return {
-        "tariff": tariff["chf_per_kwh"], "gpu": DEFAULT_GPU,
-        "hardware_chf": round(prices["hardware"]["usd"] * prices["exchange"]["chf_per_usd"]),
+        "tariff": tariff["chf_per_kwh"], "gpu": DEFAULT_MARKET, "year": year,
+        "hardware_chf": round(prices["hardware"]["usd"] * fx),
+        "hardware_low_chf": round(prices["hardware"]["low_usd"] * fx),
+        "hardware_high_chf": round(prices["hardware"]["high_usd"] * fx),
         "life_years": HARDWARE_LIFE_YEARS, "maintenance_pct": MAINTENANCE_PER_YEAR * 100,
         "cop": a.value("heat_pump_cop"), "cop_source": a.get("heat_pump_cop").source,
     }
@@ -74,7 +82,10 @@ def build(day: date) -> dict:
     prices = json.loads(PRICES_FILE.read_text(encoding="utf-8"))
     d = defaults(prices)
     data = workload_viz.build(day)
-    return data | {"prices": prices, "money_defaults": d,
+    # open with the fleet machine itself, so the costs and the prices are for one server
+    server = next(p for p in data["profiles"] if p["id"] == prices["machine"]["power_profile"])
+    opening = [{"p": server["id"], "jobs": data["default_sets"][server["default"]]["jobs"]}]
+    return data | {"default": opening, "prices": prices, "money_defaults": d,
                    "check_money": money(workload_viz.CHECK_CONFIG, day, d)}
 
 

@@ -22,7 +22,7 @@ from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 EPS = 1e-9
 
@@ -453,6 +453,7 @@ class TraceJob:
     duration_rank: str = ""      # e.g. "median" of that group
     cpu_cores: float = 0.0
     mem_gib: float = 0.0
+    gpu_type: str = ""           # the GPU it ran on in the trace
 
     def __post_init__(self) -> None:
         if self.gpus <= 0 or self.duration_h <= 0:
@@ -495,15 +496,27 @@ def gpu_hours_by_step(placements: Sequence[Placement], steps: int,
             for t in range(steps)]
 
 
-def load_trace_jobs(path: str | Path) -> list[TraceJob]:
-    """Read the file written by scripts/fetch_workloads.py (data/alibaba_gpu_jobs.json)."""
+def load_trace_jobs(path: str | Path,
+                    speed_up: Mapping[str, float] | None = None) -> list[TraceJob]:
+    """Read the file written by scripts/fetch_workloads.py (data/alibaba_gpu_jobs.json).
+
+    The lengths are as recorded on the trace's own GPUs. With `speed_up`, the
+    times a newer GPU is faster than each GPU type of the trace, every job is
+    shortened by the factor of the GPU it ran on.
+    """
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return [
-        TraceJob(
-            id=row["id"], gpus=row["gpus"], duration_h=row["duration_s"] / 3600,
-            task_name=row["task_name"], group=row["group"], duration_rank=row["duration_rank"],
-            cpu_cores=row["cpu_cores"], mem_gib=row["mem_gib"],
-            source=f"{data['source']}, job {row['trace_job']}",
-        )
-        for row in data["jobs"]
-    ]
+    jobs = []
+    for row in data["jobs"]:
+        hours, source = row["duration_s"] / 3600, f"{data['source']}, job {row['trace_job']}"
+        if speed_up is not None:
+            if row["gpu_type"] not in speed_up:
+                raise ValueError(f"{row['id']}: no speed factor for GPU type {row['gpu_type']!r}")
+            factor = speed_up[row["gpu_type"]]
+            source += (f"; ran {hours:.2f} h on a {row['gpu_type']}, "
+                       f"shortened {factor:g} times for the fleet's GPU")
+            hours /= factor
+        jobs.append(TraceJob(
+            id=row["id"], gpus=row["gpus"], duration_h=hours, task_name=row["task_name"],
+            group=row["group"], duration_rank=row["duration_rank"], cpu_cores=row["cpu_cores"],
+            mem_gib=row["mem_gib"], gpu_type=row["gpu_type"], source=source))
+    return jobs

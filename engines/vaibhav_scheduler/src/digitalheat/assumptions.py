@@ -127,6 +127,9 @@ def reference_assumptions() -> AssumptionRegistry:
                        "ElCom 2026, IWB Basel, category H4, total price (33.25 Rp./kWh)",
                        "confirm on strompreis.elcom.admin.ch, including VAT treatment"),
             Assumption("heat_pump_cop", 2.5, "-", BRIEF, "heat value = electricity price / COP"),
+            Assumption("boiler_efficiency", 0.90, "-", TEAM,
+                       "kWh of heat per kWh of gas from the house's boiler (condensing); "
+                       "heat value = gas price / efficiency"),
             Assumption("billing_basis", "running server-hour", "-", TEAM,
                        "compute income accrues for every hour a server runs a job"),
             # --- model ---

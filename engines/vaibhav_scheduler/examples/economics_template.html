@@ -157,7 +157,7 @@ table.money td small { color: var(--muted); font-weight: 400; }
     <div class="cardhead">
       <h2>Prices</h2>
       <span class="grow"></span>
-      <button id="reset-prices">Reset to the 2020 prices</button>
+      <button id="reset-prices">Reset to the default prices</button>
     </div>
     <p class="note" id="pricenote"></p>
     <div class="fields">
@@ -167,7 +167,7 @@ table.money td small { color: var(--muted); font-weight: 400; }
         <small id="src-tariff"></small></div>
       <div class="field"><label for="in-od">GPU-hour price on demand, CHF</label>
         <div class="inrow"><input type="number" id="in-od" min="0" step="0.01">
-          <select id="pre-gpu" aria-label="Set both GPU-hour prices from a 2020 price list"></select></div>
+          <select id="pre-gpu" aria-label="Set both GPU-hour prices from a market"></select></div>
         <small id="src-od"></small></div>
       <div class="field"><label for="in-spot">GPU-hour price spot, CHF</label>
         <div class="inrow"><input type="number" id="in-spot" min="0" step="0.01"></div>
@@ -192,7 +192,7 @@ table.money td small { color: var(--muted); font-weight: 400; }
       <div><h3>What the client pays: on-demand and spot side by side</h3><table class="money" id="m-income"></table></div>
     </div>
     <h3>Price of one GPU-hour, CHF</h3>
-    <p class="note">The first two bars are the price that just covers the costs, without and with the heat savings. The last two are the 2020 market prices set above.</p>
+    <p class="note">The first two bars are the price that just covers the costs, without and with the heat savings. The last two are the market prices set above.</p>
     <div class="legend">
       <span><i class="sw load"></i>Price that covers our costs</span>
       <span><i class="sw market"></i>Market price</span>
@@ -613,19 +613,20 @@ $("intro").textContent = `One house in ${M.place} on ${M.label}, a day averaging
   "Choose the servers and their jobs, and set the prices. The page shows each cost on its own, the heat savings, what the client pays at the on-demand and the spot price, " +
   "and the GPU-hour price that covers the costs once the heat savings are counted.";
 const GPUP = (id) => PR.gpu_hour.find((x) => x.id === id);
-$("pricenote").textContent = `Every default is a 2020 price, the year of the job trace, and each can be changed. Amounts are in Swiss francs; dollar prices are converted at ${f(FX, 4)} CHF per dollar, the 2020 average.`;
+$("pricenote").textContent = `Every default is a ${DEF.year} price for one machine, a ${PR.hardware.system}, which is also the server the page opens with. Each can be changed. Amounts are in Swiss francs; dollar prices are converted at ${f(FX, 4)} CHF per dollar, the ${DEF.year} average so far.`;
 $("pre-tariff").innerHTML = '<option value="">Set to\u2026</option>' + PR.electricity.map((e) => `<option value="${e.chf_per_kwh}">${e.year}: ${f(e.chf_per_kwh, 4)}</option>`).join("");
-$("pre-gpu").innerHTML = '<option value="">Price list\u2026</option>' + PR.gpu_hour.map((x) => `<option value="${esc(x.id)}">${esc(x.gpu)}, ${x.year}</option>`).join("");
-const E20 = PR.electricity.find((e) => e.year === 2020), G0 = GPUP(DEF.gpu);
+$("pre-gpu").innerHTML = '<option value="">Price list\u2026</option>' + PR.gpu_hour.map((x) => `<option value="${esc(x.id)}">${esc(x.gpu)}, ${esc(x.market)}</option>`).join("");
+const E20 = PR.electricity.find((e) => e.year === DEF.year), G0 = GPUP(DEF.gpu);
+const providers = (x) => x.providers ? " Providers: " + x.providers.map((q) => link(q.url, q.name)).join(", ") + "." : "";
 $("src-tariff").innerHTML = `Default: ${link(E20.url, E20.source)}.`;
-$("src-od").innerHTML = `Default: ${esc(G0.gpu)}, ${f(G0.on_demand_usd, 2)} USD. ${link(G0.on_demand_url, G0.on_demand_source)}.`;
-$("src-spot").innerHTML = `Default: ${esc(G0.gpu)}, ${f(G0.spot_usd, 3)} USD. ${link(G0.spot_url, G0.spot_source)}.`;
-$("src-hw").innerHTML = `Default: ${esc(PR.hardware.system)}, ${PR.hardware.usd.toLocaleString("en")} USD. ${link(PR.hardware.url, PR.hardware.source)}.`;
+$("src-od").innerHTML = `Default: ${esc(G0.gpu)} on ${esc(G0.market)}, ${f(G0.on_demand_usd, 2)} USD: ${esc(G0.on_demand_source)}.`;
+$("src-spot").innerHTML = `Default: ${esc(G0.gpu)} on ${esc(G0.market)}, ${f(G0.spot_usd, 2)} USD: ${esc(G0.spot_source)}.`;
+$("src-hw").innerHTML = `Default: ${esc(PR.hardware.system)}, ${PR.hardware.usd.toLocaleString("en")} USD, between ${PR.hardware.low_usd.toLocaleString("en")} and ${PR.hardware.high_usd.toLocaleString("en")}. ${link(PR.hardware.url, "Source")}; an estimate, no list price is published.`;
 $("refs").innerHTML = [
-  `<b>GPU-hour prices.</b> ${PR.gpu_hour.map((x) => `${esc(x.gpu)}: ${f(x.on_demand_usd, 3)} USD on demand (${link(x.on_demand_url, x.on_demand_source)}) and ${f(x.spot_usd, 4)} USD spot (${link(x.spot_url, x.spot_source)}), one-GPU instance ${esc(x.instance)}, ${esc(x.provider)}`).join(". ")}. The default is the V100, the fastest GPU in the 2020 trace.`,
+  `<b>GPU-hour prices.</b> ${PR.gpu_hour.map((x) => `${esc(x.gpu)} on ${esc(x.market)} (${esc(x.provider)}; ${esc(x.instance)}): ${f(x.on_demand_usd, 2)} USD on demand (${link(x.on_demand_url, x.on_demand_source)}) and ${f(x.spot_usd, 2)} USD in the lowest tier (${link(x.spot_url, x.spot_source)}).${providers(x)}`).join(" ")} The default is the specialist GPU clouds: servers in homes compete with those, not with a large cloud. Their prices were read from the providers' pages by hand and change often.`,
   `<b>Exchange rate.</b> ${f(FX, 4)} CHF per USD: ${link(PR.exchange.url, PR.exchange.source)}.`,
   `<b>Electricity tariff.</b> ${PR.electricity.map((e) => `${f(e.chf_per_kwh, 4)} CHF per kWh in ${e.year} (${link(e.url, e.source)})`).join("; ")}. It is a household tariff; a commercial operator may pay a different rate.`,
-  `<b>Hardware.</b> ${esc(PR.hardware.system)}: ${PR.hardware.usd.toLocaleString("en")} USD (${link(PR.hardware.url, PR.hardware.source)}), ${DEF.hardware_chf.toLocaleString("en")} CHF at the 2020 rate. The same price is used for every server. The ${g(DEF.life_years)}-year life is the team's choice. The power figures above come from newer systems measured in 2025, so the hardware price and the power draw are not from the same machine.`,
+  `<b>Hardware.</b> ${esc(PR.hardware.system)}: ${PR.hardware.usd.toLocaleString("en")} USD, between ${PR.hardware.low_usd.toLocaleString("en")} and ${PR.hardware.high_usd.toLocaleString("en")} (${link(PR.hardware.url, PR.hardware.source)}), which is ${DEF.hardware_chf.toLocaleString("en")} CHF, between ${DEF.hardware_low_chf.toLocaleString("en")} and ${DEF.hardware_high_chf.toLocaleString("en")}. It is the price of the server the page opens with (${esc(PR.machine.note)}) and is used for every server, so choose another system only with its own price. The ${g(DEF.life_years)}-year life is the team's choice.`,
   `<b>Maintenance.</b> ${g(DEF.maintenance_pct)}% of the hardware price a year is a team assumption with no public source behind it.`,
   `<b>Heat savings.</b> Backup heat the house needs on this day without any server, minus backup heat with the servers, divided by the heat pump's COP of ${g(DEF.cop)} (${esc(DEF.cop_source)}) and priced at the electricity tariff. Server heat that only warms the house without replacing backup heat earns nothing.`,
   "<b>One cold day.</b> The heat savings shown are close to the best day of the year. In summer the house takes only hot water, so a yearly figure would be lower, while hardware and maintenance cost the same every day.",

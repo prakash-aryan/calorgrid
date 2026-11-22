@@ -7,13 +7,15 @@ Entities
     YearlyBalance  the figures the brief asks for, per house
     ServerCosts    prices behind the cost of running servers and the value of their heat
     Balance        those costs for one period, the heat saving and the break-even price
+    TierPricing    GPU-hour prices by tier, from a base price and a factor per tier
 """
 
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
+from typing import Mapping
 
 from .heat import HeatFlows
 
@@ -152,36 +154,74 @@ class Ledger:
 # ------------------------------------------------------------- ServerCosts, Balance
 
 DAYS_PER_YEAR = 365
+BACKUPS = ("heat_pump", "gas")      # how the house heats without servers
 
 
 @dataclass(frozen=True)
 class ServerCosts:
-    """Prices behind the cost of running servers and the value of the heat they give."""
+    """Prices behind the cost of running servers and the value of the heat they give.
+
+    `backup` is how the house makes the heat the servers do not: a heat pump
+    (electricity price / COP per kWh of heat) or a gas boiler (gas price /
+    boiler efficiency). Heat from the servers saves what the backup would cost.
+    """
 
     electricity_chf_per_kwh: float
-    heat_pump_cop: float                    # backup heat costs electricity price / COP
+    heat_pump_cop: float                    # heat-pump backup: electricity price / COP
     hardware_chf_per_server: float
     hardware_life_years: float              # the purchase is spread evenly over this
     maintenance_fraction_per_year: float    # of the hardware price
+    # further yearly costs, each as a share of the hardware price: e.g. building, network, staff
+    yearly_fractions: Mapping[str, float] = field(default_factory=dict)
+    installation_fraction: float = 0.0      # one-off, of the hardware price; spread over its life
+    idle_power_fraction: float = 0.0        # draw of an idle GPU as a share of its full-load draw
+    backup: str = "heat_pump"               # one of BACKUPS
+    gas_chf_per_kwh: float = 0.0            # gas backup: price of a kWh of gas
+    boiler_efficiency: float = 0.90         # gas backup: kWh of heat per kWh of gas
 
     def __post_init__(self) -> None:
         if self.hardware_life_years <= 0 or self.heat_pump_cop <= 0:
             raise ValueError("hardware life and heat pump COP must be positive")
+        if self.backup not in BACKUPS:
+            raise ValueError(f"backup must be one of {BACKUPS}")
+        if self.backup == "gas" and (self.gas_chf_per_kwh <= 0
+                                     or not 0 < self.boiler_efficiency <= 1.2):
+            raise ValueError("gas backup needs a positive gas price and an efficiency up to 1.2")
+        shares = [self.maintenance_fraction_per_year, self.installation_fraction,
+                  self.idle_power_fraction, *self.yearly_fractions.values()]
+        if min(shares) < 0:
+            raise ValueError("cost shares cannot be negative")
+
+    @property
+    def heat_value_chf_per_kwh(self) -> float:
+        """What the backup pays for one kWh of heat: what a kWh of server heat saves."""
+        if self.backup == "gas":
+            return self.gas_chf_per_kwh / self.boiler_efficiency
+        return self.electricity_chf_per_kwh / self.heat_pump_cop
 
     def balance(self, servers: int, electricity_kwh: float, gpu_hours: float,
-                backup_avoided_kwh: float, days: float = 1.0) -> "Balance":
+                backup_avoided_kwh: float, days: float = 1.0,
+                idle_full_load_kwh: float = 0.0) -> "Balance":
         """The money for `days` of running `servers` servers.
 
         `backup_avoided_kwh` is the heat the backup heater no longer supplies
-        compared with the same days without any server.
+        compared with the same days without any server. `idle_full_load_kwh`
+        is what the GPUs that stood idle would have drawn at full load; they
+        are charged `idle_power_fraction` of it. Their heat is not counted.
         """
         hardware = servers * self.hardware_chf_per_server
+        per_day = hardware / DAYS_PER_YEAR * days
+        other = {name: per_day * share for name, share in self.yearly_fractions.items()}
+        other["installation"] = per_day * self.installation_fraction / self.hardware_life_years
+        other["idle power"] = (idle_full_load_kwh * self.idle_power_fraction
+                               * self.electricity_chf_per_kwh)
         return Balance(
             gpu_hours=gpu_hours,
-            hardware_chf=hardware / (self.hardware_life_years * DAYS_PER_YEAR) * days,
+            hardware_chf=per_day / self.hardware_life_years,
             electricity_chf=electricity_kwh * self.electricity_chf_per_kwh,
-            maintenance_chf=hardware * self.maintenance_fraction_per_year / DAYS_PER_YEAR * days,
-            heat_saving_chf=backup_avoided_kwh / self.heat_pump_cop * self.electricity_chf_per_kwh,
+            maintenance_chf=per_day * self.maintenance_fraction_per_year,
+            heat_saving_chf=backup_avoided_kwh * self.heat_value_chf_per_kwh,
+            other_chf={name: value for name, value in other.items() if value},
         )
 
 
@@ -192,10 +232,12 @@ class Balance:
     electricity_chf: float
     maintenance_chf: float
     heat_saving_chf: float      # heating cost the house no longer pays
+    other_chf: Mapping[str, float] = field(default_factory=dict)   # the further costs, by name
 
     @property
     def cost_chf(self) -> float:
-        return self.hardware_chf + self.electricity_chf + self.maintenance_chf
+        return (self.hardware_chf + self.electricity_chf + self.maintenance_chf
+                + sum(self.other_chf.values()))
 
     def break_even_chf_per_gpu_hour(self, with_heat_saving: bool = True) -> float | None:
         """GPU-hour price that covers the costs, optionally after the heat saving."""
@@ -211,3 +253,50 @@ class Balance:
     def profit_chf(self, chf_per_gpu_hour: float, with_heat_saving: bool = True) -> float:
         saving = self.heat_saving_chf if with_heat_saving else 0.0
         return self.income_chf(chf_per_gpu_hour) + saving - self.cost_chf
+
+
+# ---------------------------------------------------------------------- TierPricing
+
+
+@dataclass(frozen=True)
+class TierPricing:
+    """GPU-hour prices of the workload tiers: one base price times a factor per tier.
+
+    The base price is the spot price, so spot has factor 1. `sold` in the
+    methods is the GPU-hours billed in each tier.
+    """
+
+    base_chf_per_gpu_hour: float
+    factors: Mapping[str, float]
+
+    def __post_init__(self) -> None:
+        if self.base_chf_per_gpu_hour < 0 or any(f < 0 for f in self.factors.values()):
+            raise ValueError("the base price and the tier factors cannot be negative")
+
+    def price(self, tier: str) -> float:
+        return self.base_chf_per_gpu_hour * self.factors[tier]
+
+    def weighted_gpu_hours(self, sold: Mapping[str, float]) -> float:
+        """GPU-hours sold, each counted as many times as its tier's factor: income per
+        franc of base price."""
+        return sum(hours * self.factors[tier] for tier, hours in sold.items())
+
+    def income_chf(self, sold: Mapping[str, float]) -> float:
+        return self.base_chf_per_gpu_hour * self.weighted_gpu_hours(sold)
+
+    def profit_chf(self, balance: Balance, sold: Mapping[str, float],
+                   with_heat_saving: bool = True) -> float:
+        saving = balance.heat_saving_chf if with_heat_saving else 0.0
+        return self.income_chf(sold) + saving - balance.cost_chf
+
+    def base_price_for(self, balance: Balance, sold: Mapping[str, float], margin: float = 0.0,
+                       with_heat_saving: bool = True) -> float | None:
+        """Base price at which profit is `margin` of the income; with the default of
+        zero, the price that just covers the costs. None if nothing was sold."""
+        if not 0 <= margin < 1:
+            raise ValueError("margin must be at least 0 and below 1")
+        weighted = self.weighted_gpu_hours(sold)
+        if weighted <= 0:
+            return None
+        saving = balance.heat_saving_chf if with_heat_saving else 0.0
+        return max(0.0, balance.cost_chf - saving) / ((1 - margin) * weighted)

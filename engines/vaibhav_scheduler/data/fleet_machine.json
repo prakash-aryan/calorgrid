@@ -1,0 +1,135 @@
+{
+ "retrieved": "2026-11-21",
+ "machine": {
+  "gpu": "NVIDIA H100",
+  "gpus_per_server": 8,
+  "year": 2026,
+  "power_profile": "5.0-0023/llama2-70b-99/Offline",
+  "note": "The measured server carries the H100 NVL variant (94 GB). Prices are quoted for the H100 in general."
+ },
+ "hardware": {
+  "system": "server with 8 x NVIDIA H100 (HGX H100, built by a server maker)",
+  "usd": 285000,
+  "low_usd": 250000,
+  "high_usd": 320000,
+  "year": 2026,
+  "method": "estimate",
+  "source": "Mercatus Compute, 'NVIDIA H100 Server Price 2026', last verified 2026-07-14: price range and typical price from the large server makers. No list price is published; the source is a compute marketplace",
+  "url": "https://www.mercatus-ai.com/blog/h100-server-price"
+ },
+ "gpu_hour": [
+  {
+   "id": "h100-specialist",
+   "gpu": "NVIDIA H100",
+   "year": 2026,
+   "market": "specialist GPU clouds",
+   "instance": "one H100, or an 8-GPU H100 node priced per GPU",
+   "provider": "median of RunPod, Lambda, CoreWeave, Together AI",
+   "on_demand_usd": 4.49,
+   "on_demand_source": "median on-demand price of 4 providers, their pricing pages read on 2026-11-21",
+   "on_demand_url": "https://www.runpod.io/pricing",
+   "spot_usd": 2.4638,
+   "spot_source": "median of the lowest tier (spot, preemptible or community) of 3 providers, their pricing pages read on 2026-11-21",
+   "spot_url": "https://www.runpod.io/pricing",
+   "method": "recorded by hand",
+   "providers": [
+    {
+     "name": "RunPod",
+     "url": "https://www.runpod.io/pricing",
+     "read_on": "2026-11-21",
+     "on_demand_usd": 4.39,
+     "on_demand_for": "H100 SXM 80 GB, Secure Cloud",
+     "low_usd": 2.69,
+     "low_for": "H100 SXM 80 GB, Community Cloud, from"
+    },
+    {
+     "name": "Lambda",
+     "url": "https://lambda.com/pricing",
+     "read_on": "2026-11-21",
+     "on_demand_usd": 4.59,
+     "on_demand_for": "HGX H100 80 GB instance",
+     "low_usd": null,
+     "low_for": null
+    },
+    {
+     "name": "CoreWeave",
+     "url": "https://www.coreweave.com/pricing",
+     "read_on": "2026-11-21",
+     "on_demand_usd": 6.155,
+     "on_demand_for": "HGX H100 node of 8 GPUs, North America, on-demand 49.24 USD per node",
+     "low_usd": 2.4638,
+     "low_for": "the same node on spot, 19.71 USD per node"
+    },
+    {
+     "name": "Together AI",
+     "url": "https://www.together.ai/pricing",
+     "read_on": "2026-11-21",
+     "on_demand_usd": 3.99,
+     "on_demand_for": "GPU clusters, HGX H100, on-demand",
+     "low_usd": 1.99,
+     "low_for": "GPU clusters, HGX H100, preemptible"
+    }
+   ]
+  },
+  {
+   "id": "h100-aws",
+   "gpu": "NVIDIA H100",
+   "year": 2026,
+   "market": "large cloud",
+   "instance": "p5.48xlarge, 8 GPUs, priced per GPU",
+   "provider": "AWS, US East (N. Virginia), Linux",
+   "on_demand_usd": 6.88,
+   "on_demand_source": "AWS on-demand price list published 2026-11-21: 55.04 USD per instance-hour",
+   "on_demand_url": "https://aws.amazon.com/ec2/pricing/on-demand/",
+   "spot_usd": 3.9123,
+   "spot_source": "AWS spot price feed on 2026-11-21, US West (Oregon), the cheapest of three US regions: 31.30 USD per instance-hour (US East (N. Virginia) 57.76; US East (Ohio) 35.72)",
+   "spot_url": "https://aws.amazon.com/ec2/spot/pricing/"
+  }
+ ],
+ "electricity": [
+  {
+   "year": 2026,
+   "chf_per_kwh": 0.3325,
+   "source": "ElCom, IWB Industrielle Werke Basel, household category H4, total price 2026",
+   "url": "https://www.strompreis.elcom.admin.ch/"
+  }
+ ],
+ "exchange": {
+  "chf_per_usd": 0.8011,
+  "source": "ECB reference rates, mean of 229 trading days in 2026 up to 2026-11-20 (Frankfurter API)",
+  "url": "https://frankfurter.dev/"
+ },
+ "speed": {
+  "fleet_gpu": "NVIDIA H100",
+  "fleet_tflops": 989.5,
+  "measure": "peak mixed-precision (FP16) throughput in TFLOPS, from NVIDIA's published specifications",
+  "fleet_source": "NVIDIA H100 page, read on 2026-11-21: FP16 Tensor Core 1,979 TFLOPS with sparsity, half of that without",
+  "fleet_url": "https://www.nvidia.com/en-us/data-center/h100/",
+  "note": "A job's speed-up is at most this ratio: time spent loading data or on the CPU does not shrink with a faster GPU.",
+  "factors": {
+   "T4": {
+    "tflops": 65.0,
+    "factor": 15.2,
+    "source": "NVIDIA comparison table on the T4 page, read on 2026-11-21",
+    "url": "https://www.nvidia.com/en-au/data-center/tesla-t4/"
+   },
+   "V100": {
+    "tflops": 112.0,
+    "factor": 8.8,
+    "source": "NVIDIA comparison table on the T4 page, read on 2026-11-21",
+    "url": "https://www.nvidia.com/en-au/data-center/tesla-t4/"
+   },
+   "P100": {
+    "tflops": 21.0,
+    "factor": 47.1,
+    "source": "NVIDIA comparison table on the T4 page, read on 2026-11-21",
+    "url": "https://www.nvidia.com/en-au/data-center/tesla-t4/"
+   },
+   "MISC": {
+    "factor": 15.2,
+    "assumed": true,
+    "source": "the trace names these GPUs only MISC; treated as a T4, the most common named GPU in the examples"
+   }
+  }
+ }
+}

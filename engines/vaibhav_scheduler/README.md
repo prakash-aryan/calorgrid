@@ -11,7 +11,7 @@ Pure Python, no runtime dependencies.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # 102 tests
+pytest                                   # 127 tests
 
 python scripts/fetch_weather.py          # Basel 2025 from Open-Meteo
 python examples/reference_year.py data/open_meteo_basel_2025.csv --servers 3
@@ -27,13 +27,14 @@ python examples/siting_viz.py --second data/nz_weather_2025.json --open --rank
 python examples/absorbable_viz.py --open # one cold Basel day: heat the house needs and can absorb (out/absorbable.html)
 python examples/planner_viz.py --open    # the same day, choosing the servers hour by hour (out/planner.html)
 
+python scripts/gas_price.py              # the house's gas price from its bills (data/gas_price.json)
 python scripts/fetch_workloads.py        # job examples (Alibaba GPU trace) and measured power (MLPerf); 35 MB download
 python examples/workload_viz.py --open   # servers in a house, their jobs and the heat they make (out/workload.html)
 
-python scripts/fetch_prices.py           # 2020 prices with sources: GPU-hour, electricity, exchange rate, hardware
+python scripts/fetch_prices.py           # the fleet machine (8 x H100 server) with sources: purchase price, GPU-hour market prices, tariff, exchange rate, speed against the trace's GPUs (data/fleet_machine.json)
 python examples/economics_viz.py --open  # the same servers and jobs with costs, client income and heat savings (out/economics.html)
 python examples/scheduler_viz.py --open  # a year of jobs in six houses: heat-saving scheduler against first-free (out/scheduler.html, about a minute)
-python examples/dashboard_server.py --open   # live dashboard: houses, servers, running jobs, queue and heat (http://127.0.0.1:8765, Ctrl+C to stop)
+python examples/dashboard_server.py --open   # live dashboard: choose the mix of workload tiers and the base price, see the cost of a GPU-hour and the profit (http://127.0.0.1:8765, Ctrl+C to stop)
 python -m digitalheat                    # assumptions table (Markdown)
 ```
 
@@ -55,7 +56,7 @@ python -m digitalheat                    # assumptions table (Markdown)
 | `src/digitalheat/heat.py` | Weather, HeatDemandProfile, HeatStorage, BackupHeater, HeatSignal, House |
 | `src/digitalheat/scheduling.py` | Scheduler interface, HeatFollowingScheduler |
 | `src/digitalheat/execution.py` | Action, Dispatcher, SimulatedExecutor, ProcessExecutor |
-| `src/digitalheat/economics.py` | Tariff, Ledger, YearlyBalance |
+| `src/digitalheat/economics.py` | Tariff, Ledger, YearlyBalance, ServerCosts, Balance, TierPricing |
 | `src/digitalheat/simulation.py` | Fleet, Scenario, SimulationRun |
 | `src/digitalheat/siting.py` | Screening model: heat requirement by location, compute shared between sites, second-site ranking |
 | `src/digitalheat/assumptions.py` | AssumptionRegistry and the reference values |

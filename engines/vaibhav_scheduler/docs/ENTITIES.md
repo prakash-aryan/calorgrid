@@ -249,7 +249,7 @@ Interface: `decide(now_h, signals, demand, registry) -> list[Action]`. Pure: it 
 
 `Action(type, task_id, server_id, reason)` with type START, PAUSE, RESUME or MIGRATE; `reason` is a plain-language explanation for the log. The Dispatcher frees servers first, then places tasks, and is the only code that changes task and server state. `SimulatedExecutor` does bookkeeping; `ProcessExecutor` runs real processes and pauses them with SIGSTOP / SIGCONT.
 
-### The fleet model: Site, QueuedJob, HeatSavingScheduler, FleetRun
+### The fleet model: Site, QueuedJob, Tier, the schedulers, FleetRun
 
 `fleet.py` is a second, self-contained scheduling model built on the heat range model, the measured servers and the trace jobs. It does not use the run loop above.
 
@@ -258,11 +258,13 @@ Interface: `decide(now_h, signals, demand, registry) -> list[Action]`. Pure: it 
 - **Site.** Holds the GPUs booked on every server for the coming hours, which are known because a started job runs to its end. `saving_kwh(job, now)` is the backup heat avoided over the job's run: the heat model is asked for the backup heat ahead with what is booked and again with the job added (`HouseHeatModel.backup_ahead_kwh`, the same arithmetic as `deliver` without changing the model).
 - **HeatSavingScheduler.** Highest priority first; each job starts in the house with the largest saving among those with room. With `min_useful_share` above zero it also holds a job while less than that share of its heat would be useful, until it has less than `start_margin_h` of slack. Holding is off by default.
 - **FirstFreeScheduler.** The baseline: first come first served, first house on the list with room.
-- **FleetRun.** Each hour: arrivals, drop jobs that can no longer make their deadline, place, then every house settles its heat. A run without a scheduler gives the backup heat with no servers.
+- **Tier and TIERS.** A tier is a way of buying GPU-hours: reserved, serverless, dedicated host, on-demand, capacity block and spot. Each has a price factor (its GPU-hour price as a multiple of the spot price) and placement rules: `firm` (starts as soon as there is room), `whole_server` (a dedicated host holds and pays for every GPU of its server), `busy_share` (serverless GPUs are held but work, and are paid for, half the time) and `lead_h` (a capacity block is booked 24 hours ahead). With `tier_mix`, `job_stream` gives every arrival a tier in the asked shares and no deadline.
+- **TierScheduler.** Each hour the firm tiers are placed first, in the order of `TIERS`, then spot. A firm job goes to the house where its heat avoids the most backup heating over its run, the house whose minimum heat is not met; between equal houses, where it adds the least dumped heat. If no server has room it pushes spot jobs off one server (`Site.spot_in_the_way`, `Site.evict`): the fewest needed, most recently started first. An evicted job keeps its progress and re-queues with the hours it still has to run. A capacity block pushes nothing off. A firm job that still finds no room waits at the front of the queue. A spot job starts only where `Site.dump_added_kwh` is zero, that is where the house can absorb all its heat until everything booked there has finished, and waits otherwise.
+- **FleetRun.** Each hour: arrivals, drop jobs that can no longer make their deadline, place, re-queue evicted jobs, then every house settles its heat. `tiers` keeps running totals by tier in `TierTotals`: jobs arrived and started, hours waited, evictions, GPU-hours of work and GPU-hours billed. A run without a scheduler gives the backup heat with no servers.
 
 `examples/scheduler_viz.py` runs a year in six houses under three policies and writes a page that compares them over any range of dates.
 
-`examples/dashboard_server.py` shows the same fleet live. It steps a `FleetRun` one hour per tick and serves a page that polls `/state`: every house with its servers and the jobs on them (`Site.running`), the queue by priority, and for each house the hourly server heat against what it could absorb and had to get (the `must_run`, `space_max`, `water_max`, `to_space`, `to_water` and `dumped` lists of `SiteRecord`). `POST /control` pauses, resumes, changes speed or restarts. It uses the holding policy so the queue has content, and it is a simulation shown live, not real machines.
+`examples/dashboard_server.py` shows the same fleet live, with the workload tiers. It steps a `FleetRun` under the `TierScheduler` one hour per tick, next to a second run of the same houses without servers (the reference for the heat savings), and serves a page that polls `/state`. The page has a form for the share of jobs in each tier, the demand, the period, the base price P and the factor of each tier. It shows every house with its servers and the jobs on them coloured by tier, the queue, the hourly heat, and the money so far: cost, heat savings, net cost per GPU-hour sold, income and profit at P, the break-even P and the P for a target margin, and each tier's results. `POST /control` pauses, resumes, changes speed, restarts, runs to the end (`finish`), starts a run with a new mix (`configure`) or changes the prices without restarting (`prices`). It is a simulation shown live, not real machines.
 
 ## Reporting
 
@@ -284,7 +286,9 @@ With no dumped heat the break-even price is `electricity price × (1 − recover
 
 ### ServerCosts and Balance
 
-`ServerCosts` holds the electricity tariff, the heat pump COP, the hardware price of a server, its life and the yearly maintenance rate. `balance(servers, electricity_kwh, gpu_hours, backup_avoided_kwh)` returns a `Balance` with each cost on its own: hardware (price ÷ life, per day), electricity (kWh × tariff) and maintenance (rate × price, per day). The heat saving is the backup heat no longer needed, divided by the COP and priced at the tariff. `break_even_chf_per_gpu_hour` is the GPU-hour price that covers the costs, with or without the heat saving, and `profit_chf(price)` is what is left at a given GPU-hour price. `scripts/fetch_prices.py` collects the default prices, all from 2020, into `data/prices_2020.json` with their sources, and `examples/economics_viz.py` shows one day.
+`TierPricing(base price, factors)` prices the tiers: `income_chf` and `profit_chf` for the GPU-hours billed in each tier, and `base_price_for(balance, sold, margin)`, the base price at which income covers the costs after the heat saving or leaves the given margin.
+
+`ServerCosts` holds the electricity tariff, the heat pump COP, the hardware price of a server, its life and the yearly maintenance rate. `balance(servers, electricity_kwh, gpu_hours, backup_avoided_kwh)` returns a `Balance` with each cost on its own: hardware (price ÷ life, per day), electricity (kWh × tariff) and maintenance (rate × price, per day). It also takes further yearly costs (building, network, staff) and a one-off installation cost as shares of the hardware price, and the draw of idle GPUs as a share of full load. The heat saving is the backup heat no longer needed times `heat_value_chf_per_kwh`, which depends on `backup`: for `"heat_pump"` (the default) the tariff divided by the COP, for `"gas"` the gas price divided by `boiler_efficiency` (0.90, a team assumption). `scripts/gas_price.py` reads the real house's anonymised gas bills (`context/house_heat_details`, heating meter `MESSPUNKT_004`) into `data/gas_price.json`: per month and per year, the variable price (energy, network and levies over kWh used; 0.1355 CHF/kWh in 2025) and the fixed capacity charge, which is kept apart because the house still pays it with servers. `load_gas_price` reads one year as a `GasPrice`. The dashboard uses gas by default and can switch to the heat pump. The house's electricity files hold its 15-minute use but no prices, so server electricity stays at the ElCom tariff. `break_even_chf_per_gpu_hour` is the GPU-hour price that covers the costs, with or without the heat saving, and `profit_chf(price)` is what is left at a given GPU-hour price. `scripts/fetch_prices.py` collects everything about the fleet machine into `data/fleet_machine.json` with sources: a server with eight H100 GPUs, the id of its measured power profile, its purchase price as a low, typical and high estimate, the market price of an H100 hour on specialist GPU clouds and on a large cloud, the electricity tariff, the exchange rate and how much faster the H100 is than each GPU of the job trace. `load_fleet_machine` reads it as a `FleetMachine`, and the scheduler page, the dashboard and `examples/economics_viz.py` take their figures from it, so power, purchase price and market price always describe the same GPU in the same year.
 
 ## Modelling choices to challenge
 
@@ -294,9 +298,9 @@ With no dumped heat the break-even price is `electricity price × (1 − recover
 | Hot water | Spread evenly over 24 h | A morning/evening shape changes tank use |
 | Tank | Starts empty, no losses | Losses reduce summer coverage |
 | Server power | Measured full-load power × share of GPUs busy, zero when idle | A real server draws power when idle, so part-loaded servers make more heat than modelled |
-| Trace job run times | As recorded on the trace's 2020 GPUs | Newer systems would finish the same work sooner |
+| Trace job run times | In the fleet model, shortened by how much faster the H100 is than the GPU the job ran on (T4 15.2, V100 8.8, P100 47.1 times, by peak mixed-precision throughput); the one-day pages keep the recorded lengths | The ratio is the most a job can speed up. GPUs the trace calls only MISC are taken as a T4. Ten of the 15 example jobs fall under an hour and run as 4-hour batches |
 | Maintenance | 5% of the hardware price a year | No public source; it is a quarter of the daily cost in the example |
-| Hardware | One 2020 list price for every server, spread over 10 years | The power figures come from 2025 systems, so price and power are not from the same machine |
+| Hardware | One 8 × H100 server, 285,000 USD with a low of 250,000 and a high of 320,000 (2026 market estimate, no list price is published), spread over 10 years | The pages show the cost per GPU-hour at all three prices. The measured server carries the NVL variant of the GPU |
 | Job deadlines and classes | 20% urgent, 50% normal, 30% relaxed; deadline 1.5, 3 or 6 times the run time | The trace has none; tighter deadlines leave the scheduler less choice |
 | Weather forecast in the fleet model | The real weather of the coming hours | A real forecast would make the scheduler's choices slightly worse |
 | Comfort band | 19 to 22 °C, 20 kWh/K thermal capacity | Sets how many hours the house can coast without heat |
@@ -307,11 +311,17 @@ With no dumped heat the break-even price is `electricity price × (1 − recover
 | Short jobs | Batched into tasks of an hour or more | A server idles for the rest of an hour after a short task |
 | Forecast | Perfect, read from the profile | A real system needs a weather forecast |
 | Fixed costs | 0 CHF per server-year | Hardware cost decides whether a pilot pays off |
-| Electricity | Flat price, one house tariff | No day/night or spot pricing |
+| Tier price factors | On-demand over spot from the market (specialist GPU clouds, about 1.8 for the H100); reserved 0.6, capacity block 0.9, dedicated 1.1 and serverless 1.5 times on-demand | The four ratios are assumptions; the factors set the income and the break-even price |
+| Tier rules | Serverless GPUs work 50% of the time; a capacity block is booked 24 h ahead; a dedicated host pays for all 8 GPUs | Assumptions; they set how much capacity each tier holds for the GPU-hours it pays for |
+| Reserved billing | Per GPU-hour run | A real commitment is paid for whether it is used or not |
+| Evicted spot jobs | Keep their progress, as if checkpointed for free | Without checkpoints the work done is lost and must be run again |
+| Spot and overflow | Checked when a spot job starts; a running spot job is not stopped if later firm jobs make the house overflow | Some heat is dumped next to running spot jobs |
+| Demand and price | The number of arriving jobs does not depend on the price | Raising P raises income with no loss of clients |
+| Electricity | Flat price, one house tariff (Basel, 2026) | No day/night or spot pricing |
 
 ## Not modelled yet
 
 - Solar PV and the "Prepper" stretch goal (irradiance is already loaded).
-- Customers, contracts and job submission.
+- Customers, contracts and job submission (the tiers are drawn at random for each arriving job).
 - Network cost and time of moving job data between houses.
 - Server failures in the run loop (`Dispatcher.fail_server` exists but nothing triggers it).

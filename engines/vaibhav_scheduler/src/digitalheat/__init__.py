@@ -2,13 +2,16 @@
 
 from .assumptions import Assumption, AssumptionRegistry, reference_assumptions
 from .clock import Clock
-from .compute import (HardwareSpec, PowerProfile, Server, ServerRegistry, ServerState,
+from .compute import (FleetMachine, GasPrice, HardwareSpec, MarketPrice, PowerProfile, Server,
+                      ServerRegistry, ServerState, load_fleet_machine, load_gas_price,
                       load_power_profiles)
-from .economics import Balance, HourRecord, Ledger, ServerCosts, Tariff, YearlyBalance
+from .economics import (Balance, HourRecord, Ledger, ServerCosts, Tariff, TierPricing,
+                        YearlyBalance)
 from .execution import (Action, ActionType, Dispatcher, Executor, ProcessExecutor,
                         SimulatedExecutor)
-from .fleet import (FirstFreeScheduler, FleetRun, HeatSavingScheduler, QueuedJob, Site,
-                    job_stream, mean_heat_need_kw, servers_needed)
+from .fleet import (TIERS, FirstFreeScheduler, FleetRun, HeatSavingScheduler, QueuedJob, Site,
+                    Tier, TierScheduler, TierTotals, job_stream, mean_heat_need_kw,
+                    servers_needed, tier_factors)
 from .heat import (HOT_WATER_SHAPES, BackupHeater, Building, HeatDelivery, HeatDemandProfile,
                    HeatFlows, HeatRange, HeatSignal, HeatStorage, HotWaterTank, House,
                    HouseHeatModel, WeatherRecord, WeatherSeries, read_csv_column)
@@ -21,14 +24,18 @@ from .workload import (ArrivalMode, ArrivalProcess, Checkpoint, Demand, InvalidT
 __all__ = [
     "Action", "ActionType", "ArrivalMode", "ArrivalProcess", "Assumption", "AssumptionRegistry",
     "BackupHeater", "Balance", "Building", "Checkpoint", "Clock", "Demand", "Dispatcher",
-    "Executor", "FirstFreeScheduler", "Fleet", "FleetRun", "gpu_hours_by_step", "HardwareSpec",
+    "Executor", "FirstFreeScheduler", "Fleet", "FleetMachine", "FleetRun", "GasPrice",
+    "gpu_hours_by_step",
+    "HardwareSpec",
     "HeatDelivery", "HeatDemandProfile", "HeatFlows", "HeatFollowingScheduler", "HeatRange",
     "HeatSavingScheduler", "HeatSignal", "HeatStorage", "HOT_WATER_SHAPES", "HotWaterTank",
     "HourRecord", "House", "HouseHeatModel", "InvalidTransition", "job_stream", "JobType",
-    "Ledger", "load_power_profiles", "load_trace_jobs", "mean_heat_need_kw", "Measurement",
+    "Ledger", "load_fleet_machine", "load_gas_price", "load_power_profiles", "load_trace_jobs", "MarketPrice",
+    "mean_heat_need_kw", "Measurement",
     "Placement", "PowerProfile", "ProcessExecutor", "QueuedJob", "read_csv_column",
     "reference_assumptions", "Scenario", "Scheduler", "Server", "ServerCosts", "ServerRegistry",
     "servers_needed", "ServerState", "SimulatedExecutor", "SimulationRun", "Site", "Tariff",
-    "Task", "TaskStatus", "TraceJob", "TypeStats", "WeatherRecord", "WeatherSeries",
-    "YearlyBalance",
+    "Task", "TaskStatus", "Tier", "tier_factors", "TierPricing", "TierScheduler", "TierTotals",
+    "TIERS",
+    "TraceJob", "TypeStats", "WeatherRecord", "WeatherSeries", "YearlyBalance",
 ]

@@ -189,12 +189,15 @@ function figures(p, h0, h1) {
   });
   const t = (k) => sum(per, (x) => x[k]), days = (h1 - h0) / 24;
   const gpu = t("gpu"), kwh = gpu * KW_PER_GPU, avoided = t("avoided");
+  const fixed = (price) => SERVERS * price * (1 / MON.life_years + MON.maintenance) / 365 * days;   // hardware and maintenance
   const hw = SERVERS * MON.hardware_chf / (MON.life_years * 365) * days;
   const mt = SERVERS * MON.hardware_chf * MON.maintenance / 365 * days;
   const el = kwh * MON.tariff, saving = avoided / MON.cop * MON.tariff, cost = hw + el + mt;
+  const net = (price) => gpu > 0 ? (fixed(price) + el - saving) / gpu : null;   // at another hardware price
   const started = between(p.startedRun, h0, h1), missed = between(p.missedRun, h0, h1);
   return { per, gpu, kwh, absorbed: t("absorbed"), dumped: t("dumped"), backup: t("backup"), need: t("need"), avoided,
     hw, mt, el, saving, cost, c0: gpu > 0 ? cost / gpu : null, c1: gpu > 0 ? (cost - saving) / gpu : null,
+    c1lo: net(MON.hardware_low_chf), c1hi: net(MON.hardware_high_chf),
     started, missed, wait: started > 0 ? between(p.waitRun, h0, h1) / started : 0, usage: gpu / (GPUS * (h1 - h0)) };
 }
 function selfCheck() {
@@ -305,12 +308,12 @@ function render() {
 
   const tile = (k, v, unit, d) => `<div class="tile"><div class="k">${k}</div><div class="v num">${v} <small>${unit}</small></div><div class="d">${d}</div></div>`;
   $("tiles").innerHTML =
-    tile("Net cost of a GPU-hour, heat saving", heat.c1 == null ? "–" : chf(heat.c1, 3), "CHF", `first free: ${first.c1 == null ? "–" : chf(first.c1, 3)} CHF`) +
+    tile("Net cost of a GPU-hour, heat saving", heat.c1 == null ? "–" : chf(heat.c1, 3), "CHF", heat.c1 == null ? "" : `${chf(heat.c1lo, 3)} to ${chf(heat.c1hi, 3)} across the hardware price range · first free: ${first.c1 == null ? "–" : chf(first.c1, 3)}`) +
     tile("Heat savings, heat saving", chf(heat.saving, 0), "CHF", `${chf(heat.saving - first.saving, 0)} CHF more than first free`) +
     tile("Server heat dumped, heat saving", pct(heat.dumped, heat.absorbed + heat.dumped), "", `first free: ${pct(first.dumped, first.absorbed + first.dumped)}`) +
     tile("Deadlines missed, heat saving", n0(heat.missed), "jobs", `first free: ${n0(first.missed)} · holding jobs: ${n0(hold.missed)}`);
 
-  $("comparenote").textContent = `Without any server the six houses need ${n0(first.need)} kWh of heating in this period. Costs use the 2020 prices: ${f(MON.tariff, 4)} CHF per kWh, ${n0(MON.hardware_chf)} CHF per server over ${MON.life_years} years, ${f(MON.maintenance * 100, 0)}% maintenance a year.`;
+  $("comparenote").textContent = `Without any server the six houses need ${n0(first.need)} kWh of heating in this period. Costs use ${MON.year} prices for a server with ${SRV.gpus} × ${esc(MON.gpu)}: ${f(MON.tariff, 4)} CHF per kWh, ${n0(MON.hardware_chf)} CHF per server (${n0(MON.hardware_low_chf)} to ${n0(MON.hardware_high_chf)}) over ${MON.life_years} years, ${f(MON.maintenance * 100, 0)}% maintenance a year.`;
   const row = (label, fn) => `<tr><td class="l">${label}</td>${F.map((m) => `<td>${fn(m)}</td>`).join("")}</tr>`;
   const group = (label) => `<tr class="group"><td class="l" colspan="${F.length + 1}">${label}</td></tr>`;
   $("compare").innerHTML = `<thead><tr><th class="l"></th>${POL.map((p) => `<th>${esc(p.name)}</th>`).join("")}</tr></thead><tbody>` +
@@ -331,7 +334,11 @@ function render() {
     row("Electricity", (m) => chf(m.el, 0)) +
     row("Heat savings", (m) => chf(m.saving, 0)) +
     row("Cost of a GPU-hour without heat savings", (m) => m.c0 == null ? "–" : chf(m.c0, 3)) +
-    row("Net cost of a GPU-hour with heat savings", (m) => m.c1 == null ? "–" : `<b>${chf(m.c1, 3)}</b>`) + "</tbody>";
+    row("Net cost of a GPU-hour with heat savings", (m) => m.c1 == null ? "–" : `<b>${chf(m.c1, 3)}</b>`) +
+    row("the same at the low and the high hardware price", (m) => m.c1 == null ? "–" : `${chf(m.c1lo, 3)} to ${chf(m.c1hi, 3)}`) +
+    group(`For comparison: renting an ${esc(MON.gpu)}, CHF per GPU-hour`) +
+    row(`Specialist GPU clouds, on demand and lowest tier`, () => `${chf(MON.on_demand, 2)} · ${chf(MON.spot, 2)}`) +
+    row(`Large cloud, on demand and spot`, () => `${chf(MON.cloud_on_demand, 2)} · ${chf(MON.cloud_spot, 2)}`) + "</tbody>";
 
   $("houses").innerHTML = `<thead><tr><th class="l" rowspan="2">Town</th><th rowspan="2">Size</th><th rowspan="2">Servers</th><th rowspan="2">Heat need at the mean temperature</th>` +
     POL.map((p) => `<th class="grp" colspan="3">${esc(p.name)}</th>`).join("") + "</tr><tr>" +
@@ -372,10 +379,10 @@ $("rule").innerHTML = [
 $("refs").innerHTML = [
   `<b>Houses.</b> The reference house scaled ${SITES.map((x) => `${x.size}× in ${esc(x.name)}`).join(", ")}. Size scales heat loss, thermal mass, the heating-system limit, hot water and the tank together. The sizes are an assumption, chosen so that each house is twice the previous one.`,
   `<b>Servers.</b> ${esc(SRV.system)}, ${SRV.gpus} × ${esc(SRV.accelerator)}: ${f(SRV.kw, 2)} kW at full load on ${esc(SRV.benchmark)}, ${f(heatPerServer, 2)} kW of heat (${link(SRV.url, SRV.source)}). Each house gets enough of them that ${f(SRV.usage * 100, 0)}% usage covers its heat need at the town's mean outdoor temperature, rounded up.`,
-  `<b>Jobs.</b> Random draws from the 15 example tasks of the ${link(J.source_url, J.source)}, in the proportions of their size groups; within a group ${Object.entries(J.rank_share).map(([k, v]) => `${f(v * 100, 0)}% ${esc(k)}`).join(", ")}. Jobs under an hour arrive as a batch run back to back for ${f(J.batch_h, 0)} hours. The arrival times are random (seed ${J.seed}); all three policies get the same jobs.`,
+  `<b>Jobs.</b> Random draws from the 15 example tasks of the ${link(J.source_url, J.source)}, in the proportions of their size groups; within a group ${Object.entries(J.rank_share).map(([k, v]) => `${f(v * 100, 0)}% ${esc(k)}`).join(", ")}. ${J.lengths === "fleet" ? `Each job is shortened by how much faster the ${esc(MON.gpu)} is than the GPU it ran on in the trace (${Object.entries(J.speed_up).map(([k, v]) => `${esc(k)} ${f(v, 1)}×`).join(", ")}, by peak mixed-precision throughput; ${J.assumed_speed_up.map(esc).join(", ")} is not named in the trace and is taken as a T4). This is the most a job can speed up. ` : "Job lengths are as recorded on the trace's 2020 GPUs. "}Jobs under an hour arrive as a batch run back to back for ${f(J.batch_h, 0)} hours. The arrival times are random (seed ${J.seed}); all three policies get the same jobs.`,
   `<b>Deadlines and classes.</b> ${J.classes.map((c) => `${f(c.share * 100, 0)}% ${esc(c.name)} (deadline ${c.deadline_factor}× the run time after arrival)`).join(", ")}. The trace has no deadlines; these are assumptions.`,
   `<b>Heat savings.</b> Backup heat with no servers minus backup heat with them, divided by a heat pump COP of ${MON.cop} and priced at the electricity tariff.`,
-  `<b>Prices, all 2020.</b> Electricity ${f(MON.tariff, 4)} CHF per kWh (${esc(MON.tariff_source)}), used for all six towns. Hardware ${n0(MON.hardware_chf)} CHF per server (${esc(MON.hardware_source)}) over ${MON.life_years} years. Maintenance ${f(MON.maintenance * 100, 0)}% of the hardware price a year, a team assumption. For comparison, a GPU-hour cost ${chf(MON.on_demand)} CHF on demand and ${chf(MON.spot)} CHF spot (${esc(MON.gpu_source)}).`,
+  `<b>One machine, ${MON.year} prices.</b> Power, purchase price and market price all describe a server with ${SRV.gpus} × ${esc(MON.gpu)}. Electricity ${f(MON.tariff, 4)} CHF per kWh (${esc(MON.tariff_source)}), used for all six towns. Hardware ${n0(MON.hardware_chf)} CHF per server over ${MON.life_years} years (${esc(MON.hardware_source)}; no list price is published). Maintenance ${f(MON.maintenance * 100, 0)}% of the hardware price a year, a team assumption. Renting a GPU-hour costs ${chf(MON.on_demand)} CHF on demand and ${chf(MON.spot)} CHF in the lowest tier on specialist GPU clouds (${esc(MON.gpu_source)}), and ${chf(MON.cloud_on_demand)} CHF on demand and ${chf(MON.cloud_spot)} CHF on spot on a large cloud (${esc(MON.cloud_source)}). The measured server carries the NVL variant of the GPU.`,
   `<b>Weather.</b> ${esc(D.weather_source)}. The scheduler sees the real weather of the coming hours, which a real forecast would not match.`,
   "<b>Any range of dates</b> is a slice of the same year-long runs, so a week in July starts from the state the houses and queues were in on that day.",
 ].map((t) => `<li>${t}</li>`).join("");

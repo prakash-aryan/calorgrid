@@ -10,7 +10,8 @@
   --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10); --wash: rgba(11,11,11,.06);
   --water: #2a78d6; --space: #eb6834; --water-room: #b7d3f6; --space-room: #f7cdbb; --dump: #a3a199;
-  --urgent: #6250d6; --normal: #1baf7a; --relaxed: #eda100;
+  --t-on_demand: #1baf7a; --t-spot: #eda100; --t-reserved: #e87ba4; --t-block: #008300;
+  --t-dedicated: #6250d6; --t-serverless: #e34948;
   --accent: #2a78d6; --critical: #d03b3b; --good: #0ca30c;
 }
 @media (prefers-color-scheme: dark) {
@@ -19,7 +20,8 @@
     --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --wash: rgba(255,255,255,.08);
     --water: #3987e5; --space: #d95926; --water-room: #1b3f6e; --space-room: #5e2a14; --dump: #6b6a64;
-    --urgent: #9085e9; --normal: #199e70; --relaxed: #c98500;
+    --t-on_demand: #199e70; --t-spot: #c98500; --t-reserved: #d55181; --t-block: #0ca30c;
+    --t-dedicated: #9085e9; --t-serverless: #e66767;
     --accent: #3987e5;
   }
 }
@@ -88,7 +90,8 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); o
 .servers { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 5px 6px; }
 .srv { display: flex; height: 12px; border-radius: 3px; background: var(--wash); overflow: hidden; }
 .srv span { height: 100%; flex: none; box-shadow: inset -1px 0 0 var(--surface); }
-.c-urgent { background: var(--urgent); } .c-normal { background: var(--normal); } .c-relaxed { background: var(--relaxed); }
+.t-on_demand { background: var(--t-on_demand); } .t-spot { background: var(--t-spot); } .t-reserved { background: var(--t-reserved); }
+.t-block { background: var(--t-block); } .t-dedicated { background: var(--t-dedicated); } .t-serverless { background: var(--t-serverless); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink2); margin: 4px 0; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
@@ -107,6 +110,33 @@ table.q th { color: var(--ink2); font-weight: 600; font-size: 12px; position: st
 table.q th.l, table.q td.l { text-align: left; }
 .chip { display: inline-flex; align-items: center; gap: 5px; }
 table.q td.empty { color: var(--ink2); padding: 10px 0; white-space: normal; border-bottom: none; }
+
+/* workload and prices */
+.card.block { margin-bottom: 12px; }
+input[type=number], input[type=date] { font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+input[type=number] { width: 78px; text-align: right; }
+input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:disabled { color: var(--muted); background: var(--wash); }
+button.primary { background: var(--ink); color: var(--page); border-color: var(--ink); font-weight: 600; }
+button.primary:hover { background: var(--ink2); }
+button:disabled { opacity: .45; cursor: default; }
+.fields input[type=number] { display: block; }
+.fields { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end; margin-top: 10px; }
+.field label { display: block; color: var(--ink2); font-size: 12px; margin-bottom: 2px; }
+.field small { display: block; color: var(--muted); font-size: 11px; }
+.scroll { overflow-x: auto; }
+table.t { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.t th, table.t td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.t th { color: var(--ink2); font-weight: 600; font-size: 12px; vertical-align: bottom; }
+table.t th.l, table.t td.l { text-align: left; }
+table.t td.wrap { white-space: normal; min-width: 220px; color: var(--ink2); }
+table.t tr.total td { font-weight: 600; border-top: 1px solid var(--axis); }
+table.t td.sub { color: var(--ink2); }
+.msg { color: var(--ink2); }
+.msg.bad { color: var(--critical); font-weight: 600; }
+.two { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 12px 32px; align-items: end; margin-top: 8px; }
+@media (max-width: 1100px) { .two { grid-template-columns: minmax(0, 1fr); } }
 
 svg { display: block; overflow: visible; }
 svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); font-variant-numeric: tabular-nums; }
@@ -135,7 +165,7 @@ ul.plain li { margin-bottom: 3px; }
   <div class="top">
     <div>
       <h1>Fleet dashboard</h1>
-      <div class="muted">A simulation shown live: six houses, their servers and the jobs on them.</div>
+      <div class="muted">A simulation shown live: six houses, their servers, and jobs bought in six tiers.</div>
     </div>
     <div>
       <div class="clock" id="clock">&nbsp;</div>
@@ -148,6 +178,7 @@ ul.plain li { margin-bottom: 3px; }
       <label for="speed" class="muted">Speed</label>
       <select id="speed"></select>
       <button id="restart">Restart</button>
+      <button id="finish">Run to end</button>
       <span class="muted">History</span>
       <span class="seg-group" id="window">
         <button data-h="24">24 h</button><button data-h="72" aria-pressed="true">72 h</button><button data-h="0">All</button>
@@ -155,7 +186,38 @@ ul.plain li { margin-bottom: 3px; }
     </div>
   </div>
 
+  <div class="card block">
+    <div class="hh"><h2>Workload and prices</h2><span class="msg num" id="mixtotal"></span></div>
+    <p class="note">Set the share of arriving jobs in each tier, then run. Every tier's GPU-hour price is the base price P, the spot price, times its factor. Prices can be changed while the run goes on; they do not change where jobs go.</p>
+    <div class="scroll"><table class="t" id="setup"></table></div>
+    <div class="fields">
+      <div class="field"><label for="in-base">Base price P, CHF per GPU-hour</label><input type="number" id="in-base" min="0" step="0.01"><small id="src-base"></small></div>
+      <div class="field"><label for="in-margin">Target margin, % of income</label><input type="number" id="in-margin" min="0" max="99" step="1"></div>
+      <div class="field"><label for="in-load">Demand, % of fleet capacity</label><input type="number" id="in-load" min="1" max="300" step="5"></div>
+      <div class="field"><label for="in-start">First day</label><input type="date" id="in-start"></div>
+      <div class="field"><label for="in-days">Days</label><input type="number" id="in-days" min="1" max="365" step="1"></div>
+      <div class="field"><button class="primary" id="runsim">Run simulation</button></div>
+      <div class="field"><span class="msg" id="setupmsg"></span></div>
+    </div>
+    <h3>Costs and backup heating</h3>
+    <p class="note">Backup heating is what the server heat replaces: the real house heats with gas, so a gas boiler is the default; switch to a heat pump to compare. Of the percentages, only maintenance has a value to start with, and it is a guess. The others are costs a cloud provider's price has to cover; they stay out of the result until you enter them. Like prices, all of these can be changed while the run goes on.</p>
+    <div class="fields" id="costfields"></div>
+  </div>
+
   <div class="tiles" id="tiles"></div>
+
+  <div class="card block">
+    <div class="hh"><h2 id="resulttitle">Results so far</h2><span class="muted num" id="resultspan"></span></div>
+    <h3>By tier</h3>
+    <div class="scroll"><table class="t" id="tiers"></table></div>
+    <div class="two">
+      <div>
+        <h3>Cost and profit of the fleet, CHF</h3>
+        <table class="t" id="money"></table>
+      </div>
+      <p class="note" id="moneynote"></p>
+    </div>
+  </div>
 
   <div class="main">
     <div>
@@ -168,11 +230,7 @@ ul.plain li { margin-bottom: 3px; }
     <div class="card queue">
       <div class="hh"><h2>Queue</h2><span class="muted num" id="qcount"></span></div>
       <p class="note" id="qnote"></p>
-      <div class="legend">
-        <span><i class="sw c-urgent"></i>Urgent</span>
-        <span><i class="sw c-normal"></i>Normal</span>
-        <span><i class="sw c-relaxed"></i>Relaxed</span>
-      </div>
+      <div class="legend" id="legend"></div>
       <div class="tablewrap"><table class="q" id="queue"></table></div>
     </div>
   </div>
@@ -188,7 +246,9 @@ const n0 = (v) => Math.round(v).toLocaleString("en").replace("-", "−");
 const g = (v) => String(+v.toFixed(2));
 const pct = (a, b) => b > 0 ? f(a / b * 100, 0) + "%" : "–";
 const dur = (h) => h < 1 ? `${Math.round(h * 60)} min` : `${f(h)} h`;
+const chf = (v, d = 0) => v == null ? "–" : (d ? f(v, d) : n0(v));
 const KEYS = ["must_run", "space_max", "water_max", "to_space", "to_water", "dumped", "backup"];
+const ORDER = ["on_demand", "spot", "reserved", "block", "dedicated", "serverless"];   // as on the form
 
 let S = null;                 // latest snapshot from the server
 let hist = [];                // per house: the hourly history so far
@@ -220,8 +280,10 @@ async function poll() {
   }
 }
 async function control(action, value) {
-  await fetch("/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, value }) });
+  const res = await fetch("/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, value }) });
+  const reply = await res.json().catch(() => ({}));
   poll();
+  return res.ok ? null : (reply.error || "the server refused the request");
 }
 
 /* ---- drawing ---- */
@@ -233,7 +295,81 @@ function s(tag, attrs, parent, text) {
   return e;
 }
 function niceStep(top) { const raw = top / 3, mag = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= raw); }
-function jobName(kind, gpus, run) { return `${g(gpus)} GPU · ${dur(run)}`; }
+function jobName(gpus, run) { return `${g(gpus)} GPU · ${dur(run)}`; }
+const tierOf = (key) => S.tiers.find((x) => x.key === key);
+const chip = (key) => `<span class="chip"><i class="sw t-${esc(key)}"></i>${esc(tierOf(key).name)}</span>`;
+
+/* ---- the form: tier shares, prices, period ---- */
+function tierRule(key) {
+  const R = S.rules[key];
+  return {
+    on_demand: "Starts at once, in the house that needs heat most. If no server has room, spot jobs are pushed off.",
+    spot: "Starts only in a house that can absorb all its heat, and waits otherwise. A firm job may push it off; it keeps its progress.",
+    reserved: "Placed first every hour. Starts at once and pushes spot jobs off if no server has room.",
+    block: `Booked when it arrives, to start ${R.lead_h} hours later. Pushes nothing off.`,
+    dedicated: "Takes a whole empty server and pays for all of its GPUs, whatever it uses.",
+    serverless: `Its GPUs are kept ready and work ${f(R.busy_share * 100, 0)}% of the time; only that time is paid for.`,
+  }[key];
+}
+function buildForm() {
+  $("setup").innerHTML = `<thead><tr><th class="l">Tier</th><th class="l">How its jobs are placed</th><th>Share of jobs, %</th><th>Price factor, × P</th><th>Price, CHF per GPU-hour</th></tr></thead><tbody>` +
+    ORDER.map((key) => { const t = tierOf(key); return `<tr><td class="l">${chip(key)}</td><td class="l wrap">${tierRule(key)}</td>` +
+      `<td><input type="number" id="share-${key}" min="0" max="100" step="1" value="${g(t.share)}" aria-label="${esc(t.name)}: share of jobs in percent"></td>` +
+      `<td><input type="number" id="factor-${key}" min="0" step="0.01" value="${g(t.factor)}" ${key === "spot" ? "disabled" : ""} aria-label="${esc(t.name)}: price factor"></td>` +
+      `<td id="price-${key}"></td></tr>`; }).join("") + "</tbody>";
+  $("in-base").value = S.money.base; $("in-margin").value = g(S.money.target_margin * 100);
+  $("in-load").value = g(S.config.load); $("in-start").value = S.config.start; $("in-days").value = S.config.days;
+  $("in-start").min = `${S.year}-01-01`; $("in-start").max = `${S.year}-12-31`;
+  $("src-base").textContent = `Default: ${f(S.inputs.spot, 3)} CHF, the lowest tier for an ${S.inputs.gpu} on specialist GPU clouds (${S.inputs.year})`;
+  const costLabel = { maintenance: "Maintenance", building: "Building", network: "Network", staff: "Staff", installation: "Installation", idle_power: "Idle power" };
+  const H = S.heating;
+  $("costfields").innerHTML = `<div class="field"><label for="cost-backup">Backup heating</label><select id="cost-backup">${
+    Object.entries(H.options).map(([key, o]) => `<option value="${key}"${key === H.backup ? " selected" : ""}>${esc(o.label)}</option>`).join("")
+  }</select><small>what a kWh of server heat saves</small></div>` + Object.entries(S.cost_inputs).map(([name, c]) =>
+    `<div class="field"><label for="cost-${name}">${costLabel[name] || esc(name)}, %</label><input type="number" id="cost-${name}" min="0" max="1000" step="0.5" value="${g(c.percent)}"><small>${esc(c.of)}</small></div>`).join("");
+  $("legend").innerHTML = ORDER.map((key) => `<span><i class="sw t-${key}"></i>${esc(tierOf(key).name)}</span>`).join("");
+  formChanged();
+}
+const num = (id) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : NaN; };
+function formChanged() {                     // the prices and the total shown inside the form
+  const base = num("in-base");
+  let total = 0;
+  ORDER.forEach((key) => {
+    total += num("share-" + key) || 0;
+    const price = base * num("factor-" + key);
+    $("price-" + key).textContent = Number.isFinite(price) ? f(price, 3) : "–";
+  });
+  const ok = Math.abs(total - 100) < 0.01 && ORDER.every((key) => num("share-" + key) >= 0);
+  $("mixtotal").textContent = ok ? "Shares add up to 100%" : `Shares add up to ${g(total)}%: they must make 100%`;
+  $("mixtotal").classList.toggle("bad", !ok);
+  $("runsim").disabled = !ok;
+}
+let priceTimer;
+function pricesChanged() {                   // sent as typed: prices do not restart the run
+  formChanged();
+  clearTimeout(priceTimer);
+  priceTimer = setTimeout(async () => {
+    const base = num("in-base"), margin = num("in-margin");
+    const factors = Object.fromEntries(ORDER.map((key) => [key, num("factor-" + key)]));
+    if (!(base >= 0) || !(margin >= 0 && margin < 100) || !Object.values(factors).every((v) => v >= 0)) return;
+    say(await control("prices", { base, factors, margin }));
+  }, 300);
+}
+let costTimer;
+function costsChanged() {                    // sent as typed, like prices
+  clearTimeout(costTimer);
+  costTimer = setTimeout(async () => {
+    const value = Object.fromEntries(Object.keys(S.cost_inputs).map((name) => [name, num("cost-" + name)]));
+    if (!Object.values(value).every((v) => v >= 0)) return;
+    say(await control("costs", { ...value, backup: $("cost-backup").value }));
+  }, 300);
+}
+function say(error, done = "") { $("setupmsg").textContent = error || done; $("setupmsg").classList.toggle("bad", !!error); }
+async function runSimulation() {
+  const mix = Object.fromEntries(ORDER.map((key) => [key, num("share-" + key) || 0]));
+  hover = null;
+  say(await control("configure", { mix, load: num("in-load"), start: $("in-start").value, days: num("in-days") }), "New run started.");
+}
 
 function buildOnce() {
   $("houses").innerHTML = S.sites.map((site, i) => `<div class="card">
@@ -247,12 +383,18 @@ function buildOnce() {
       <div class="plot" id="chart-${i}"></div>
     </div>`).join("");
   $("speed").innerHTML = S.speeds.map((v) => `<option value="${v}">${v}×</option>`).join("");
+  buildForm();
+  const I = S.inputs;
   $("how").innerHTML = [
-    "<b>Servers.</b> Each strip is one server with 8 GPUs. Coloured blocks are the jobs running on it, as wide as the GPUs they use, coloured by class. Hover a block for the job's details.",
+    "<b>Tiers.</b> Each arriving job is bought in one of six tiers, in the shares set above. Firm tiers (all but spot) start as soon as a server has room, in the house where their heat avoids the most backup heating. Each hour they are placed in this order: reserved, serverless, dedicated host, on-demand, capacity block, and spot last.",
+    "<b>Spot.</b> A spot job starts only in a house that can absorb all of its heat until everything booked there has finished, so spot never causes dumped heat. Otherwise it waits, with no deadline. When a firm job finds no free server, the fewest spot jobs are pushed off one server to make room; they return to the queue with the hours they still have to run.",
+    "<b>Servers.</b> Each strip is one server. Coloured blocks are the jobs running on it, as wide as the GPUs they hold, coloured by tier. Hover a block for the job's details.",
     "<b>This hour.</b> The bar under each house's name shows the server heat of the current hour (solid) inside what the house can absorb (pale), with a mark at the least it must get. Heat beyond what it can absorb is grey: dumped.",
-    `<b>Heat history.</b> One column per hour, as on the planner page: solid is server heat the house used (<i class="sw space"></i> rooms, <i class="sw water"></i> hot water), pale is room still left (<i class="sw space-room"></i> <i class="sw water-room"></i>), <i class="sw dump"></i> grey on top is heat dumped, and the black line is the must-run minimum.`,
-    `<b>Queue.</b> Jobs waiting, highest priority first. A job is held while even the best house would use less than ${f(S.policy.hold_share * 100, 0)}% of its heat, until it has under ${S.policy.start_margin_h} hours of slack. Priority rises by one for every hour waited and further as the slack runs out.`,
-    `<b>What it is.</b> A simulation, not real machines: ${S.hours / 24} days of 2025 weather from ${dayLabel(0)}, jobs from the Alibaba GPU trace asking for about ${f(S.policy.load * 100, 0)}% of the fleet, servers measured in MLPerf. "Now" is simulated time.`,
+    `<b>Heat history.</b> One column per hour: solid is server heat the house used (<i class="sw space"></i> rooms, <i class="sw water"></i> hot water), pale is room still left (<i class="sw space-room"></i> <i class="sw water-room"></i>), <i class="sw dump"></i> grey on top is heat dumped, and the black line is the must-run minimum.`,
+    "<b>Money.</b> Cost is hardware, maintenance, electricity and any further costs entered as percentages, for the hours run so far. Heat savings are the backup heating the houses no longer need, compared with the same days without servers. Net cost per GPU-hour is cost minus heat savings, divided by the GPU-hours clients pay for. The break-even P is the base price at which income equals net cost with this mix.",
+    `<b>One machine, ${I.year} prices.</b> Power, purchase price and market prices all describe a server with ${S.sites[0].per_server} × ${esc(I.gpu)}. Electricity ${f(I.tariff, 4)} CHF per kWh (${esc(I.tariff_source)}). Hardware ${n0(I.hardware_chf)} CHF per server, between ${n0(I.hardware_low_chf)} and ${n0(I.hardware_high_chf)} (${esc(I.hardware_source)}), over ${I.life_years} years. Maintenance opens at ${f(I.maintenance * 100, 0)}% of that a year; no source backs that figure, so it is an input in the form. No list price is published for this server, so the cost figures also come for the low and the high price. Backup heat is priced by the backup heating chosen in the form. A gas boiler pays ${f(I.gas, 4)} CHF per kWh of gas (${esc(I.gas_source)}) at an assumed efficiency of ${I.boiler_efficiency}; the gas connection's fixed charge of ${f(I.gas_fixed_month, 2)} CHF a month is still paid with servers, so it is not a saving. A heat pump pays the electricity tariff divided by a COP of ${I.cop}. The house's electricity meter data has no prices, so it does not set any price here. Building, network, staff, installation and idle power count only once a percentage is entered for them in the form; at zero the costs here are a lower bound. The power of idle GPUs is charged as electricity, but its heat is not counted. The profit margin is the target margin in the form.`,
+    `<b>Prices to compare with.</b> Renting an ${esc(I.gpu)} costs ${f(I.on_demand, 2)} CHF per GPU-hour on demand and ${f(I.spot, 2)} CHF in the lowest tier (spot, preemptible or community) on specialist GPU clouds (${esc(I.gpu_source)}), and ${f(I.cloud_on_demand, 2)} CHF on demand and ${f(I.cloud_spot, 2)} CHF on spot on a large cloud (${esc(I.cloud_source)}). P opens at the specialist lowest tier, and the on-demand factor at their on-demand price over it. The other factors follow on-demand (reserved 0.6 ×, capacity block 0.9 ×, dedicated host 1.1 ×, serverless 1.5 ×); those four, the serverless busy share and the block lead time are assumptions. Demand does not react to price: changing P changes income, not how many jobs arrive.`,
+    `<b>What it is.</b> A simulation, not real machines: 2025 weather, servers measured in MLPerf, jobs from the Alibaba GPU trace shortened by how much faster the ${esc(I.gpu)} is than the 2020 GPU each ran on. "Now" is simulated time.`,
   ].map((t) => `<li>${t}</li>`).join("");
   built = true;
 }
@@ -321,45 +463,74 @@ function showTip() {
 
 function render() {
   if (!built) buildOnce();
-  const t = S.t, now = t - 1, F = S.fleet;
+  const t = S.t, now = t - 1, F = S.fleet, M = S.money;
   $("clock").textContent = stamp(now, true);
   $("progress").textContent = `hour ${t} of ${S.hours} · one simulated hour every ${g(S.seconds_per_hour / S.speed)} s`;
   $("toggle").textContent = S.finished ? "Finished" : S.paused ? "Play" : "Pause";
-  $("toggle").disabled = S.finished;
+  $("toggle").disabled = S.finished; $("finish").disabled = S.finished;
   if (document.activeElement !== $("speed")) $("speed").value = S.speed;
 
-  const heatNow = sum(hist, (H) => H.to_space[now] + H.to_water[now] + H.dumped[now]), dumpNow = sum(hist, (H) => H.dumped[now]);
-  const cls = F.waiting_by_class, tile = (k, v, unit, d) => `<div class="tile"><div class="k">${k}</div><div class="v">${v} <small>${unit}</small></div><div class="d">${d}</div></div>`;
+  const waitingBy = ORDER.filter((key) => F.waiting_by_tier[key]).map((key) => `${n0(F.waiting_by_tier[key])} ${tierOf(key).name.toLowerCase()}`);
+  const tile = (k, v, unit, d) => `<div class="tile"><div class="k">${k}</div><div class="v">${v} <small>${unit}</small></div><div class="d">${d}</div></div>`;
   $("tiles").innerHTML =
-    tile("Jobs running", n0(F.running), "", `${n0(F.done)} finished so far`) +
-    tile("Jobs waiting", n0(F.waiting), "", ["urgent", "normal", "relaxed"].map((c) => `${cls[c] || 0} ${c}`).join(" · ")) +
-    tile("GPUs busy", pct(F.busy, F.gpus), "", `${n0(F.busy)} of ${F.gpus}`) +
-    tile("Server heat this hour", n0(heatNow), "kWh", `${pct(heatNow - dumpNow, heatNow)} used by the houses`) +
-    tile("Dumped this hour", n0(dumpNow), "kWh", `${pct(dumpNow, heatNow)} of the server heat`) +
-    tile("Deadlines missed", n0(F.missed), "jobs", `of ${n0(F.arrived)} arrived so far`);
+    tile("Net cost of a GPU-hour sold", chf(M.net_per_gpu_hour, 3), "CHF", `${chf(M.net_per_gpu_hour_low, 3)} to ${chf(M.net_per_gpu_hour_high, 3)} across the hardware price range`) +
+    tile("Break-even base price P", chf(M.break_even_base, 3), "CHF", `${chf(M.break_even_base_low, 3)} to ${chf(M.break_even_base_high, 3)} · ${chf(M.target_base, 3)} for a ${f(M.target_margin * 100, 0)}% margin`) +
+    tile("Income so far", chf(M.income), "CHF", `at P = ${f(M.base, 3)} CHF`) +
+    tile("Profit so far", chf(M.profit), "CHF", M.margin == null ? "nothing sold yet" : `${f(M.margin * 100, 0)}% of income`) +
+    tile("GPUs held", pct(F.held, F.gpus), "", `${n0(F.held)} of ${F.gpus} · ${n0(F.busy)} working`) +
+    tile("Jobs waiting", n0(F.waiting), "", `${waitingBy.join(" · ") || "none"} · ${n0(F.evictions)} pushed off so far`);
+
+  $("resulttitle").textContent = S.finished ? "Results of the run" : "Results so far";
+  $("resultspan").textContent = `${f(M.days, 1)} of ${S.hours / 24} days from ${dayLabel(0)} · demand ${g(S.config.load)}% of the fleet`;
+  const margin = f(M.target_margin * 100, 0);
+  $("tiers").innerHTML = `<thead><tr><th class="l">Tier</th><th>Share</th><th>Arrived</th><th>Started</th><th>Waiting</th><th>Average wait</th><th>Pushed off</th>` +
+    `<th>GPU-hours sold</th><th>Price at P</th><th>Income, CHF</th><th>Break-even price</th><th>Price for ${margin}% margin</th></tr></thead><tbody>` +
+    ORDER.map((key) => { const x = tierOf(key); return `<tr><td class="l">${chip(key)}</td><td>${g(x.share)}%</td><td>${n0(x.arrived)}</td><td>${n0(x.started)}</td>` +
+      `<td>${n0(x.waiting)}</td><td>${f(x.avg_wait_h, 2)} h</td><td>${x.firm ? "–" : n0(x.evictions)}</td><td>${n0(x.sold)}</td>` +
+      `<td>${f(x.price, 3)}</td><td>${n0(x.income)}</td><td>${chf(x.break_even_price, 3)}</td><td>${chf(x.target_price, 3)}</td></tr>`; }).join("") +
+    `<tr class="total"><td class="l">All tiers</td><td>100%</td><td>${n0(F.arrived)}</td><td>${n0(F.started)}</td><td>${n0(F.waiting)}</td><td></td><td>${n0(F.evictions)}</td>` +
+    `<td>${n0(M.sold)}</td><td></td><td>${n0(M.income)}</td><td></td><td></td></tr></tbody>`;
+  const row = (label, v, cls = "") => `<tr class="${cls}"><td class="l">${label}</td><td>${v}</td></tr>`;
+  $("money").innerHTML = "<tbody>" +
+    row(`Hardware <small class="muted">${M.servers} servers</small>`, chf(M.hardware)) +
+    row("Maintenance", chf(M.maintenance)) +
+    row(`<small class="muted">both, at the low and the high hardware price</small>`, `<small class="muted">${chf(M.hardware_low)} to ${chf(M.hardware_high)}</small>`) +
+    row(`Electricity <small class="muted">${n0(M.kwh)} kWh</small>`, chf(M.electricity)) +
+    Object.entries(M.other).map(([name, v]) => row(name[0].toUpperCase() + name.slice(1), chf(v))).join("") +
+    row("Cost", chf(M.cost), "total") +
+    row(`Heat savings <small class="muted">${n0(M.avoided_kwh)} kWh of backup heat × ${f(S.heating.options[S.heating.backup].chf_per_heat_kwh, 3)} CHF (${S.heating.backup === "gas" ? `gas ${f(S.inputs.gas, 4)} ÷ ${S.inputs.boiler_efficiency}` : `electricity ${f(S.inputs.tariff, 4)} ÷ COP ${S.inputs.cop}`})</small>`, "−" + chf(M.heat_saving)) +
+    row("Net cost", chf(M.net_cost), "total") +
+    row("Income at P", chf(M.income)) +
+    row("Profit", chf(M.profit), "total") +
+    row("GPU-hours sold", n0(M.sold)) +
+    row("Net cost per GPU-hour sold", chf(M.net_per_gpu_hour, 3)) +
+    row(`<small class="muted">at the low and the high hardware price</small>`, `<small class="muted">${chf(M.net_per_gpu_hour_low, 3)} to ${chf(M.net_per_gpu_hour_high, 3)}</small>`) +
+    row("Before heat savings", chf(M.cost_per_gpu_hour, 3)) + "</tbody>";
+  $("moneynote").textContent = `GPU-hours sold are the hours clients pay for: a dedicated host pays for its whole server and serverless only for the time its GPUs work, so ${n0(M.sold)} were sold for ${n0(M.gpu_hours)} GPU-hours of work. A tier's break-even price is the break-even P times its factor.`;
 
   S.sites.forEach((site, i) => {
     const H = hist[i], used = H.to_space[now] + H.to_water[now], heat = used + H.dumped[now], can = H.space_max[now] + H.water_max[now], must = H.must_run[now];
     $("facts-" + i).innerHTML = `<span>Outdoor <b>${f(site.outdoor)} °C</b></span><span>Indoor <b>${f(site.indoor)} °C</b></span>` +
-      `<span>Hot-water tank <b>${pct(site.tank, site.tank_full)}</b></span><span>GPUs busy <b>${pct(site.gpu, site.gpus)}</b></span>`;
+      `<span>Hot-water tank <b>${pct(site.tank, site.tank_full)}</b></span><span>GPUs working <b>${pct(site.gpu, site.gpus)}</b></span>` +
+      (site.booked ? `<span>Blocks booked ahead <b>${site.booked}</b></span>` : "");
     const scale = Math.max(can, heat, must, 0.01), w = (v) => (v / scale * 100).toFixed(2) + "%";
     $("meter-" + i).innerHTML = `<i class="room" style="left:0;width:${w(can)}"></i><i class="used" style="left:0;width:${w(used)}"></i>` +
       `<i class="over" style="left:${w(can)};width:${w(H.dumped[now])}"></i><i class="must" style="left:calc(${w(must)} - 1px)"></i>`;
     $("meterline-" + i).textContent = `This hour: servers made ${f(heat)} kWh · house can absorb ${f(can)} · must get ${f(must)} · dumped ${f(H.dumped[now])} · backup ${f(H.backup[now])}`;
     $("srv-" + i).innerHTML = site.servers.map((jobs, k) => {
-      const usedGpus = sum(jobs, (j) => j.g);
-      return `<div class="srv" title="Server ${k + 1}: ${g(usedGpus)} of 8 GPUs busy">` + jobs.map((j) =>
-        `<span class="c-${esc(j.cls)}" style="width:${(j.g / 8 * 100).toFixed(2)}%" title="Job ${j.n} · ${jobName(j.kind, j.g, j.run)} · ${esc(j.cls)}&#10;started ${stamp(j.start, false)}, ends ${stamp(j.end, false)}&#10;deadline ${stamp(Math.floor(j.due), false)}"></span>`).join("") + "</div>";
+      const held = sum(jobs, (j) => j.g);
+      return `<div class="srv" title="Server ${k + 1}: ${g(held)} of ${site.per_server} GPUs held">` + jobs.map((j) =>
+        `<span class="t-${esc(j.tier)}" style="width:${(j.g / site.per_server * 100).toFixed(2)}%" title="Job ${j.n} · ${esc(tierOf(j.tier).name)} · holds ${g(j.g)} GPU, ${g(j.work)} working · ${dur(j.run)}&#10;started ${stamp(j.start, false)}, ends ${stamp(j.end, false)}${j.ev ? `&#10;pushed off ${j.ev} time${j.ev === 1 ? "" : "s"} before` : ""}"></span>`).join("") + "</div>";
     }).join("");
     drawChart(i);
   });
 
   $("qcount").textContent = `${n0(F.waiting)} waiting`;
-  $("qnote").textContent = F.waiting > S.queue.length ? `Showing the ${S.queue.length} with the highest priority.` : "Highest priority first; these are decided again next hour.";
+  $("qnote").textContent = F.waiting > S.queue.length ? `Showing the first ${S.queue.length} in the order they will be tried.` : "In the order they will be tried next hour: firm tiers first, then spot.";
   $("queue").innerHTML = S.queue.length
-    ? "<thead><tr><th class=\"l\">Job</th><th class=\"l\">Class</th><th>Waited</th><th>Slack</th><th>Priority</th></tr></thead><tbody>" +
-      S.queue.map((j) => `<tr><td class="l">${jobName(j.kind, j.g, j.run)}</td><td class="l"><span class="chip"><i class="sw c-${esc(j.cls)}"></i>${esc(j.cls)}</span></td>` +
-        `<td>${j.waited} h</td><td>${f(j.slack)} h</td><td>${f(j.priority)}</td></tr>`).join("") + "</tbody>"
+    ? "<thead><tr><th class=\"l\">Job</th><th class=\"l\">Tier</th><th>Waited</th><th>Pushed off</th></tr></thead><tbody>" +
+      S.queue.map((j) => `<tr><td class="l">${jobName(j.g, j.run)}</td><td class="l">${chip(j.tier)}</td>` +
+        `<td>${j.waited} h</td><td>${j.ev ? j.ev + "×" : "–"}</td></tr>`).join("") + "</tbody>"
     : '<tbody><tr><td class="l empty">Nothing is waiting: every job that arrived has been started.</td></tr></tbody>';
   showTip();
 }
@@ -368,6 +539,12 @@ const sum = (a, fn) => a.reduce((t, x) => t + fn(x), 0);
 /* ---- controls ---- */
 $("toggle").addEventListener("click", () => control(S && S.paused ? "play" : "pause"));
 $("restart").addEventListener("click", () => { hover = null; control("restart"); });
+$("finish").addEventListener("click", () => control("finish"));
+$("runsim").addEventListener("click", runSimulation);
+$("setup").addEventListener("input", (e) => (e.target.id.startsWith("factor-") ? pricesChanged : formChanged)());
+$("in-base").addEventListener("input", pricesChanged);
+$("in-margin").addEventListener("input", pricesChanged);
+$("costfields").addEventListener("input", costsChanged);
 $("speed").addEventListener("change", (e) => control("speed", +e.target.value));
 $("window").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;

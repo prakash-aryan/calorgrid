@@ -557,14 +557,20 @@ class HouseHeatModel:
 
     def backup_ahead_kwh(self, heat_kwh: Sequence[float], outdoor_c: Sequence[float],
                          start_hour: int, heating: Sequence[bool]) -> float:
-        """Backup heat over the coming steps if the servers supplied `heat_kwh`, without
-        changing the model. The same arithmetic as deliver(), step after step, kept in
-        plain numbers because a scheduler asks this question many times."""
+        """Backup heat over the coming steps if the servers supplied `heat_kwh`."""
+        return self.ahead_kwh(heat_kwh, outdoor_c, start_hour, heating)[0]
+
+    def ahead_kwh(self, heat_kwh: Sequence[float], outdoor_c: Sequence[float],
+                  start_hour: int, heating: Sequence[bool]) -> tuple[float, float]:
+        """Backup heat and dumped heat over the coming steps if the servers supplied
+        `heat_kwh`, without changing the model. The same arithmetic as deliver(), step
+        after step, kept in plain numbers because a scheduler asks this question many
+        times."""
         b, dt = self.building, self.dt_h
         loss_per_k, capacity, low, high = (b.loss_kw_per_k, b.capacity_kwh_per_k,
                                            b.min_temp_c, b.max_temp_c)
         full, reserve = self.tank.capacity_kwh, self.tank.reserve_kwh
-        temp, level, total = b.temp_c, self.tank.level_kwh, 0.0
+        temp, level, total, dumped = b.temp_c, self.tank.level_kwh, 0.0, 0.0
         for i, supplied in enumerate(heat_kwh):
             loss = loss_per_k * (temp - outdoor_c[i]) * dt
             limit = self.max_space_heat_kw * dt if heating[i] else 0.0
@@ -581,11 +587,13 @@ class HouseHeatModel:
             backup_water, backup_space = water_min - water, space_min - space
             more = min(left, water_max - water_min)
             water += more
-            space += min(left - more, space_max - space_min)
+            room = min(left - more, space_max - space_min)
+            space += room
             total += backup_water + backup_space
+            dumped += left - more - room
             level = min(full, max(0.0, level + water + backup_water - draw))
             temp += (space + backup_space - loss) / capacity
-        return total
+        return total, dumped
 
     def copy(self) -> "HouseHeatModel":
         """An independent model in the same state, for trying out what a change would do."""

@@ -6,8 +6,12 @@
 
 Six houses in alpine towns, each twice the size of the one before. Every
 house gets enough servers that 85% usage covers its heat need at the town's
-mean outdoor temperature. Jobs from the Alibaba trace arrive at random with a
-deadline and a priority, and three policies place them:
+mean outdoor temperature. The servers are the fleet machine of
+data/fleet_machine.json: its measured power, its purchase price and the market
+price of its GPU-hours all describe the same GPU. Jobs from the Alibaba trace
+arrive at random with a deadline and a priority, shortened by how much faster
+the fleet's GPU is than the one they ran on (--job-lengths recorded keeps the
+trace's own lengths), and three policies place them:
 
     first   first come first served, first house with room (the baseline)
     heat    highest priority first, to the house where the job's heat avoids the
@@ -20,7 +24,7 @@ scheduling in the browser.
 
     weather  data/ch_weather_2025.json (Open-Meteo, 2025)
     jobs     data/alibaba_gpu_jobs.json        power  data/mlperf_power.json
-    prices   data/prices_2020.json             model  digitalheat.fleet
+    machine  data/fleet_machine.json           model  digitalheat.fleet
 """
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from digitalheat import (FirstFreeScheduler, FleetRun, HeatSavingScheduler, Scenario, Site,
-                         job_stream, load_power_profiles, load_trace_jobs, mean_heat_need_kw,
+                         job_stream, load_fleet_machine, load_gas_price, load_trace_jobs, mean_heat_need_kw,
                          servers_needed)
 from digitalheat.fleet import JOB_CLASSES, URGENCY_WEIGHT
 
@@ -41,11 +45,13 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 TOWNS = ["St. Moritz", "Bivio", "Zuoz", "Zermatt", "Samnaun", "Saas-Fee"]
 SIZES = [0.5, 1, 2, 4, 8, 16]                # each house twice the size of the one before
-SERVER = "5.0-0023/llama2-70b-99/Offline"    # the measured 8-GPU H100 system
+MARKET = "h100-specialist"                   # the market the fleet's GPU-hours compete on
+LARGE_CLOUD = "h100-aws"                     # shown next to it for comparison
 USAGE = 0.85                                 # usage at which the servers cover the mean heat need
 RANK_SHARE = {"median": 0.70, "90th percentile": 0.25, "99th percentile": 0.05}
 BATCH_H = 4.0                                # jobs under an hour arrive as a batch this long
 HARDWARE_LIFE_YEARS = 10
+GAS_YEAR = 2025                              # gas bills of the weather year (data/gas_price.json)
 MAINTENANCE_PER_YEAR = 0.05                  # of the hardware price; team assumption
 POLICIES = [
     ("first", "First free", "First come, first served: each job starts on arrival in the "
@@ -65,7 +71,9 @@ def r(values) -> list[float]:
 class World:
     """Everything the runs share: weather, the house model, the server and the job mix."""
 
-    def __init__(self, load: float, seed: int) -> None:
+    def __init__(self, load: float, seed: int, job_lengths: str = "fleet") -> None:
+        if job_lengths not in ("fleet", "recorded"):
+            raise ValueError("job_lengths is 'fleet' or 'recorded'")
         weather = json.loads((DATA / "ch_weather_2025.json").read_text(encoding="utf-8"))
         self.weather_source = weather["source"]
         self.towns = {loc["name"]: loc for loc in weather["locations"]}
@@ -73,12 +81,14 @@ class World:
         a = self.scenario.assumptions
         self.recovery = a.value("heat_recovery_fraction")
         self.threshold = a.value("heating_day_threshold_c")
-        self.profile = next(p for p in load_power_profiles(DATA / "mlperf_power.json")
-                            if p.id == SERVER)
+        self.machine = load_fleet_machine(DATA / "fleet_machine.json", DATA / "mlperf_power.json")
+        self.profile = self.machine.profile
+        self.job_lengths = job_lengths
         jobs_file = json.loads((DATA / "alibaba_gpu_jobs.json").read_text(encoding="utf-8"))
         self.jobs_source = jobs_file
         group_share = {g["group"]: g["share_of_finished"] for g in jobs_file["groups"]}
-        self.jobs = load_trace_jobs(DATA / "alibaba_gpu_jobs.json")
+        self.jobs = load_trace_jobs(DATA / "alibaba_gpu_jobs.json",
+                                    self.machine.speed_up if job_lengths == "fleet" else None)
         self.weights = {j.id: group_share[j.group] * RANK_SHARE[j.duration_rank]
                         for j in self.jobs}
         self.hours = len(self.towns[TOWNS[0]]["temps_c"])
@@ -132,12 +142,30 @@ def presets(world: World) -> list[dict]:
     ]
 
 
-def build(load: float, seed: int) -> dict:
-    world = World(load, seed)
+def money(world: World) -> dict:
+    """The cost inputs and market prices of the fleet machine, in CHF."""
+    m = world.machine
+    market, cloud = m.markets[MARKET], m.markets[LARGE_CLOUD]
+    gas = load_gas_price(DATA / "gas_price.json", GAS_YEAR)
     a = world.scenario.assumptions
-    prices = json.loads((DATA / "prices_2020.json").read_text(encoding="utf-8"))
-    fx = prices["exchange"]["chf_per_usd"]
-    gpu = next(g for g in prices["gpu_hour"] if g["id"] == "v100-2020")
+    return {
+        "year": m.year, "gpu": m.gpu,
+        "tariff": m.tariff_chf_per_kwh, "tariff_source": m.tariff_source,
+        "hardware_chf": m.hardware_chf, "hardware_low_chf": m.hardware_low_chf,
+        "hardware_high_chf": m.hardware_high_chf, "hardware_source": m.hardware_source,
+        "life_years": HARDWARE_LIFE_YEARS, "maintenance": MAINTENANCE_PER_YEAR,
+        "cop": a.value("heat_pump_cop"),
+        "gas": gas.chf_per_kwh, "gas_fixed_month": gas.fixed_chf_per_month,
+        "gas_source": gas.source, "boiler_efficiency": a.value("boiler_efficiency"),
+        "on_demand": market.on_demand_chf, "spot": market.spot_chf,
+        "gpu_source": f"{m.gpu}, {market.provider}",
+        "cloud_on_demand": cloud.on_demand_chf, "cloud_spot": cloud.spot_chf,
+        "cloud_source": f"{m.gpu}, {cloud.provider}",
+    }
+
+
+def build(load: float, seed: int, job_lengths: str = "fleet") -> dict:
+    world = World(load, seed, job_lengths)
 
     started = time.perf_counter()
     reference = world.run(None)
@@ -180,22 +208,14 @@ def build(load: float, seed: int) -> dict:
                    "benchmark": world.profile.benchmark, "source": world.profile.source,
                    "url": world.profile.url, "recovery": world.recovery, "usage": USAGE},
         "jobs": {"load": load, "seed": seed, "batch_h": BATCH_H, "total": sum(arrivals),
+                 "lengths": job_lengths, "speed_up": dict(world.machine.speed_up),
+                 "assumed_speed_up": list(world.machine.assumed_speed_up),
                  "source": world.jobs_source["source"], "source_url": world.jobs_source["source_url"],
                  "rank_share": RANK_SHARE, "urgency_weight": URGENCY_WEIGHT,
                  "classes": [{"name": name, "share": share, "deadline_factor": factor,
                               "priority": priority}
                              for name, (share, factor, priority) in JOB_CLASSES.items()]},
-        "money": {
-            "tariff": next(e for e in prices["electricity"] if e["year"] == 2020)["chf_per_kwh"],
-            "tariff_source": next(e for e in prices["electricity"] if e["year"] == 2020)["source"],
-            "hardware_chf": round(prices["hardware"]["usd"] * fx),
-            "hardware_source": f"{prices['hardware']['system']}, "
-                               f"{prices['hardware']['usd']:,} USD, 2020",
-            "life_years": HARDWARE_LIFE_YEARS, "maintenance": MAINTENANCE_PER_YEAR,
-            "cop": a.value("heat_pump_cop"),
-            "on_demand": round(gpu["on_demand_usd"] * fx, 3), "spot": round(gpu["spot_usd"] * fx, 3),
-            "gpu_source": f"{gpu['gpu']}, {gpu['provider']}, July 2020",
-        },
+        "money": money(world),
         "weather_source": world.weather_source,
         "reference_total": sum(sum(rec.backup) for rec in reference.records.values()),
     }
@@ -206,12 +226,14 @@ def main() -> None:
     parser.add_argument("--load", type=float, default=USAGE,
                         help="share of the fleet's GPU-hours the arriving jobs ask for")
     parser.add_argument("--seed", type=int, default=1, help="seed of the random job arrivals")
+    parser.add_argument("--job-lengths", choices=("fleet", "recorded"), default="fleet",
+                        help="fleet: shortened for the fleet's GPU; recorded: as in the trace")
     parser.add_argument("--out", type=Path, default=Path("out/scheduler.html"))
     parser.add_argument("--open", action="store_true", help="open the page in the browser")
     args = parser.parse_args()
 
     print("running the year for each policy")
-    data = build(args.load, args.seed)
+    data = build(args.load, args.seed, args.job_lengths)
     template = (Path(__file__).parent / "scheduler_template.html").read_text(encoding="utf-8")
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
     args.out.parent.mkdir(parents=True, exist_ok=True)

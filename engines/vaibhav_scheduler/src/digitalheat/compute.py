@@ -3,6 +3,8 @@
 Entities
     HardwareSpec    optional description of a machine
     PowerProfile    a system's measured power at full load on one benchmark
+    FleetMachine    the one server the fleet is built from: power, price, market, speed
+    GasPrice        what the real house pays for its heating gas in one year
     Server          one heat-producing server in a house
     ServerRegistry  every server, with lookups by house, region and state
 
@@ -16,6 +18,7 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Mapping
 
 
 class ServerState(str, Enum):
@@ -81,6 +84,98 @@ def load_power_profiles(path: str | Path) -> list[PowerProfile]:
         )
         for row in data["systems"]
     ]
+
+
+@dataclass(frozen=True)
+class MarketPrice:
+    """What an hour of the fleet's GPU rents for on one market, in CHF per GPU-hour."""
+
+    id: str
+    market: str                     # e.g. "specialist GPU clouds"
+    provider: str
+    on_demand_chf: float
+    spot_chf: float                 # the lowest tier: spot, preemptible or community
+    on_demand_source: str
+    spot_source: str
+
+
+@dataclass(frozen=True)
+class FleetMachine:
+    """The one server every figure describes: its measured power, what it costs to buy,
+    what its GPU-hours rent for, and how fast it is next to the GPUs of the job trace.
+
+    Pages take all of these from here, so the cost of one machine is never
+    compared with the rental price of another.
+    """
+
+    gpu: str
+    year: int
+    profile: PowerProfile
+    hardware_chf: float             # typical purchase price of one server
+    hardware_low_chf: float
+    hardware_high_chf: float
+    hardware_source: str
+    tariff_chf_per_kwh: float
+    tariff_source: str
+    chf_per_usd: float
+    markets: Mapping[str, MarketPrice]      # by id
+    speed_up: Mapping[str, float]           # trace GPU type -> times faster the fleet GPU is
+    assumed_speed_up: tuple[str, ...] = ()  # GPU types whose factor is an assumption
+
+    def __post_init__(self) -> None:
+        if not self.hardware_low_chf <= self.hardware_chf <= self.hardware_high_chf:
+            raise ValueError("the hardware price must lie between its low and high case")
+        if any(factor <= 0 for factor in self.speed_up.values()):
+            raise ValueError("speed factors must be positive")
+
+    @property
+    def hardware_range_chf(self) -> tuple[float, float, float]:
+        return self.hardware_low_chf, self.hardware_chf, self.hardware_high_chf
+
+
+@dataclass(frozen=True)
+class GasPrice:
+    year: int
+    chf_per_kwh: float              # variable price: energy, network and levies
+    fixed_chf_per_month: float      # capacity charge, paid whether or not gas is burnt
+    months: int                     # months of bills behind the price
+    source: str
+
+
+def load_gas_price(path: str | Path, year: int) -> GasPrice:
+    """Read the file written by scripts/gas_price.py (data/gas_price.json)."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    row = data["years"][str(year)]
+    return GasPrice(year=year, chf_per_kwh=row["chf_per_kwh"],
+                    fixed_chf_per_month=row["fixed_chf_per_month"], months=row["months"],
+                    source=f"{data['source']}; {year}, {row['months']} months")
+
+
+def load_fleet_machine(path: str | Path, power_path: str | Path) -> FleetMachine:
+    """Read the file written by scripts/fetch_prices.py (data/fleet_machine.json) and
+    the power profile it names in data/mlperf_power.json."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    machine, hardware, fx = data["machine"], data["hardware"], data["exchange"]["chf_per_usd"]
+    profile = next(p for p in load_power_profiles(power_path) if p.id == machine["power_profile"])
+    tariff = next(e for e in data["electricity"] if e["year"] == machine["year"])
+    factors = data["speed"]["factors"]
+    return FleetMachine(
+        gpu=machine["gpu"], year=machine["year"], profile=profile,
+        hardware_chf=round(hardware["usd"] * fx), hardware_low_chf=round(hardware["low_usd"] * fx),
+        hardware_high_chf=round(hardware["high_usd"] * fx),
+        hardware_source=f"{hardware['system']}: {hardware['low_usd']:,} to "
+                        f"{hardware['high_usd']:,} USD, typical {hardware['usd']:,} USD, "
+                        f"{hardware['year']}, an estimate",
+        tariff_chf_per_kwh=tariff["chf_per_kwh"], tariff_source=tariff["source"], chf_per_usd=fx,
+        markets={row["id"]: MarketPrice(
+            id=row["id"], market=row["market"], provider=row["provider"],
+            on_demand_chf=round(row["on_demand_usd"] * fx, 3),
+            spot_chf=round(row["spot_usd"] * fx, 3),
+            on_demand_source=row["on_demand_source"], spot_source=row["spot_source"])
+            for row in data["gpu_hour"]},
+        speed_up={gpu: row["factor"] for gpu, row in factors.items()},
+        assumed_speed_up=tuple(gpu for gpu, row in factors.items() if row.get("assumed")),
+    )
 
 
 @dataclass

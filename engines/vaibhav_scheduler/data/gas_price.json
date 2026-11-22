@@ -1,0 +1,382 @@
+{
+ "meter": "MESSPUNKT_004",
+ "unit": "CHF per kWh of gas",
+ "source": "the house's anonymised gas bills, heating meter (Data_Gas_2021-2026_anonymisiert.csv): energy, network and levies over kWh used",
+ "note": "The fixed capacity charge is not avoided while the house keeps its gas connection. The bills do not say whether VAT is included.",
+ "years": {
+  "2021": {
+   "chf_per_kwh": 0.0848,
+   "fixed_chf_per_month": 39.29,
+   "kwh": 66317,
+   "months": 12
+  },
+  "2022": {
+   "chf_per_kwh": 0.1144,
+   "fixed_chf_per_month": 39.29,
+   "kwh": 45268,
+   "months": 12
+  },
+  "2023": {
+   "chf_per_kwh": 0.1587,
+   "fixed_chf_per_month": 39.29,
+   "kwh": 26191,
+   "months": 12
+  },
+  "2024": {
+   "chf_per_kwh": 0.1501,
+   "fixed_chf_per_month": 39.29,
+   "kwh": 44464,
+   "months": 12
+  },
+  "2025": {
+   "chf_per_kwh": 0.1355,
+   "fixed_chf_per_month": 39.29,
+   "kwh": 31275,
+   "months": 9
+  }
+ },
+ "monthly": [
+  {
+   "month": "2021-01",
+   "kwh": 9175,
+   "chf_per_kwh": 0.087,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-02",
+   "kwh": 7151,
+   "chf_per_kwh": 0.087,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-03",
+   "kwh": 7040,
+   "chf_per_kwh": 0.087,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-04",
+   "kwh": 5799,
+   "chf_per_kwh": 0.087,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-05",
+   "kwh": 4095,
+   "chf_per_kwh": 0.087,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-06",
+   "kwh": 1698,
+   "chf_per_kwh": 0.087,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-07",
+   "kwh": 2863,
+   "chf_per_kwh": 0.0779,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-08",
+   "kwh": 2863,
+   "chf_per_kwh": 0.0779,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-09",
+   "kwh": 2966,
+   "chf_per_kwh": 0.0778,
+   "fixed_chf": 39.32
+  },
+  {
+   "month": "2021-10",
+   "kwh": 5430,
+   "chf_per_kwh": 0.084,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-11",
+   "kwh": 8426,
+   "chf_per_kwh": 0.084,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2021-12",
+   "kwh": 8811,
+   "chf_per_kwh": 0.084,
+   "fixed_chf": 39.3
+  },
+  {
+   "month": "2022-01",
+   "kwh": 9655,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-02",
+   "kwh": 7216,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-03",
+   "kwh": 6966,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-04",
+   "kwh": 5239,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-05",
+   "kwh": 2212,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-06",
+   "kwh": 1793,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-07",
+   "kwh": 1853,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-08",
+   "kwh": 1853,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-09",
+   "kwh": 2861,
+   "chf_per_kwh": 0.1081,
+   "fixed_chf": 39.31
+  },
+  {
+   "month": "2022-10",
+   "kwh": 668,
+   "chf_per_kwh": 0.1586,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-11",
+   "kwh": 2118,
+   "chf_per_kwh": 0.1586,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2022-12",
+   "kwh": 2834,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.3
+  },
+  {
+   "month": "2023-01",
+   "kwh": 2843,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-02",
+   "kwh": 2424,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-03",
+   "kwh": 2009,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-04",
+   "kwh": 1785,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-05",
+   "kwh": 746,
+   "chf_per_kwh": 0.1586,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-06",
+   "kwh": 569,
+   "chf_per_kwh": 0.1588,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-07",
+   "kwh": 588,
+   "chf_per_kwh": 0.1588,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-08",
+   "kwh": 588,
+   "chf_per_kwh": 0.1588,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-09",
+   "kwh": 569,
+   "chf_per_kwh": 0.1588,
+   "fixed_chf": 39.31
+  },
+  {
+   "month": "2023-10",
+   "kwh": 2408,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-11",
+   "kwh": 5370,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2023-12",
+   "kwh": 6292,
+   "chf_per_kwh": 0.1587,
+   "fixed_chf": 39.3
+  },
+  {
+   "month": "2024-01",
+   "kwh": 7019,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-02",
+   "kwh": 5069,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-03",
+   "kwh": 4744,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-04",
+   "kwh": 3774,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-05",
+   "kwh": 1490,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-06",
+   "kwh": 1354,
+   "chf_per_kwh": 0.1584,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-07",
+   "kwh": 1399,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-08",
+   "kwh": 1399,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-09",
+   "kwh": 2077,
+   "chf_per_kwh": 0.1585,
+   "fixed_chf": 39.31
+  },
+  {
+   "month": "2024-10",
+   "kwh": 2513,
+   "chf_per_kwh": 0.1353,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-11",
+   "kwh": 6154,
+   "chf_per_kwh": 0.1353,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2024-12",
+   "kwh": 7472,
+   "chf_per_kwh": 0.1353,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-01",
+   "kwh": 7418,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-02",
+   "kwh": 6407,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-03",
+   "kwh": 5524,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-04",
+   "kwh": 3400,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-05",
+   "kwh": 2043,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-06",
+   "kwh": 1439,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-07",
+   "kwh": 1487,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-08",
+   "kwh": 1487,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.29
+  },
+  {
+   "month": "2025-09",
+   "kwh": 2070,
+   "chf_per_kwh": 0.1355,
+   "fixed_chf": 39.31
+  }
+ ]
+}
