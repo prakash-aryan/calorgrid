@@ -53,6 +53,25 @@ Verified test suite coverage: **`116` unit tests + `132` Playwright E2E tests = 
 
 If your shell sources ROS Jazzy (`PYTHONPATH` containing `/opt/ros/jazzy`), prefix commands with `env -u PYTHONPATH` (or `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`) so pytest skips external ROS `launch_testing` entrypoints.
 
+## 520-H100 Alpine Look-Ahead Scheduler & All-In 6-Tier Cloud Economics
+
+Beyond the 4-server Basel reference house, our look-ahead multi-GPU scheduler and full all-in TCO model evaluate **65 liquid-cooled 8×H100 servers (`520 H100 GPUs`)** deployed across six high-altitude Swiss buildings (`St. Moritz 0.5×`, `Bivio 1×`, `Zuoz 2×`, `Zermatt 4×`, `Samnaun 8×`, `Saas-Fee 16×`; `205.1 kW` mean heat need vs. `218.9 kW` supplied at `85%` load):
+
+- **4-Step Look-Ahead Dispatch:** (1) Orders firm demand tiers before Spot (`Reserved` → `Capacity Block` → `On-Demand` preempting Spot → `Spot` running only when zero heat is dumped), (2) simulates every host building across the full job horizon to maximize displaced gas, (3) heats domestic hot water first then rooms within the `19–22 °C` comfort band, and (4) prices all 6 tiers by target margin `P = (Cost − Heat Saving) / ((1 − m) · Σ α_k H_k)`.
+- **Thermal & Gas Results:** Covers **`99.3%`** of all six houses' annual heat demand (`100.0%` St. Moritz, `99.9%` Bivio/Zuoz/Zermatt/Samnaun, `98.6%` Saas-Fee), cutting annual gas bills **`−87%`** (`CHF 261,324 → CHF 33,819`; **`CHF 227,505/yr` saved**, `1.511 GWh` gas displaced).
+- **All-In TCO & 20%-Margin 6-Tier Pricing:** Gross annual TCO is **`CHF 5,212,195/yr`** (`57%` hardware `CHF 2.97M` over 5 yr at `CHF 228k/srv`, `14%` electricity `CHF 729k` @ `0.3325 CHF/kWh`, `11%` maintenance, `6%` staff, `6%` installation, `6%` building/network/idle = `CHF 1.47/GPU-h` over `3.54M GPU-h`). Subtracting `CHF 227,505/yr` displaced gas yields **`CHF 4,984,690/yr`** net (`CHF 1.41/GPU-h`), break-even `P = CHF 1.00`, and **`P = CHF 1.25/GPU-h`** at `20%` net margin (**`CHF 1.25M/yr` net profit**):
+
+| Cloud Demand Tier | Factor (`α_k`) | CalorGrid (20% m) | Specialist Median* | AWS US East | Savings (Spec / AWS) | Preemption & Dispatch Rule |
+|---|---:|---:|---:|---:|---:|---|
+| **Spot** | `1.00×` | **CHF 1.25** | CHF 1.97 | CHF 3.13 | **−37% / −60%** | Runs only when 0 heat dumped; preemptible |
+| **Reserved** | `1.09×` | **CHF 1.36** | CHF 2.16 | CHF 3.31 | −37% / −59% | Placed first every hour; firm priority |
+| **Capacity Block** | `1.64×` | **CHF 2.05** | CHF 3.24 | CHF 4.96 | −37% / −59% | Booked 24 h ahead; pushes nothing off |
+| **On-Demand** | `1.82×` | **CHF 2.27** | CHF 3.60 | CHF 5.51 | **−37% / −59%** | Instant start; evicts Spot if needed |
+| **Dedicated Host** | `2.00×` | **CHF 2.49** | CHF 3.96 | CHF 6.06 | −37% / −59% | Isolated full 8×H100 liquid server |
+| **Serverless** | `2.73×` | **CHF 3.41** | CHF 5.40 | CHF 8.27 | −37% / −59% | 50% active duty; per-request billing |
+
+*\*Specialist median across RunPod, Lambda, CoreWeave, and Together AI (`$4.49/h` OD). **Cautious Stress-Test:** Dropping utilization `85%→65%`, hardware life `5→4 yr`, adding `8%` cost of capital, and raising hardware cost `CHF 228k→256k` lifts break-even `P` to `CHF 1.94` (matching Specialist Spot) while remaining **`−22%` under AWS Spot (`CHF 3.13`)** even at `20%` margin (`CHF 2.43`).*
+
 ## Reference House Results (Basel 2025, N = 4 x 1 kW servers)
 
 Workload trace assumption: `12.0` offered server-hours per server per day (`50%` 1-hour `archive_ocr` jobs + `50%` 2-hour `iiif_embeddings` jobs, 24 h diurnal arrival weights from Alibaba GPU cluster trace v2020; computing price `0.25 CHF/srv-h`).
