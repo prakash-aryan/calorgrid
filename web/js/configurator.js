@@ -13,48 +13,92 @@ import {
 function buildStudioEnvironment(renderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
-  // Mid-dark architectural studio dome (matches Omniverse / SimReady Central viewport contrast)
-  // so brushed black aluminum stays deep obsidian & NVIDIA GB300 copper stays rich saturated bronze
-  envScene.background = new THREE.Color(0x465160);
+  // Balanced architectural studio dome with realistic ceiling troffer light strips
+  // so dark anodized aluminum stays deep obsidian while copper, stainless & glazed tiles catch crisp highlights
+  envScene.background = new THREE.Color(0x3f4a58);
+
   const floorBounce = new THREE.Mesh(
     new THREE.PlaneGeometry(36, 36),
-    new THREE.MeshBasicMaterial({ color: 0x2a313c, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0x262d38, side: THREE.DoubleSide })
   );
   floorBounce.rotation.x = Math.PI / 2;
   floorBounce.position.y = -8;
   envScene.add(floorBounce);
-  const topPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 14),
-    new THREE.MeshBasicMaterial({ color: 0xf8fafc, side: THREE.DoubleSide })
+
+  const ceilingSoft = new THREE.Mesh(
+    new THREE.PlaneGeometry(24, 16),
+    new THREE.MeshBasicMaterial({ color: 0xc8d4e3, side: THREE.DoubleSide })
   );
-  topPanel.rotation.x = Math.PI / 2;
-  topPanel.position.y = 11;
-  envScene.add(topPanel);
+  ceilingSoft.rotation.x = Math.PI / 2;
+  ceilingSoft.position.y = 11.2;
+  envScene.add(ceilingSoft);
+
+  // Three bright linear ceiling troffer reflection strips matching our architectural fixtures
+  const trofferMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  for (const tx of [-6.5, 0.0, 6.5]) {
+    const tStrip = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.3), trofferMat);
+    tStrip.rotation.x = Math.PI / 2;
+    tStrip.position.set(tx, 10.6, -1.5);
+    envScene.add(tStrip);
+  }
+
   const warmKey = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 8),
+    new THREE.PlaneGeometry(11, 8.5),
     new THREE.MeshBasicMaterial({ color: 0xfff3de, side: THREE.DoubleSide })
   );
-  warmKey.position.set(11, 6.5, 10);
+  warmKey.position.set(11.5, 6.5, 10);
   warmKey.lookAt(0, 0, 0);
   envScene.add(warmKey);
+
   const coolFill = new THREE.Mesh(
-    new THREE.PlaneGeometry(9, 7),
-    new THREE.MeshBasicMaterial({ color: 0xd0e2f8, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(10, 7.5),
+    new THREE.MeshBasicMaterial({ color: 0xd0e4fa, side: THREE.DoubleSide })
   );
-  coolFill.position.set(-11, 5.0, 9);
+  coolFill.position.set(-11.5, 5.2, 9.5);
   coolFill.lookAt(0, 0, 0);
   envScene.add(coolFill);
-  // Crisp narrow studio rim strips for gleaming specular highlights along metallic rack bevels
+
+  // Narrow specular rim strips for gleaming metallic highlights along rack bevels & stainless tanks
   const specMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-  for (const [sx, sy, sz] of [[7.5, 4.5, 13], [-7.5, 5.0, 13]]) {
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 8.5), specMat);
+  for (const [sx, sy, sz] of [[7.5, 4.5, 13], [-7.5, 5.0, 13], [0, 7.5, 13.5]]) {
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 8.5), specMat);
     strip.position.set(sx, sy, sz);
     strip.lookAt(0, 1.0, 0);
     envScene.add(strip);
   }
-  const tex = pmrem.fromScene(envScene, 0.036).texture;
+  const tex = pmrem.fromScene(envScene, 0.032).texture;
   pmrem.dispose();
   return tex;
+}
+
+function enableShadows(root, cast = true, receive = true) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = cast;
+    obj.receiveShadow = receive;
+  });
+  return root;
+}
+
+function disposeSubtree(group) {
+  while (group.children.length > 0) {
+    const ch = group.children.pop();
+    ch.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData.sharedTemplate && !o.userData.sharedGeometry && o.geometry) {
+        o.geometry.dispose();
+      }
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) {
+          if (m.userData?.sharedMaterial) continue;
+          if (!o.userData.sharedTemplate || o.userData.clonedMaterial) {
+            m.dispose();
+          }
+        }
+      }
+    });
+  }
 }
 
 let cachedShadowTex = null;
@@ -64,13 +108,14 @@ function getContactShadowTexture() {
   c.width = 128;
   c.height = 128;
   const ctx = c.getContext("2d");
-  const grad = ctx.createRadialGradient(64, 64, 10, 64, 64, 62);
-  grad.addColorStop(0, "rgba(15, 23, 42, 0.44)");
-  grad.addColorStop(0.58, "rgba(15, 23, 42, 0.22)");
-  grad.addColorStop(1, "rgba(15, 23, 42, 0.0)");
+  const grad = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  grad.addColorStop(0, "rgba(10, 15, 26, 0.54)");
+  grad.addColorStop(0.55, "rgba(10, 15, 26, 0.24)");
+  grad.addColorStop(1, "rgba(10, 15, 26, 0.0)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 128, 128);
   cachedShadowTex = new THREE.CanvasTexture(c);
+  cachedShadowTex.userData.cached = true;
   return cachedShadowTex;
 }
 
@@ -88,51 +133,419 @@ function makeContactShadow(width, depth) {
   return m;
 }
 
+let cachedAoStripTex = null;
+function getAoStripTexture() {
+  if (cachedAoStripTex) return cachedAoStripTex;
+  const c = document.createElement("canvas");
+  c.width = 16;
+  c.height = 128;
+  const ctx = c.getContext("2d");
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  // Top (v=1) = transparent, bottom (v=0) = architectural seam shadow
+  g.addColorStop(0.0, "rgba(8, 12, 20, 0.0)");
+  g.addColorStop(0.45, "rgba(8, 12, 20, 0.07)");
+  g.addColorStop(0.78, "rgba(8, 12, 20, 0.22)");
+  g.addColorStop(1.0, "rgba(8, 12, 20, 0.48)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 16, 128);
+  cachedAoStripTex = new THREE.CanvasTexture(c);
+  cachedAoStripTex.userData.cached = true;
+  return cachedAoStripTex;
+}
+
+const _UTIL_TEX_CACHE = {};
+
+function getDialGaugeTexture(kind = "temp") {
+  const key = `dial_${kind}`;
+  if (_UTIL_TEX_CACHE[key]) return _UTIL_TEX_CACHE[key];
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#f8fafc";
+  ctx.beginPath();
+  ctx.arc(128, 128, 122, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = "#334155";
+  ctx.stroke();
+
+  // Colored operating arc
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.strokeStyle = kind === "temp" ? "#ea580c" : "#059669";
+  ctx.arc(128, 128, 92, Math.PI * 0.78, Math.PI * 1.92);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = "#dc2626";
+  ctx.arc(128, 128, 92, Math.PI * 1.92, Math.PI * 2.22);
+  ctx.stroke();
+
+  // Tick marks
+  ctx.strokeStyle = "#1e293b";
+  for (let i = 0; i <= 12; i++) {
+    const a = Math.PI * 0.75 + (i / 12) * Math.PI * 1.5;
+    const r0 = i % 3 === 0 ? 74 : 84;
+    ctx.lineWidth = i % 3 === 0 ? 4 : 2;
+    ctx.beginPath();
+    ctx.moveTo(128 + Math.cos(a) * r0, 128 + Math.sin(a) * r0);
+    ctx.lineTo(128 + Math.cos(a) * 102, 128 + Math.sin(a) * 102);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 28px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(kind === "temp" ? "55 C" : "2.4 bar", 128, 194);
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillStyle = "#64748b";
+  ctx.fillText(kind === "temp" ? "THERM" : "BAR", 128, 86);
+
+  // Needle
+  const na = kind === "temp" ? Math.PI * 1.62 : Math.PI * 1.38;
+  ctx.strokeStyle = "#b91c1c";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(128 - Math.cos(na) * 18, 128 - Math.sin(na) * 18);
+  ctx.lineTo(128 + Math.cos(na) * 84, 128 + Math.sin(na) * 84);
+  ctx.stroke();
+  ctx.fillStyle = "#0f172a";
+  ctx.beginPath();
+  ctx.arc(128, 128, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.userData.cached = true;
+  _UTIL_TEX_CACHE[key] = tex;
+  return tex;
+}
+
+function getFloorDrainTexture() {
+  if (_UTIL_TEX_CACHE.drain) return _UTIL_TEX_CACHE.drain;
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 128;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#94a3b8";
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(10, 16, 492, 96);
+  // Brushed stainless transverse slats
+  for (let x = 18; x < 496; x += 16) {
+    const g = ctx.createLinearGradient(x, 16, x + 8, 112);
+    g.addColorStop(0, "#cbd5e1");
+    g.addColorStop(0.5, "#94a3b8");
+    g.addColorStop(1, "#e2e8f0");
+    ctx.fillStyle = g;
+    ctx.fillRect(x, 18, 8, 92);
+  }
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(4, 4, 504, 120);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.userData.cached = true;
+  _UTIL_TEX_CACHE.drain = tex;
+  return tex;
+}
+
+function getPoolCausticTexture() {
+  if (_UTIL_TEX_CACHE.poolCaustic) return _UTIL_TEX_CACHE.poolCaustic;
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 512;
+  const ctx = c.getContext("2d");
+  const bg = ctx.createLinearGradient(0, 0, 0, 512);
+  bg.addColorStop(0.0, "#7dd3fc");
+  bg.addColorStop(0.28, "#22d3ee");
+  bg.addColorStop(0.70, "#0891b2");
+  bg.addColorStop(1.0, "#0e7490");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Subtle submerged Olympic swimming lane stripes
+  ctx.fillStyle = "rgba(12, 74, 110, 0.28)";
+  ctx.fillRect(0, 355, 512, 22);
+  ctx.fillRect(0, 425, 512, 18);
+
+  // Overlapping luminous underwater sunlight caustic bands
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 42; i++) {
+    const cx = ((i * 97 + 41) % 512);
+    const cy = ((i * 67 + 23) % 440);
+    const rx = 38 + ((i * 29) % 58);
+    const ry = 14 + ((i * 19) % 24);
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, rx);
+    g.addColorStop(0, "rgba(224, 252, 255, 0.34)");
+    g.addColorStop(0.55, "rgba(103, 232, 249, 0.14)");
+    g.addColorStop(1, "rgba(34, 211, 238, 0.0)");
+    ctx.fillStyle = g;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1.0, ry / rx);
+    ctx.beginPath();
+    ctx.arc(0, 0, rx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.strokeStyle = "rgba(240, 253, 255, 0.36)";
+  ctx.lineWidth = 2.5;
+  for (let w = 0; w < 9; w++) {
+    ctx.beginPath();
+    const y0 = 36 + w * 48;
+    for (let x = 0; x <= 512; x += 16) {
+      const y = y0 + Math.sin((x / 512) * Math.PI * 4 + w * 1.1) * 14 + Math.cos((x / 512) * Math.PI * 6 - w) * 6;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.userData.cached = true;
+  _UTIL_TEX_CACHE.poolCaustic = tex;
+  return tex;
+}
+
+function getAlpineWindowTexture() {
+  if (_UTIL_TEX_CACHE.alpineWin) return _UTIL_TEX_CACHE.alpineWin;
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+  const sky = ctx.createLinearGradient(0, 0, 0, 256);
+  sky.addColorStop(0.0, "#245ca0");
+  sky.addColorStop(0.48, "#6aa8df");
+  sky.addColorStop(1.0, "#d8ecfc");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, 512, 256);
+
+  // Distant Graubunden alpine range in crisp alpine haze
+  ctx.fillStyle = "#5c85b0";
+  ctx.beginPath();
+  ctx.moveTo(0, 256);
+  ctx.lineTo(0, 148);
+  ctx.lineTo(68, 86);
+  ctx.lineTo(148, 134);
+  ctx.lineTo(242, 62);
+  ctx.lineTo(334, 126);
+  ctx.lineTo(426, 72);
+  ctx.lineTo(512, 122);
+  ctx.lineTo(512, 256);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sunlit snow-bright alpine faces (right-facing sunlit slopes)
+  ctx.fillStyle = "#f4f9ff";
+  ctx.beginPath();
+  ctx.moveTo(68, 86); ctx.lineTo(148, 134); ctx.lineTo(94, 152); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(242, 62); ctx.lineTo(334, 126); ctx.lineTo(255, 165); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(426, 72); ctx.lineTo(512, 122); ctx.lineTo(435, 160); ctx.closePath(); ctx.fill();
+
+  // Foreground snow peaks & dark granite pine-valley ridges
+  ctx.fillStyle = "#eaf4ff";
+  ctx.beginPath();
+  ctx.moveTo(0, 256);
+  ctx.lineTo(0, 178);
+  ctx.lineTo(104, 122);
+  ctx.lineTo(192, 168);
+  ctx.lineTo(308, 108);
+  ctx.lineTo(405, 158);
+  ctx.lineTo(512, 134);
+  ctx.lineTo(512, 256);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(44, 72, 108, 0.56)";
+  ctx.beginPath();
+  ctx.moveTo(104, 122); ctx.lineTo(146, 256); ctx.lineTo(42, 256); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(308, 108); ctx.lineTo(348, 256); ctx.lineTo(245, 256); ctx.closePath(); ctx.fill();
+
+  // Dark alpine spruce silhouette along window sill
+  ctx.fillStyle = "#1e3a4c";
+  for (let px = 14; px < 500; px += 28) {
+    const h = 24 + ((px * 17) % 22);
+    ctx.beginPath();
+    ctx.moveTo(px, 256);
+    ctx.lineTo(px + 9, 256 - h);
+    ctx.lineTo(px + 18, 256);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Soft frosted glazing glow at outer pane edges
+  const frost = ctx.createRadialGradient(256, 128, 90, 256, 128, 290);
+  frost.addColorStop(0, "rgba(255,255,255,0.02)");
+  frost.addColorStop(1, "rgba(235,246,255,0.34)");
+  ctx.fillStyle = frost;
+  ctx.fillRect(0, 0, 512, 256);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.userData.cached = true;
+  _UTIL_TEX_CACHE.alpineWin = tex;
+  return tex;
+}
+
+function getHospitalScreenTexture() {
+  if (_UTIL_TEX_CACHE.hospScreen) return _UTIL_TEX_CACHE.hospScreen;
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#0b1726";
+  ctx.fillRect(0, 0, 512, 256);
+  ctx.fillStyle = "#0f2942";
+  ctx.fillRect(0, 0, 512, 42);
+  ctx.fillStyle = "#38bdf8";
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillText("ST. GALLEN STERILE DHW WING  |  24/7 RECOVERY", 18, 27);
+  ctx.fillStyle = "#22c55e";
+  ctx.beginPath();
+  ctx.arc(482, 21, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Telemetry cards
+  const cards = [
+    ["DHW SUPPLY", "60.2 C", "#f97316", 20],
+    ["LEGIONELLA", "SAFE", "#22c55e", 184],
+    ["HEAT COVER", "99.0%", "#38bdf8", 348],
+  ];
+  for (const [lbl, val, col, x] of cards) {
+    ctx.fillStyle = "#132338";
+    ctx.fillRect(x, 58, 146, 76);
+    ctx.strokeStyle = "rgba(56,189,248,0.28)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, 58, 146, 76);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 13px sans-serif";
+    ctx.fillText(lbl, x + 12, 80);
+    ctx.fillStyle = col;
+    ctx.font = "bold 28px monospace";
+    ctx.fillText(val, x + 12, 118);
+  }
+
+  // Smooth thermal baseload chart
+  ctx.fillStyle = "#101e30";
+  ctx.fillRect(20, 150, 472, 88);
+  ctx.strokeStyle = "#38bdf8";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let x = 0; x <= 450; x += 10) {
+    const y = 198 - Math.sin(x * 0.025) * 14 - Math.cos(x * 0.06) * 6;
+    if (x === 0) ctx.moveTo(30 + x, y);
+    else ctx.lineTo(30 + x, y);
+  }
+  ctx.stroke();
+  ctx.strokeStyle = "#f97316";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let x = 0; x <= 450; x += 10) {
+    const y = 212 - Math.sin(x * 0.025 + 0.4) * 10;
+    if (x === 0) ctx.moveTo(30 + x, y);
+    else ctx.lineTo(30 + x, y);
+  }
+  ctx.stroke();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.userData.cached = true;
+  _UTIL_TEX_CACHE.hospScreen = tex;
+  return tex;
+}
+
+function getBoreholeControllerTexture() {
+  if (_UTIL_TEX_CACHE.boreholeHmi) return _UTIL_TEX_CACHE.boreholeHmi;
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#0e1d2b";
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = "#0f766e";
+  ctx.fillRect(0, 0, 256, 38);
+  ctx.fillStyle = "#f0fdfa";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("SIA 384/6 ERDSONDE", 14, 24);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("BOREHOLE DEPTH: 180 m", 14, 68);
+  ctx.fillStyle = "#2dd4bf";
+  ctx.font = "bold 30px monospace";
+  ctx.fillText("+11.4 C", 14, 108);
+  ctx.fillStyle = "#cbd5e1";
+  ctx.font = "13px sans-serif";
+  ctx.fillText("SUMMER RECHARGE: ACTIVE", 14, 138);
+  ctx.fillStyle = "#f97316";
+  ctx.fillRect(14, 158, 178, 14);
+  ctx.fillStyle = "#1e3a4c";
+  ctx.fillRect(192, 158, 50, 14);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "12px monospace";
+  ctx.fillText("SEASONAL STORE: 78%", 14, 194);
+  ctx.fillStyle = "#22c55e";
+  ctx.fillText("FLOW 18.4 L/min  |  OK", 14, 224);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.userData.cached = true;
+  _UTIL_TEX_CACHE.boreholeHmi = tex;
+  return tex;
+}
+
 function enhanceHardwareMaterials(root, key = "") {
   root.traverse((obj) => {
     if (!obj.isMesh || !obj.material) return;
     obj.userData.sharedTemplate = true;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const mat of mats) {
       if (key === "gb300") {
         // Rich dark anodized NVIDIA chassis + gleaming saturated rose-copper 18-tray compute stack + vivid green LEDs
-        mat.color = new THREE.Color(0xdee2e8);
-        mat.envMapIntensity = 0.96;
+        mat.color = new THREE.Color(0xe4e8ee);
+        mat.envMapIntensity = 1.12;
         if (mat.emissive && (mat.emissive.r + mat.emissive.g + mat.emissive.b) > 0.05) {
           mat.color = new THREE.Color(0xffffff);
-          mat.emissiveIntensity = 1.80;
+          mat.emissiveIntensity = 1.85;
         }
         mat.needsUpdate = true;
         continue;
       }
       if (key === "ocpPop" || key === "vr3307") {
-        // Authentic Vertiv dark steel cabinet + brushed stainless OCP shelves + vivid green hot-swap handles + crisp white Vertiv badge
-        mat.color = new THREE.Color(key === "ocpPop" ? 0xd4dae2 : 0xc4ccd6);
-        mat.envMapIntensity = 0.88;
+        // Authentic Vertiv dark steel cabinet + brushed stainless OCP shelves + vivid green hot-swap handles
+        mat.color = new THREE.Color(key === "ocpPop" ? 0xdbe1e9 : 0xcbd3dd);
+        mat.envMapIntensity = 1.04;
         mat.needsUpdate = true;
         continue;
       }
       const c = mat.color;
       const isVeryDark = c && c.r < 0.04 && c.g < 0.04 && c.b < 0.04;
       if (mat.name === "vertiv_black" || isVeryDark) {
-        // Sleek brushed anodized charcoal (zero flat blue wash)
-        mat.color = new THREE.Color(0x1b2028);
-        mat.metalness = 0.66;
+        // Sleek brushed anodized charcoal with readable chamfered louvers, intake grilles & crisp specular rim
+        mat.color = new THREE.Color(0x2d3542);
+        mat.metalness = 0.56;
         mat.roughness = 0.30;
         mat.emissive = new THREE.Color(0x000000);
         mat.emissiveIntensity = 0.0;
-        mat.envMapIntensity = 1.05;
+        mat.envMapIntensity = 1.38;
         mat.needsUpdate = true;
       } else if (key === "tank") {
-        // Brushed stainless steel pressure vessel with distinct metallic reflection bands
-        mat.color = new THREE.Color(0x8c9aa8);
+        // Brushed stainless steel thermal vessel with crisp overhead reflection bands
+        mat.color = new THREE.Color(0xa6b4c2);
         mat.metalness = 0.78;
-        mat.roughness = 0.28;
-        mat.envMapIntensity = 1.05;
+        mat.roughness = 0.25;
+        mat.envMapIntensity = 1.24;
         mat.needsUpdate = true;
       } else if (mat.metalness !== undefined && mat.metalness > 0.7) {
-        mat.roughness = Math.max(0.20, Math.min(0.42, mat.roughness ?? 0.28));
-        mat.envMapIntensity = 1.05;
+        mat.roughness = Math.max(0.18, Math.min(0.40, mat.roughness ?? 0.26));
+        mat.envMapIntensity = 1.18;
         mat.needsUpdate = true;
       }
     }
@@ -199,9 +612,11 @@ function makePipeMesh(p1, p2, radius, mat) {
   const dir = v2.clone().sub(v1);
   const len = dir.length();
   if (len < 1e-4) return null;
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 12), mat);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 16), mat);
   mesh.position.copy(v1).addScaledVector(dir, 0.5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   return mesh;
 }
 
@@ -211,18 +626,20 @@ function makeFlangeCollar(point, towardPoint, radius, mat) {
   const dir = v2.sub(v1);
   if (dir.lengthSq() < 1e-6) return null;
   const collar = new THREE.Mesh(
-    new THREE.CylinderGeometry(radius * 1.65, radius * 1.65, 0.048, 14),
+    new THREE.CylinderGeometry(radius * 1.68, radius * 1.68, 0.048, 16),
     mat
   );
   collar.position.copy(v1);
   collar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  collar.castShadow = true;
+  collar.receiveShadow = true;
   return collar;
 }
 
 function buildOrthogonalPipe(parent, waypoints, radius, pipeMat, flangeMat = null, flangeEnds = [false, false]) {
   const curvePath = new THREE.CurvePath();
   if (!waypoints || waypoints.length < 2) return curvePath;
-  const elbowGeo = new THREE.SphereGeometry(radius * 1.12, 10, 8);
+  const elbowGeo = new THREE.SphereGeometry(radius * 1.14, 12, 10);
   for (let i = 0; i < waypoints.length - 1; i++) {
     const a = waypoints[i];
     const b = waypoints[i + 1];
@@ -232,6 +649,8 @@ function buildOrthogonalPipe(parent, waypoints, radius, pipeMat, flangeMat = nul
     if (i > 0) {
       const elbow = new THREE.Mesh(elbowGeo, pipeMat);
       elbow.position.set(a[0], a[1], a[2]);
+      elbow.castShadow = true;
+      elbow.receiveShadow = true;
       parent.add(elbow);
     }
   }
@@ -247,256 +666,1132 @@ function buildOrthogonalPipe(parent, waypoints, radius, pipeMat, flangeMat = nul
   return curvePath;
 }
 
+function makeAnalogGauge(kind, brassMat) {
+  const grp = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.07, 10), brassMat);
+  stem.position.y = 0.035;
+  grp.add(stem);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.056, 0.036, 18), brassMat);
+  body.rotation.x = Math.PI / 2;
+  body.position.y = 0.11;
+  grp.add(body);
+  const faceMat = new THREE.MeshStandardMaterial({
+    map: getDialGaugeTexture(kind),
+    roughness: 0.25,
+    metalness: 0.05,
+  });
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.049, 18), faceMat);
+  face.position.set(0, 0.11, 0.020);
+  grp.add(face);
+  return enableShadows(grp, true, true);
+}
+
 const ROOM_STYLES = {
-  basement: {
-    bg: 0x3b424d,
+  basel_basement: {
+    bg: 0x2c333d,
+    fogHex: 0x2c333d,
+    fogDensity: 0.019,
     floor: 0xffffff,
     wall: 0xffffff,
-    ceiling: 0x5c6470,
-    beam: 0x454d58,
-    accent: 0x475569,
+    ceiling: 0xd0d8e2,
+    beam: 0x525b68,
+    accent: 0x334155,
     accentY: 0.07,
     accentH: 0.14,
-    hemiTop: 0xf1f5f9,
-    hemiBot: 0x475569,
-    keyHex: 0xfff8ed,
-    label: "Residential Basement",
+    hemiTop: 0xe8f1fc,
+    hemiBot: 0x455060,
+    hemiInt: 0.92,
+    keyHex: 0xfff5e6,
+    keyInt: 1.65,
+    fillHex: 0xc5ddf8,
+    fillInt: 0.62,
+    trofferHex: 0xfff6e8,
+    trofferInt: 3.8,
+    accentLight: { hex: 0xbfe2ff, pos: [-4.55, 2.32, -0.35], int: 3.4, dist: 6.8 },
+    floorRough: 0.84,
+    floorMetal: 0.12,
+    floorEnv: 1.38,
+    wallBump: 0.024,
+    floorBump: 0.012,
+    label: "Basel Residential Basement",
   },
-  farm_barn: {
-    bg: 0x4a392a,
+  borehole_utility: {
+    bg: 0xc8d3de,
+    fogHex: 0xc8d3de,
+    fogDensity: 0.012,
     floor: 0xffffff,
     wall: 0xffffff,
-    ceiling: 0x6b4c32,
-    beam: 0x4a311e,
-    accent: 0x7c5330,
-    accentY: 1.48,
-    accentH: 0.14,
-    hemiTop: 0xfff4e0,
-    hemiBot: 0x5c4632,
-    keyHex: 0xffe8c2,
-    label: "Dairy Utility Room",
+    ceiling: 0xe6edf4,
+    beam: 0x94a3b8,
+    accent: 0x0f766e,
+    accentY: 1.18,
+    accentH: 0.05,
+    hemiTop: 0xf8fbff,
+    hemiBot: 0x627386,
+    hemiInt: 1.10,
+    keyHex: 0xfffdf8,
+    keyInt: 1.56,
+    fillHex: 0xdbeafe,
+    fillInt: 0.68,
+    trofferHex: 0xf6faff,
+    trofferInt: 3.6,
+    accentLight: { hex: 0x5eead4, pos: [4.25, 1.55, -1.25], int: 1.8, dist: 5.5 },
+    floorRough: 0.72,
+    floorMetal: 0.10,
+    floorEnv: 1.48,
+    wallBump: 0.014,
+    floorBump: 0.009,
+    label: "Riehen Geothermal Borehole Utility",
   },
-  greenhouse: {
-    bg: 0x466659,
+  alpine_chalet: {
+    bg: 0x3b2d22,
+    fogHex: 0x372a20,
+    fogDensity: 0.020,
     floor: 0xffffff,
     wall: 0xffffff,
-    ceiling: 0xb9e3cf,
-    beam: 0x14532d,
-    accent: 0x15803d,
-    accentY: 1.65,
-    accentH: 0.10,
-    hemiTop: 0xf0fdf4,
-    hemiBot: 0x4d6b57,
-    keyHex: 0xfffbeb,
-    label: "Glasshouse Boiler Bay",
+    ceiling: 0xc69c72,
+    beam: 0x5c3c22,
+    accent: 0x6f4d32,
+    accentY: 0.94,
+    accentH: 0.08,
+    hemiTop: 0xffefd4,
+    hemiBot: 0x573e2a,
+    hemiInt: 0.96,
+    keyHex: 0xffe4bc,
+    keyInt: 1.65,
+    fillHex: 0xc2dfff,
+    fillInt: 0.65,
+    trofferHex: 0xffe6bf,
+    trofferInt: 4.1,
+    accentLight: { hex: 0xc2e6ff, pos: [3.65, 2.08, -1.95], int: 4.8, dist: 7.2 },
+    floorRough: 0.78,
+    floorMetal: 0.10,
+    floorEnv: 1.32,
+    wallBump: 0.030,
+    floorBump: 0.018,
+    label: "Davos Alpine Chalet Plant Room",
   },
-  pool_plant: {
-    bg: 0x2d4a5e,
+  emmental_dairy: {
+    bg: 0x473626,
+    fogHex: 0x423223,
+    fogDensity: 0.018,
     floor: 0xffffff,
     wall: 0xffffff,
-    ceiling: 0x94a9ba,
-    beam: 0x64748b,
+    ceiling: 0xc49a6c,
+    beam: 0x5a3a20,
+    accent: 0xcbd5e1,
+    accentY: 1.34,
+    accentH: 0.045,
+    hemiTop: 0xfff3de,
+    hemiBot: 0x614835,
+    hemiInt: 1.04,
+    keyHex: 0xffebca,
+    keyInt: 1.62,
+    fillHex: 0xfff3de,
+    fillInt: 0.58,
+    trofferHex: 0xffedd0,
+    trofferInt: 3.9,
+    accentLight: { hex: 0xffe4b5, pos: [4.25, 2.1, -0.85], int: 2.2, dist: 6.0 },
+    floorRough: 0.76,
+    floorMetal: 0.08,
+    floorEnv: 1.30,
+    wallBump: 0.025,
+    floorBump: 0.016,
+    label: "Emmental Creamery Plant Room",
+  },
+  thurgau_glasshouse: {
+    bg: 0x9ac8b4,
+    fogHex: 0xb2d8c6,
+    fogDensity: 0.011,
+    floor: 0xffffff,
+    wall: 0xffffff,
+    ceiling: 0xe6f7ee,
+    beam: 0x165336,
+    accent: 0x166534,
+    accentY: 1.06,
+    accentH: 0.06,
+    hemiTop: 0xf7fff9,
+    hemiBot: 0x567060,
+    hemiInt: 1.24,
+    keyHex: 0xfffbe6,
+    keyInt: 1.72,
+    fillHex: 0xdcfce7,
+    fillInt: 0.72,
+    trofferHex: 0xf7fff9,
+    trofferInt: 3.0,
+    accentLight: { hex: 0xfff0c4, pos: [4.25, 2.22, -0.68], int: 4.5, dist: 6.5 },
+    floorRough: 0.86,
+    floorMetal: 0.06,
+    floorEnv: 1.15,
+    wallBump: 0.018,
+    floorBump: 0.014,
+    label: "Thurgau Hydroponic Glasshouse Bay",
+  },
+  st_jakob_pool: {
+    bg: 0x203c50,
+    fogHex: 0x214054,
+    fogDensity: 0.017,
+    floor: 0xffffff,
+    wall: 0xffffff,
+    ceiling: 0xc5dde9,
+    beam: 0x4b6a80,
     accent: 0x0284c7,
-    accentY: 1.35,
-    accentH: 0.22,
-    hemiTop: 0xe0f2fe,
-    hemiBot: 0x38586e,
-    keyHex: 0xe8f6ff,
-    label: "Aquatic Plant Room",
+    accentY: 1.34,
+    accentH: 0.08,
+    hemiTop: 0xe0f5ff,
+    hemiBot: 0x2d536b,
+    hemiInt: 1.02,
+    keyHex: 0xf0f9ff,
+    keyInt: 1.50,
+    fillHex: 0x7dd3fc,
+    fillInt: 0.74,
+    trofferHex: 0xeef8ff,
+    trofferInt: 3.4,
+    accentLight: { hex: 0x22d3ee, pos: [3.55, 1.85, -1.85], int: 6.0, dist: 7.8 },
+    floorRough: 0.62,
+    floorMetal: 0.14,
+    floorEnv: 1.68,
+    wallBump: 0.022,
+    floorBump: 0.014,
+    label: "St. Jakob Aquatic Plant Hall",
   },
-  commercial: {
-    bg: 0x47525e,
+  lucerne_bakery: {
+    bg: 0x473a32,
+    fogHex: 0x44372f,
+    fogDensity: 0.017,
     floor: 0xffffff,
     wall: 0xffffff,
-    ceiling: 0x7a8594,
-    beam: 0x475569,
-    accent: 0x64748b,
-    accentY: 1.15,
-    accentH: 0.14,
-    hemiTop: 0xf8fafc,
-    hemiBot: 0x4b5563,
-    keyHex: 0xf8fafc,
-    label: "Commercial Plant Bay",
+    ceiling: 0xe2d8cc,
+    beam: 0x6b5c52,
+    accent: 0x94a3b8,
+    accentY: 1.14,
+    accentH: 0.05,
+    hemiTop: 0xfff8ee,
+    hemiBot: 0x665243,
+    hemiInt: 1.06,
+    keyHex: 0xfff0d8,
+    keyInt: 1.60,
+    fillHex: 0xfeecd2,
+    fillInt: 0.58,
+    trofferHex: 0xfff1dc,
+    trofferInt: 3.8,
+    accentLight: { hex: 0xffd59e, pos: [-3.9, 1.85, -0.5], int: 2.6, dist: 6.0 },
+    floorRough: 0.74,
+    floorMetal: 0.09,
+    floorEnv: 1.34,
+    wallBump: 0.022,
+    floorBump: 0.012,
+    label: "Lucerne Bakery Washroom Bay",
+  },
+  stgallen_hospital: {
+    bg: 0xc8d4e0,
+    fogHex: 0xcdd9e4,
+    fogDensity: 0.012,
+    floor: 0xffffff,
+    wall: 0xffffff,
+    ceiling: 0xeef3f8,
+    beam: 0x94a3b8,
+    accent: 0x0ea5e9,
+    accentY: 1.06,
+    accentH: 0.045,
+    hemiTop: 0xf8fbff,
+    hemiBot: 0x64748b,
+    hemiInt: 1.16,
+    keyHex: 0xf8fbff,
+    keyInt: 1.56,
+    fillHex: 0xdbeafe,
+    fillInt: 0.74,
+    trofferHex: 0xf5faff,
+    trofferInt: 3.8,
+    accentLight: { hex: 0x38bdf8, pos: [3.8, 2.05, -1.85], int: 2.8, dist: 6.0 },
+    floorRough: 0.58,
+    floorMetal: 0.12,
+    floorEnv: 1.65,
+    wallBump: 0.014,
+    floorBump: 0.008,
+    label: "St. Gallen Sterile Mechanical Wing",
   },
 };
 
 const _ROOM_TEX_CACHE = {};
 
-function makeCanvasTex(drawFn, repeatX, repeatY) {
+function makeCanvasTex(drawFn, repeatX, repeatY, size = 1024, isColor = true) {
   const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 512;
+  c.width = size;
+  c.height = size;
   const ctx = c.getContext("2d");
-  drawFn(ctx, 512, 512);
+  drawFn(ctx, size, size);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(repeatX, repeatY);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  if (isColor) tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.userData.cached = true;
   return tex;
 }
 
+function makePbrSurface(drawAlbedo, drawBump, drawRough, rx, ry) {
+  return {
+    map: makeCanvasTex(drawAlbedo, rx, ry, 1024, true),
+    bumpMap: makeCanvasTex(drawBump, rx, ry, 512, false),
+    roughnessMap: makeCanvasTex(drawRough, rx, ry, 512, false),
+  };
+}
+
+function makeSeededRand(seedInit = 1337) {
+  let s = seedInit >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function drawMicroNoise(ctx, w, h, count, minV, spanV, alpha, sz = 3, seed = 4201) {
+  const rand = makeSeededRand(seed);
+  for (let i = 0; i < count; i++) {
+    const v = minV + Math.floor(rand() * spanV);
+    ctx.fillStyle = `rgba(${v},${v + 2},${v + 4},${alpha})`;
+    ctx.fillRect(Math.floor(rand() * w), Math.floor(rand() * h), sz, sz);
+  }
+}
+
+function drawTerrazzoFlecks(ctx, w, h, count, palette, seed = 7919) {
+  const rand = makeSeededRand(seed);
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = palette[Math.floor(rand() * palette.length)];
+    const x = Math.floor(rand() * w);
+    const y = Math.floor(rand() * h);
+    const rw = 2 + Math.floor(rand() * 5);
+    const rh = 2 + Math.floor(rand() * 4);
+    ctx.fillRect(x, y, rw, rh);
+  }
+}
+
 function getRoomTextures(styleKey) {
-  if (_ROOM_TEX_CACHE[styleKey]) return _ROOM_TEX_CACHE[styleKey];
-  let wallTex, floorTex;
-  if (styleKey === "basement") {
-    wallTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#9aa2ac";
-      ctx.fillRect(0, 0, w, h);
-      for (let i = 0; i < 4000; i++) {
-        const g = 132 + ((i * 37) % 36);
-        ctx.fillStyle = `rgba(${g},${g + 2},${g + 5},0.22)`;
-        ctx.fillRect((i * 73) % w, (i * 139) % h, 5, 3);
-      }
-      for (let y = 0; y < h; y += 64) {
-        ctx.fillStyle = "rgba(42,48,56,0.45)";
-        ctx.fillRect(0, y, w, 3);
-        ctx.fillStyle = "rgba(220,226,232,0.22)";
-        ctx.fillRect(0, y + 3, w, 2);
-        for (let x = 64; x < w; x += 128) {
-          ctx.beginPath();
-          ctx.arc(x, y + 32, 5.5, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(38,44,52,0.55)";
-          ctx.fill();
+  const key = ROOM_STYLES[styleKey] ? styleKey : "basel_basement";
+  if (_ROOM_TEX_CACHE[key]) return _ROOM_TEX_CACHE[key];
+
+  let wall, floor, ceilTex;
+
+  if (key === "basel_basement") {
+    // Swiss Sichtbeton (board-formed architectural concrete) with crisp form-tie cones + satin epoxy aggregate floor
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#919aa6";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 7000, 118, 48, 0.22, 4);
+        for (let y = 0; y < h; y += 128) {
+          const bandShade = 138 + (((y / 128) * 11) % 16);
+          ctx.fillStyle = `rgba(${bandShade},${bandShade + 4},${bandShade + 10},0.22)`;
+          ctx.fillRect(0, y + 4, w, 120);
+          ctx.fillStyle = "rgba(32,38,48,0.52)";
+          ctx.fillRect(0, y, w, 4);
+          ctx.fillStyle = "rgba(225,232,240,0.28)";
+          ctx.fillRect(0, y + 4, w, 3);
+          for (let x = 128; x < w; x += 256) {
+            ctx.beginPath();
+            ctx.arc(x, y + 64, 11, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(30,36,44,0.62)";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x - 2, y + 62, 6, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(74,84,96,0.65)";
+            ctx.fill();
+          }
         }
-      }
-    }, 3.6, 1.3);
-    floorTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#5c6470";
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#b8b8b8";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 3600, 145, 55, 0.25, 3);
+        for (let y = 0; y < h; y += 64) {
+          ctx.fillStyle = "#222222";
+          ctx.fillRect(0, y, w, 3);
+          for (let x = 64; x < w; x += 128) {
+            ctx.beginPath();
+            ctx.arc(x, y + 32, 6, 0, Math.PI * 2);
+            ctx.fillStyle = "#181818";
+            ctx.fill();
+          }
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#cfcfcf";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 2400, 180, 50, 0.25, 4);
+        for (let y = 0; y < h; y += 64) {
+          ctx.fillStyle = "#f2f2f2";
+          ctx.fillRect(0, y, w, 3);
+        }
+      },
+      3.4,
+      1.25
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#4c5563";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            const s = 68 + ((r * 7 + c * 11) % 14);
+            ctx.fillStyle = `rgb(${s},${s + 7},${s + 16})`;
+            ctx.fillRect(c * 256 + 4, r * 256 + 4, 248, 248);
+          }
+        }
+        drawMicroNoise(ctx, w, h, 6500, 54, 48, 0.22, 4);
+        ctx.strokeStyle = "rgba(22,28,38,0.62)";
+        ctx.lineWidth = 5;
+        for (let k = 0; k <= w; k += 256) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#c8c8c8";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 2800, 165, 45, 0.2, 3);
+        ctx.strokeStyle = "#262626";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      (ctx, w, h) => {
+        // Satin sealed epoxy floor tiles with matte joints
+        ctx.fillStyle = "#6e6e6e";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 2400, 92, 48, 0.28, 6);
+        ctx.strokeStyle = "#e8e8e8";
+        ctx.lineWidth = 5;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      4.4,
+      3.1
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      ctx.fillStyle = "#7a8492";
       ctx.fillRect(0, 0, w, h);
-      for (let i = 0; i < 3200; i++) {
-        const v = 72 + ((i * 29) % 44);
-        ctx.fillStyle = `rgba(${v},${v + 4},${v + 8},0.25)`;
-        ctx.fillRect((i * 97) % w, (i * 191) % h, 4, 4);
-      }
-      ctx.strokeStyle = "rgba(30,36,44,0.42)";
+      drawMicroNoise(ctx, w, h, 2200, 105, 36, 0.2, 4);
+      ctx.strokeStyle = "rgba(42,50,60,0.35)";
       ctx.lineWidth = 3;
       for (let k = 0; k <= w; k += 128) {
         ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
       }
-    }, 4.5, 3.2);
-  } else if (styleKey === "farm_barn") {
-    wallTex = makeCanvasTex((ctx, w, h) => {
-      const tones = ["#b38252", "#a87646", "#bd8c5a", "#9f6e3f", "#b88756", "#a47447", "#c0905e", "#ab7a4c"];
-      for (let r = 0; r < 8; r++) {
-        const y0 = r * 64;
-        ctx.fillStyle = tones[r % tones.length];
-        ctx.fillRect(0, y0, w, 64);
-        for (let g = 0; g < 16; g++) {
-          ctx.fillStyle = g % 2 === 0 ? "rgba(70,40,16,0.12)" : "rgba(255,228,185,0.09)";
-          ctx.fillRect(0, y0 + g * 4, w, 2);
+    }, 3.6, 2.4, 512, true);
+  } else if (key === "borehole_utility") {
+    // Bright Swiss Minergie utility: crisp mineral plaster upper wall + epoxy slate-teal lower wainscot + quartz terrazzo floor
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#e5ebf1";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 4200, 206, 28, 0.24, 3);
+        // Epoxy lower protective wainscot
+        ctx.fillStyle = "#b8c6d2";
+        ctx.fillRect(0, h * 0.62, w, h * 0.38);
+        drawMicroNoise(ctx, w, h, 2400, 162, 26, 0.16, 3);
+        ctx.strokeStyle = "rgba(71, 85, 105, 0.18)";
+        ctx.lineWidth = 3;
+        for (let x = 0; x <= w; x += 256) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
         }
-        ctx.fillStyle = "rgba(56,34,14,0.62)";
-        ctx.fillRect(0, y0, w, 3);
-      }
-    }, 3.4, 1.35);
-    floorTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#7a6e60";
-      ctx.fillRect(0, 0, w, h);
-      for (let r = 0; r < 4; r++) {
-        for (let c = 0; c < 4; c++) {
-          const shade = 108 + ((r * 7 + c * 13) % 24);
-          ctx.fillStyle = `rgb(${shade + 12},${shade + 4},${shade - 6})`;
-          ctx.fillRect(c * 128 + 3, r * 128 + 3, 122, 122);
+        ctx.fillStyle = "#0f766e";
+        ctx.fillRect(0, h * 0.615, w, 10);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#c0c0c0";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 3500, 165, 45, 0.22, 2);
+        ctx.fillStyle = "#888888";
+        ctx.fillRect(0, h * 0.615, w, 5);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#d8d8d8";
+        ctx.fillRect(0, 0, w, h * 0.62);
+        ctx.fillStyle = "#7c7c7c";
+        ctx.fillRect(0, h * 0.62, w, h * 0.38);
+      },
+      3.2,
+      1.0
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#95a3b0";
+        ctx.fillRect(0, 0, w, h);
+        // Honed quartz terrazzo flecks (organic seeded distribution)
+        drawTerrazzoFlecks(ctx, w, h, 5200, ["#e2e8f0", "#cbd5e1", "#64748b", "#475569", "#f8fafc"], 2111);
+        ctx.strokeStyle = "rgba(51,65,85,0.34)";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 256) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
         }
-      }
-      ctx.strokeStyle = "#463e36";
-      ctx.lineWidth = 4;
-      for (let k = 0; k <= w; k += 128) {
-        ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
-      }
-    }, 4.2, 3.0);
-  } else if (styleKey === "greenhouse") {
-    wallTex = makeCanvasTex((ctx, w, h) => {
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "#cdece0");
-      grad.addColorStop(0.65, "#dcf4e8");
-      grad.addColorStop(1, "#a6cbb9");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = "#166534";
-      ctx.lineWidth = 8;
-      for (let x = 0; x <= w; x += 128) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-      }
-      for (let y = 0; y <= h; y += 170) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-      }
-    }, 3.2, 1.15);
-    floorTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#6e7d74";
-      ctx.fillRect(0, 0, w, h);
-      for (let r = 0; r < 4; r++) {
-        for (let c = 0; c < 4; c++) {
-          const v = (r + c) % 2 === 0 ? "#859184" : "#778578";
-          ctx.fillStyle = v;
-          ctx.fillRect(c * 128 + 3, r * 128 + 3, 122, 122);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#c6c6c6";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#3a3a3a";
+        ctx.lineWidth = 3;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
         }
-      }
-    }, 4.2, 3.0);
-  } else if (styleKey === "pool_plant") {
-    wallTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#94b5ca";
-      ctx.fillRect(0, 0, w, h);
-      for (let r = 0; r < 16; r++) {
-        for (let c = 0; c < 16; c++) {
-          const isBand = r >= 9 && r <= 12;
-          ctx.fillStyle = isBand
-            ? ((r + c) % 2 === 0 ? "#0284c7" : "#0ea5e9")
-            : ((r + c) % 2 === 0 ? "#dceef8" : "#d0e7f5");
-          ctx.fillRect(c * 32 + 2, r * 32 + 2, 28, 28);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#5c5c5c";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 1800, 74, 42, 0.25, 5);
+        ctx.strokeStyle = "#e0e0e0";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
         }
-      }
-    }, 3.6, 1.3);
-    floorTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#485e6e";
+      },
+      4.2,
+      3.0
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      ctx.fillStyle = "#dce4ec";
       ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = "#314350";
-      ctx.lineWidth = 3;
-      for (let k = 0; k <= w; k += 64) {
-        ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
-      }
-    }, 4.5, 3.2);
-  } else {
-    wallTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#dbe2ea";
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillRect(0, h * 0.58, w, h * 0.42);
-      ctx.strokeStyle = "rgba(71,85,105,0.28)";
+      ctx.strokeStyle = "rgba(100,116,139,0.22)";
       ctx.lineWidth = 2;
       for (let k = 0; k <= w; k += 64) {
-        ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h * 0.58); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
       }
-    }, 3.4, 1.25);
-    floorTex = makeCanvasTex((ctx, w, h) => {
-      ctx.fillStyle = "#687380";
-      ctx.fillRect(0, 0, w, h);
-      for (let i = 0; i < 3600; i++) {
-        const c = 80 + ((i * 41) % 60);
-        ctx.fillStyle = `rgba(${c},${c + 4},${c + 8},0.28)`;
-        ctx.fillRect((i * 83) % w, (i * 157) % h, 3, 3);
+    }, 3.6, 2.4, 512, true);
+  } else if (key === "alpine_chalet") {
+    // Engadin larch timber upper boards over chiseled alpine granite stone plinth + Vals quartzite slate floor
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.70);
+        const tones = ["#b8834d", "#a97340", "#c49059", "#9f6b3a", "#bc8852", "#ad7844"];
+        const plankH = Math.round(splitY / 8);
+        for (let r = 0; r < 8; r++) {
+          const y0 = r * plankH;
+          ctx.fillStyle = tones[r % tones.length];
+          ctx.fillRect(0, y0, w, plankH);
+          for (let g = 0; g < 18; g++) {
+            ctx.fillStyle = g % 2 === 0 ? "rgba(62,34,12,0.13)" : "rgba(255,226,180,0.09)";
+            ctx.fillRect(0, y0 + g * (plankH / 18), w, 2);
+          }
+          // Authentic wood knots
+          const kx = ((r * 211 + 140) % (w - 80)) + 40;
+          ctx.fillStyle = "rgba(74,42,18,0.45)";
+          ctx.beginPath();
+          ctx.ellipse(kx, y0 + plankH * 0.5, 16, 7, 0.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "rgba(44,24,10,0.68)";
+          ctx.fillRect(0, y0, w, 4);
+        }
+        // Chiseled Graubunden gneiss stone lower dado
+        ctx.fillStyle = "#5c6268";
+        ctx.fillRect(0, splitY, w, h - splitY);
+        const rows = 4;
+        const rh = (h - splitY) / rows;
+        for (let r = 0; r < rows; r++) {
+          const off = (r % 2) * 96;
+          for (let x = -96; x < w + 96; x += 192) {
+            const sh = 86 + ((r * 13 + Math.abs(x) * 7) % 34);
+            ctx.fillStyle = `rgb(${sh},${sh + 4},${sh + 7})`;
+            ctx.fillRect(x + off + 4, splitY + r * rh + 4, 184, rh - 8);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.70);
+        ctx.fillStyle = "#c0c0c0";
+        ctx.fillRect(0, 0, w, splitY);
+        const plankH = Math.round(splitY / 8);
+        for (let r = 0; r < 8; r++) {
+          ctx.fillStyle = "#222222";
+          ctx.fillRect(0, r * plankH, w, 3);
+        }
+        ctx.fillStyle = "#262626";
+        ctx.fillRect(0, splitY, w, h - splitY);
+        const rh = (h - splitY) / 4;
+        for (let r = 0; r < 4; r++) {
+          const off = (r % 2) * 48;
+          for (let x = -48; x < w + 48; x += 96) {
+            ctx.fillStyle = `rgb(${155 + ((r * 17 + Math.abs(x)) % 45)},${155 + ((r * 17 + Math.abs(x)) % 45)},${155 + ((r * 17 + Math.abs(x)) % 45)})`;
+            ctx.fillRect(x + off + 3, splitY + r * rh + 3, 90, rh - 6);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.70);
+        ctx.fillStyle = "#8e8e8e";
+        ctx.fillRect(0, 0, w, splitY);
+        ctx.fillStyle = "#d6d6d6";
+        ctx.fillRect(0, splitY, w, h - splitY);
+      },
+      2.6,
+      1.0
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        // Vals alpine quartzite slate floor slabs
+        ctx.fillStyle = "#3f474e";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            const s = 62 + ((r * 11 + c * 17) % 24);
+            ctx.fillStyle = `rgb(${s},${s + 6},${s + 10})`;
+            ctx.fillRect(c * 256 + 4, r * 256 + 4, 248, 248);
+            // Subtle mineral strata lines
+            ctx.fillStyle = "rgba(180,200,210,0.09)";
+            ctx.fillRect(c * 256 + 6, r * 256 + 42 + ((r * 23) % 90), 244, 14);
+          }
+        }
+        drawMicroNoise(ctx, w, h, 4200, 48, 44, 0.22, 4);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#c4c4c4";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 2600, 140, 60, 0.26, 4);
+        ctx.strokeStyle = "#1c1c1c";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#7a7a7a";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 2000, 96, 56, 0.28, 6);
+        ctx.strokeStyle = "#ececec";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      4.0,
+      3.0
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      const tones = ["#a8794b", "#9d6e42", "#b38455", "#96683c"];
+      for (let r = 0; r < 8; r++) {
+        ctx.fillStyle = tones[r % tones.length];
+        ctx.fillRect(0, r * 64, w, 64);
+        ctx.fillStyle = "rgba(45,25,10,0.45)";
+        ctx.fillRect(0, r * 64, w, 3);
       }
-    }, 4.4, 3.1);
+    }, 3.4, 2.2, 512, true);
+  } else if (key === "emmental_dairy") {
+    // Authentic Swiss creamery: warm honey Bernese spruce upper wall + hygienic glazed white ceramic lower dado + warm terracotta quarry tiles
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.58);
+        const tones = ["#b88450", "#ad7846", "#c28e5a", "#a36f3e", "#bc8854", "#aa7645"];
+        const plankH = Math.round(splitY / 7);
+        for (let r = 0; r < 7; r++) {
+          const y0 = r * plankH;
+          ctx.fillStyle = tones[r % tones.length];
+          ctx.fillRect(0, y0, w, plankH);
+          for (let g = 0; g < 16; g++) {
+            ctx.fillStyle = g % 2 === 0 ? "rgba(68,38,14,0.12)" : "rgba(255,228,184,0.09)";
+            ctx.fillRect(0, y0 + g * (plankH / 16), w, 2);
+          }
+          ctx.fillStyle = "rgba(52,30,12,0.58)";
+          ctx.fillRect(0, y0, w, 4);
+        }
+        // Glazed hygienic creamery white ceramic dado tiles
+        ctx.fillStyle = "#c8d0d6";
+        ctx.fillRect(0, splitY, w, h - splitY);
+        const tileS = 64;
+        for (let y = splitY; y < h; y += tileS) {
+          for (let x = 0; x < w; x += tileS) {
+            ctx.fillStyle = ((x / tileS + Math.floor(y / tileS)) % 2 === 0) ? "#f4f7f8" : "#edf2f4";
+            ctx.fillRect(x + 3, y + 3, tileS - 6, tileS - 6);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.58);
+        ctx.fillStyle = "#bdbdbd";
+        ctx.fillRect(0, 0, w, splitY);
+        const plankH = Math.round(splitY / 7);
+        for (let r = 0; r < 7; r++) {
+          ctx.fillStyle = "#222222";
+          ctx.fillRect(0, r * plankH, w, 3);
+        }
+        ctx.fillStyle = "#303030";
+        ctx.fillRect(0, splitY, w, h - splitY);
+        for (let y = splitY; y < h; y += 32) {
+          for (let x = 0; x < w; x += 32) {
+            ctx.fillStyle = "#dedede";
+            ctx.fillRect(x + 2, y + 2, 28, 28);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.58);
+        ctx.fillStyle = "#989898";
+        ctx.fillRect(0, 0, w, splitY);
+        // Glossy ceramic white dado tiles with matte grout!
+        ctx.fillStyle = "#e8e8e8";
+        ctx.fillRect(0, splitY, w, h - splitY);
+        for (let y = splitY; y < h; y += 32) {
+          for (let x = 0; x < w; x += 32) {
+            ctx.fillStyle = "#484848";
+            ctx.fillRect(x + 2, y + 2, 28, 28);
+          }
+        }
+      },
+      3.0,
+      1.0
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        // Warm terracotta-sandstone dairy quarry tiles
+        ctx.fillStyle = "#4d4238";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            const sh = 122 + ((r * 9 + c * 15) % 24);
+            ctx.fillStyle = `rgb(${sh + 22},${sh - 2},${sh - 22})`;
+            ctx.fillRect(c * 256 + 6, r * 256 + 6, 244, 244);
+          }
+        }
+        drawMicroNoise(ctx, w, h, 3800, 96, 48, 0.16, 4);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#1f1f1f";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            ctx.fillStyle = "#d0d0d0";
+            ctx.fillRect(c * 128 + 4, r * 128 + 4, 120, 120);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#eaeaea";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            ctx.fillStyle = "#727272";
+            ctx.fillRect(c * 128 + 4, r * 128 + 4, 120, 120);
+          }
+        }
+      },
+      4.2,
+      3.0
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      const tones = ["#a87849", "#9e6e40", "#b28252", "#97693d"];
+      for (let r = 0; r < 8; r++) {
+        ctx.fillStyle = tones[r % tones.length];
+        ctx.fillRect(0, r * 64, w, 64);
+        ctx.fillStyle = "rgba(44,24,10,0.42)";
+        ctx.fillRect(0, r * 64, w, 3);
+      }
+    }, 3.4, 2.2, 512, true);
+  } else if (key === "thurgau_glasshouse") {
+    // Luminous sunlit conservatory glazing with emerald structural mullions & warm sky/foliage light transmission
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0.0, "#eefaf3");
+        g.addColorStop(0.45, "#d8f2e2");
+        g.addColorStop(0.75, "#b7dec7");
+        g.addColorStop(1.0, "#85a892");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        // Warm diagonal sunlit conservatory light shafts
+        ctx.fillStyle = "rgba(255, 252, 224, 0.28)";
+        for (let sx = -120; sx < w; sx += 260) {
+          ctx.beginPath();
+          ctx.moveTo(sx, 0); ctx.lineTo(sx + 110, 0);
+          ctx.lineTo(sx + 260, h); ctx.lineTo(sx + 150, h);
+          ctx.closePath(); ctx.fill();
+        }
+        // Soft blurred exterior tomato rows visible behind lower frosted glass
+        for (let i = 0; i < 16; i++) {
+          ctx.fillStyle = i % 2 === 0 ? "rgba(34, 130, 68, 0.22)" : "rgba(22, 101, 52, 0.18)";
+          ctx.beginPath();
+          ctx.arc((i * 71) % w, h * 0.72 + ((i * 23) % 90), 54, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Concrete dwarf knee-wall at bottom (3D structural mullions cast crisp real shadows in front)
+        ctx.fillStyle = "#8a998f";
+        ctx.fillRect(0, h * 0.82, w, h * 0.18);
+        ctx.fillStyle = "#14532d";
+        ctx.fillRect(0, h * 0.81, w, 14);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#b8b8b8";
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#e8e8e8";
+        ctx.fillRect(0, h * 0.81, w, 8);
+      },
+      (ctx, w, h) => {
+        // Glossy sunlit glass panes, matte lower knee-wall
+        ctx.fillStyle = "#484848";
+        ctx.fillRect(0, 0, w, h * 0.82);
+        ctx.fillStyle = "#d8d8d8";
+        ctx.fillRect(0, h * 0.82, w, h * 0.18);
+      },
+      2.8,
+      1.0
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#6c7a72";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            const s = (r + c) % 2 === 0 ? 128 : 116;
+            ctx.fillStyle = `rgb(${s},${s + 8},${s + 2})`;
+            ctx.fillRect(c * 256 + 5, r * 256 + 5, 246, 246);
+          }
+        }
+        drawMicroNoise(ctx, w, h, 4200, 96, 46, 0.18, 4);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#2a2a2a";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            ctx.fillStyle = "#cccccc";
+            ctx.fillRect(c * 128 + 3, r * 128 + 3, 122, 122);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#ececec";
+        ctx.fillRect(0, 0, w, h);
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            ctx.fillStyle = "#989898";
+            ctx.fillRect(c * 128 + 3, r * 128 + 3, 122, 122);
+          }
+        }
+      },
+      4.2,
+      3.0
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      ctx.fillStyle = "#e0f6ea";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "#166534";
+      ctx.lineWidth = 6;
+      for (let k = 0; k <= w; k += 128) {
+        ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+      }
+    }, 3.2, 2.2, 512, true);
+  } else if (key === "st_jakob_pool") {
+    // Crisp St. Jakob aquatic mosaic tiles with racing-blue stripe + glistening wet-sheen petrol-slate deck tiles
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#89a8be";
+        ctx.fillRect(0, 0, w, h);
+        const cells = 16;
+        const cs = w / cells;
+        for (let r = 0; r < cells; r++) {
+          for (let c = 0; c < cells; c++) {
+            const isTopBand = r >= 1 && r <= 2;
+            const isMidBand = r >= 9 && r <= 11;
+            let col;
+            if (isTopBand || isMidBand) {
+              col = (r + c) % 2 === 0 ? "#0369a1" : "#0284c7";
+            } else {
+              col = (r + c) % 2 === 0 ? "#e2f2fb" : "#d4ebf8";
+            }
+            ctx.fillStyle = col;
+            ctx.fillRect(c * cs + 3, r * cs + 3, cs - 6, cs - 6);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#202020";
+        ctx.fillRect(0, 0, w, h);
+        const cs = w / 16;
+        for (let r = 0; r < 16; r++) {
+          for (let c = 0; c < 16; c++) {
+            ctx.fillStyle = "#dfdfdf";
+            ctx.fillRect(c * cs + 2, r * cs + 2, cs - 4, cs - 4);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        // Glossy ceramic pool mosaic with matte recessed grout!
+        ctx.fillStyle = "#efefef";
+        ctx.fillRect(0, 0, w, h);
+        const cs = w / 16;
+        for (let r = 0; r < 16; r++) {
+          for (let c = 0; c < 16; c++) {
+            ctx.fillStyle = "#404040";
+            ctx.fillRect(c * cs + 2, r * cs + 2, cs - 4, cs - 4);
+          }
+        }
+      },
+      3.4,
+      1.2
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#283a47";
+        ctx.fillRect(0, 0, w, h);
+        const cs = w / 8;
+        for (let r = 0; r < 8; r++) {
+          for (let c = 0; c < 8; c++) {
+            const sh = 56 + ((r * 7 + c * 11) % 14);
+            ctx.fillStyle = `rgb(${sh},${sh + 22},${sh + 36})`;
+            ctx.fillRect(c * cs + 4, r * cs + 4, cs - 8, cs - 8);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#1c1c1c";
+        ctx.fillRect(0, 0, w, h);
+        const cs = w / 8;
+        for (let r = 0; r < 8; r++) {
+          for (let c = 0; c < 8; c++) {
+            ctx.fillStyle = "#d2d2d2";
+            ctx.fillRect(c * cs + 2, r * cs + 2, cs - 4, cs - 4);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        // Wet-sheen pool-deck ceramic tiles
+        ctx.fillStyle = "#e6e6e6";
+        ctx.fillRect(0, 0, w, h);
+        const cs = w / 8;
+        for (let r = 0; r < 8; r++) {
+          for (let c = 0; c < 8; c++) {
+            const damp = ((r * 13 + c * 5) % 3 === 0) ? "#363636" : "#565656";
+            ctx.fillStyle = damp;
+            ctx.fillRect(c * cs + 2, r * cs + 2, cs - 4, cs - 4);
+          }
+        }
+      },
+      4.4,
+      3.1
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      ctx.fillStyle = "#b8d2e2";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(14,116,144,0.16)";
+      for (let y = 0; y < h; y += 32) ctx.fillRect(0, y, w, 12);
+    }, 3.6, 2.4, 512, true);
+  } else if (key === "lucerne_bakery") {
+    // Classic European cream glazed subway tiles + warm fired quarry-brick lower dado + speckled warm terrazzo floor
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.64);
+        ctx.fillStyle = "#c9bfb2";
+        ctx.fillRect(0, 0, w, splitY);
+        const rows = 14;
+        const rh = splitY / rows;
+        const bw = 128;
+        for (let r = 0; r < rows; r++) {
+          const off = (r % 2) * (bw / 2);
+          for (let x = -bw; x < w + bw; x += bw) {
+            ctx.fillStyle = (r + Math.round(x / bw)) % 2 === 0 ? "#f7f1e6" : "#f2eadc";
+            ctx.fillRect(x + off + 3, r * rh + 3, bw - 6, rh - 6);
+          }
+        }
+        // Fired terracotta-brown bakery dado brick
+        ctx.fillStyle = "#5c4234";
+        ctx.fillRect(0, splitY, w, h - splitY);
+        const dRows = 6;
+        const drh = (h - splitY) / dRows;
+        for (let r = 0; r < dRows; r++) {
+          const off = (r % 2) * 64;
+          for (let x = -64; x < w + 64; x += 128) {
+            const s = 142 + ((r * 13 + Math.abs(x) * 3) % 24);
+            ctx.fillStyle = `rgb(${s + 14},${s - 22},${s - 40})`;
+            ctx.fillRect(x + off + 4, splitY + r * drh + 4, 120, drh - 8);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.64);
+        ctx.fillStyle = "#262626";
+        ctx.fillRect(0, 0, w, h);
+        const rh = splitY / 14;
+        for (let r = 0; r < 14; r++) {
+          const off = (r % 2) * 32;
+          for (let x = -64; x < w + 64; x += 64) {
+            ctx.fillStyle = "#dcdcdc";
+            ctx.fillRect(x + off + 2, r * rh + 2, 60, rh - 4);
+          }
+        }
+        const drh = (h - splitY) / 6;
+        for (let r = 0; r < 6; r++) {
+          const off = (r % 2) * 32;
+          for (let x = -64; x < w + 64; x += 64) {
+            ctx.fillStyle = "#c8c8c8";
+            ctx.fillRect(x + off + 2, splitY + r * drh + 2, 60, drh - 4);
+          }
+        }
+      },
+      (ctx, w, h) => {
+        const splitY = Math.round(h * 0.64);
+        ctx.fillStyle = "#eaeaea";
+        ctx.fillRect(0, 0, w, h);
+        const rh = splitY / 14;
+        for (let r = 0; r < 14; r++) {
+          const off = (r % 2) * 32;
+          for (let x = -64; x < w + 64; x += 64) {
+            ctx.fillStyle = "#484848";
+            ctx.fillRect(x + off + 2, r * rh + 2, 60, rh - 4);
+          }
+        }
+        ctx.fillStyle = "#8a8a8a";
+        ctx.fillRect(0, splitY, w, h - splitY);
+      },
+      2.8,
+      1.0
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#7a6f64";
+        ctx.fillRect(0, 0, w, h);
+        drawTerrazzoFlecks(ctx, w, h, 5000, ["#d6cab8", "#a89886", "#574c42", "#e7dfd3", "#8a7866"], 5321);
+        ctx.strokeStyle = "rgba(48,40,34,0.42)";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 256) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#c8c8c8";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#323232";
+        ctx.lineWidth = 3;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#666666";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#e4e4e4";
+        ctx.lineWidth = 4;
+        for (let k = 0; k <= w; k += 128) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+        }
+      },
+      4.2,
+      3.0
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      ctx.fillStyle = "#dfd6ca";
+      ctx.fillRect(0, 0, w, h);
+      drawMicroNoise(ctx, w, h, 1800, 196, 26, 0.16, 4);
+    }, 3.6, 2.4, 512, true);
+  } else {
+    // stgallen_hospital: Seamless antimicrobial cleanroom modular wall panels + reflective medical epoxy terrazzo floor
+    wall = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#e7eef4";
+        ctx.fillRect(0, 0, w, h);
+        // Subtle lower stainless/antimicrobial kick zone
+        ctx.fillStyle = "#cfdbe6";
+        ctx.fillRect(0, h * 0.66, w, h * 0.34);
+        // Anodized aluminum modular panel vertical seams
+        for (let x = 0; x <= w; x += 256) {
+          ctx.fillStyle = "#94a3b8";
+          ctx.fillRect(x - 3, 0, 6, h);
+          ctx.fillStyle = "#f8fafc";
+          ctx.fillRect(x + 3, 0, 3, h);
+        }
+        // Hygienic clinical accent stripe
+        ctx.fillStyle = "#0ea5e9";
+        ctx.fillRect(0, h * 0.652, w, 8);
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#d0d0d0";
+        ctx.fillRect(0, 0, w, h);
+        for (let x = 0; x <= w; x += 128) {
+          ctx.fillStyle = "#484848";
+          ctx.fillRect(x - 2, 0, 4, h);
+        }
+      },
+      (ctx, w, h) => {
+        // Satin cleanroom panels, sleek reflective stainless lower zone
+        ctx.fillStyle = "#767676";
+        ctx.fillRect(0, 0, w, h * 0.66);
+        ctx.fillStyle = "#525252";
+        ctx.fillRect(0, h * 0.66, w, h * 0.34);
+      },
+      3.0,
+      1.0
+    );
+    floor = makePbrSurface(
+      (ctx, w, h) => {
+        ctx.fillStyle = "#a6b5c4";
+        ctx.fillRect(0, 0, w, h);
+        drawTerrazzoFlecks(ctx, w, h, 4600, ["#e2eaf2", "#cbd6e2", "#7a8da0", "#f8fafc", "#94a3b8"], 8831);
+        // Subtle welded seam lines of seamless hospital vinyl/epoxy flooring
+        ctx.strokeStyle = "rgba(100,116,139,0.22)";
+        ctx.lineWidth = 3;
+        for (let k = 0; k <= w; k += 512) {
+          ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+        }
+      },
+      (ctx, w, h) => {
+        ctx.fillStyle = "#d0d0d0";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 1400, 188, 28, 0.14, 3);
+      },
+      (ctx, w, h) => {
+        // Reflective sterile medical epoxy floor
+        ctx.fillStyle = "#4a4a4a";
+        ctx.fillRect(0, 0, w, h);
+        drawMicroNoise(ctx, w, h, 1400, 58, 36, 0.22, 6);
+      },
+      3.8,
+      2.8
+    );
+    ceilTex = makeCanvasTex((ctx, w, h) => {
+      ctx.fillStyle = "#e8eff5";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "rgba(148,163,184,0.45)";
+      ctx.lineWidth = 3;
+      for (let k = 0; k <= w; k += 64) {
+        ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(k, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, k); ctx.lineTo(w, k); ctx.stroke();
+      }
+    }, 3.6, 2.4, 512, true);
   }
-  _ROOM_TEX_CACHE[styleKey] = { wallTex, floorTex };
-  return _ROOM_TEX_CACHE[styleKey];
+
+  _ROOM_TEX_CACHE[key] = {
+    wallTex: wall.map,
+    wallBump: wall.bumpMap,
+    wallRough: wall.roughnessMap,
+    floorTex: floor.map,
+    floorBump: floor.bumpMap,
+    floorRough: floor.roughnessMap,
+    ceilTex,
+  };
+  return _ROOM_TEX_CACHE[key];
 }
 
 const DEPLOYMENT_TO_ROOM = {
-  house_basel: "basement",
-  house_borehole: "basement",
-  alpine_chalet: "pool_plant",
-  dairy_farm: "farm_barn",
-  glasshouse_farm: "greenhouse",
-  municipal_pool: "pool_plant",
-  commercial_bakery: "commercial",
-  hospital_wing: "commercial",
+  house_basel: "basel_basement",
+  house_borehole: "borehole_utility",
+  alpine_chalet: "alpine_chalet",
+  dairy_farm: "emmental_dairy",
+  glasshouse_farm: "thurgau_glasshouse",
+  municipal_pool: "st_jakob_pool",
+  commercial_bakery: "lucerne_bakery",
+  hospital_wing: "stgallen_hospital",
 };
 
 export class Basement3DStudio {
@@ -527,6 +1822,9 @@ export class Basement3DStudio {
     this.tankBox = null;
     this.secondaryPaths = null;
     this.tankSightMetrics = null;
+    this.trofferLights = [];
+    this.accentLight = null;
+    this.animatedCausticTex = null;
   }
 
   init() {
@@ -547,12 +1845,13 @@ export class Basement3DStudio {
     this.hostEl.appendChild(legend);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xeef3f8);
+    this.scene.background = new THREE.Color(0x2c333d);
+    this.scene.fog = new THREE.FogExp2(0x2c333d, 0.019);
 
     const w = Math.max(300, this.hostEl.clientWidth || 720);
     const h = Math.max(200, this.hostEl.clientHeight || 420);
-    this.camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 80);
-    this.camera.position.set(1.25, 2.42, 6.45);
+    this.camera = new THREE.PerspectiveCamera(44, w / h, 0.1, 80);
+    this.camera.position.set(0.50, 2.02, 7.62);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -562,95 +1861,187 @@ export class Basement3DStudio {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.06;
+    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     this.renderer.setSize(w, h, false);
 
-    // Architectural studio PBR reflections for stainless steel buffer tank, NVIDIA GB300 copper & Vertiv racks
+    // Architectural studio PBR reflections for stainless steel buffer tank, NVIDIA GB300 copper & glazed tiles
     this.scene.environment = buildStudioEnvironment(this.renderer);
-    this.scene.environmentIntensity = 1.12;
+    this.scene.environmentIntensity = 1.15;
 
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
-    this.controls.target.set(0.45, 1.08, -1.05);
+    this.controls.target.set(0.50, 1.14, -1.20);
     this.controls.minDistance = 2.6;
-    this.controls.maxDistance = 12.0;
+    this.controls.maxDistance = 12.5;
     this.controls.maxPolarAngle = Math.PI * 0.48;
     this.controls.update();
 
-    // Architectural plant-room directional + hemisphere lighting (adapted per room environment)
-    this.hemiLight = new THREE.HemisphereLight(0xf1f5f9, 0x475569, 1.05);
+    // Physically grounded architectural lighting: hemisphere + shadow-casting key + soft fill + 3 LED troffer pools + accent
+    this.hemiLight = new THREE.HemisphereLight(0xe8f1fc, 0x455060, 0.92);
     this.scene.add(this.hemiLight);
-    this.keyLight = new THREE.DirectionalLight(0xfff8ed, 1.50);
-    this.keyLight.position.set(4.2, 6.2, 5.8);
+
+    this.keyLight = new THREE.DirectionalLight(0xfff5e6, 1.65);
+    this.keyLight.position.set(4.0, 5.8, 5.4);
+    this.keyLight.castShadow = true;
+    this.keyLight.shadow.mapSize.set(2048, 2048);
+    this.keyLight.shadow.camera.left = -6.2;
+    this.keyLight.shadow.camera.right = 6.2;
+    this.keyLight.shadow.camera.top = 4.6;
+    this.keyLight.shadow.camera.bottom = -3.8;
+    this.keyLight.shadow.camera.near = 1.0;
+    this.keyLight.shadow.camera.far = 17.0;
+    this.keyLight.shadow.bias = -0.0004;
+    this.keyLight.shadow.normalBias = 0.022;
+    this.keyLight.shadow.radius = 2.6;
     this.scene.add(this.keyLight);
-    this.fillLight = new THREE.DirectionalLight(0xdbeafe, 0.72);
-    this.fillLight.position.set(-4.8, 3.8, 4.5);
+
+    this.fillLight = new THREE.DirectionalLight(0xc5ddf8, 0.62);
+    this.fillLight.position.set(-4.8, 3.6, 4.4);
     this.scene.add(this.fillLight);
 
-    // Textured architectural floor, walls, ceiling slab, structural ceiling beams & recessed LED fixtures
-    const initTex = getRoomTextures("basement");
+    // Soft uplight bounce illuminating the ceiling slab & beams so upper architecture reads cleanly
+    this.ceilingBounceLight = new THREE.DirectionalLight(0xe2e8f0, 0.42);
+    this.ceilingBounceLight.position.set(0.0, -3.5, 2.2);
+    this.scene.add(this.ceilingBounceLight);
+
+    // Three architectural overhead LED troffer pool lights casting specular sheen onto floor & rack tops
+    this.trofferLights = [];
+    for (const lx of [-2.1, 0.1, 2.3]) {
+      const pl = new THREE.PointLight(0xfff6e8, 3.8, 8.2, 1.75);
+      pl.position.set(lx, 2.86, -0.68);
+      this.scene.add(pl);
+      this.trofferLights.push(pl);
+    }
+
+    // Dynamic scenario accent light (window daylight / turquoise pool caustics / grow bar / telemetry glow)
+    this.accentLight = new THREE.PointLight(0xbfe2ff, 3.2, 6.8, 1.65);
+    this.accentLight.position.set(-4.55, 2.32, -0.35);
+    this.scene.add(this.accentLight);
+
+    // Multi-map PBR architectural floor, walls, ceiling slab, structural ceiling beams & recessed LED troffers
+    const initTex = getRoomTextures("basel_basement");
     this.floorMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: initTex.floorTex,
-      roughness: 0.56,
-      metalness: 0.08,
+      bumpMap: initTex.floorBump,
+      bumpScale: 0.012,
+      roughnessMap: initTex.floorRough,
+      roughness: 0.84,
+      metalness: 0.12,
+      envMapIntensity: 1.38,
     });
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(12.5, 9.0), this.floorMat);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(14.5, 11.5), this.floorMat);
     floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0.2, 0.0, 1.4);
+    floor.receiveShadow = true;
     this.scene.add(floor);
 
     this.wallMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: initTex.wallTex,
-      roughness: 0.78,
-      metalness: 0.04,
+      bumpMap: initTex.wallBump,
+      bumpScale: 0.024,
+      roughnessMap: initTex.wallRough,
+      roughness: 0.96,
+      metalness: 0.05,
+      envMapIntensity: 1.05,
     });
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(10.8, 3.24, 0.14), this.wallMat);
-    backWall.position.set(0.1, 1.62, -2.55);
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(12.2, 3.24, 0.14), this.wallMat);
+    backWall.position.set(0.2, 1.62, -2.55);
+    backWall.receiveShadow = true;
     this.scene.add(backWall);
 
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.24, 6.4), this.wallMat);
-    leftWall.position.set(-5.25, 1.62, 0.6);
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.24, 9.0), this.wallMat);
+    leftWall.position.set(-5.85, 1.62, 1.85);
+    leftWall.receiveShadow = true;
     this.scene.add(leftWall);
 
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.24, 6.4), this.wallMat);
-    rightWall.position.set(5.45, 1.62, 0.6);
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.24, 9.0), this.wallMat);
+    rightWall.position.set(6.25, 1.62, 1.85);
+    rightWall.receiveShadow = true;
     this.scene.add(rightWall);
 
-    this.ceilingMat = new THREE.MeshStandardMaterial({ color: 0x5c6470, roughness: 0.82, metalness: 0.05 });
-    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.12, 6.4), this.ceilingMat);
-    ceiling.position.set(0.1, 3.20, 0.6);
+    this.ceilingMat = new THREE.MeshStandardMaterial({
+      color: 0xd0d8e2,
+      map: initTex.ceilTex,
+      roughness: 0.80,
+      metalness: 0.06,
+      envMapIntensity: 0.72,
+    });
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.12, 9.0), this.ceilingMat);
+    ceiling.position.set(0.2, 3.20, 1.85);
+    ceiling.receiveShadow = true;
     this.scene.add(ceiling);
 
-    this.beamMat = new THREE.MeshStandardMaterial({ color: 0x454d58, roughness: 0.68, metalness: 0.14 });
-    for (const bx of [-3.2, -1.0, 1.2, 3.4]) {
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.22, 6.2), this.beamMat);
-      beam.position.set(bx, 3.04, 0.5);
+    this.beamMat = new THREE.MeshStandardMaterial({ color: 0x525b68, roughness: 0.62, metalness: 0.16 });
+    for (const bx of [-3.4, -1.0, 1.4, 3.8]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 8.6), this.beamMat);
+      beam.position.set(bx, 3.04, 1.75);
+      beam.castShadow = true;
+      beam.receiveShadow = true;
       this.scene.add(beam);
     }
 
-    // Recessed architectural LED light troughs along ceiling
-    const lampFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.7 });
-    const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfffef8 });
-    for (const lx of [-2.1, 0.1, 2.3]) {
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.05, 0.34), lampFrameMat);
-      frame.position.set(lx, 3.12, -0.75);
+    // Architectural ambient occlusion corner & wall-floor seam strips for global-illumination depth
+    const aoMat = new THREE.MeshBasicMaterial({
+      map: getAoStripTexture(),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.78,
+    });
+    const addAoStrip = (wSpan, hSpan, pos, rot) => {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(wSpan, hSpan), aoMat);
+      p.position.set(...pos);
+      p.rotation.set(...rot);
+      this.scene.add(p);
+    };
+    // Floor-to-back-wall AO band
+    addAoStrip(12.0, 0.78, [0.2, 0.004, -2.09], [-Math.PI / 2, 0, Math.PI]);
+    // Back-wall-to-floor vertical AO band
+    addAoStrip(12.0, 0.52, [0.2, 0.26, -2.474], [0, 0, 0]);
+    // Back-wall-to-ceiling upper shadow cove
+    addAoStrip(12.0, 0.58, [0.2, 2.85, -2.474], [0, 0, Math.PI]);
+    // Left & right floor seam AO bands
+    addAoStrip(8.8, 0.70, [-5.43, 0.004, 1.85], [-Math.PI / 2, 0, -Math.PI / 2]);
+    addAoStrip(8.8, 0.70, [5.83, 0.004, 1.85], [-Math.PI / 2, 0, Math.PI / 2]);
+    // Vertical back-left & back-right corner creases
+    addAoStrip(3.16, 0.54, [-5.51, 1.58, -2.473], [0, 0, Math.PI / 2]);
+    addAoStrip(3.16, 0.54, [5.91, 1.58, -2.473], [0, 0, -Math.PI / 2]);
+
+    // Recessed architectural aluminum LED light troffers (3 primary + 2 rear wash strips)
+    const lampFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.34, metalness: 0.78 });
+    this.lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfffef8 });
+    for (const [lx, lz, lw] of [
+      [-2.2, -0.75, 1.38],
+      [0.2, -0.75, 1.38],
+      [2.6, -0.75, 1.38],
+      [-1.0, -1.96, 1.18],
+      [2.5, -1.96, 1.18],
+    ]) {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(lw, 0.055, 0.34), lampFrameMat);
+      frame.position.set(lx, 3.12, lz);
       this.scene.add(frame);
-      const glow = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.02, 0.24), lampGlowMat);
-      glow.position.set(lx, 3.09, -0.75);
+      const glow = new THREE.Mesh(new THREE.BoxGeometry(lw - 0.10, 0.024, 0.24), this.lampGlowMat);
+      glow.position.set(lx, 3.092, lz);
       this.scene.add(glow);
     }
 
-    // Architectural wall baseboard + rail / dado band reflecting room type
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x26303d, roughness: 0.55, metalness: 0.25 });
-    const baseboard = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.12, 0.18), baseMat);
-    baseboard.position.set(0.1, 0.06, -2.50);
+    // Architectural wall baseboard + rail / dado trim reflecting room type
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x26303d, roughness: 0.52, metalness: 0.28 });
+    const baseboard = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.12, 0.18), baseMat);
+    baseboard.position.set(0.2, 0.06, -2.50);
+    baseboard.receiveShadow = true;
     this.scene.add(baseboard);
 
-    this.accentMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.55 });
-    this.accentBand = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.14, 0.18), this.accentMat);
-    this.accentBand.position.set(0.1, 0.07, -2.50);
+    this.accentMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.48, metalness: 0.22 });
+    this.accentBand = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.14, 0.18), this.accentMat);
+    this.accentBand.position.set(0.2, 0.07, -2.50);
+    this.accentBand.receiveShadow = true;
     this.scene.add(this.accentBand);
 
     this.staticGroup = new THREE.Group();
@@ -710,16 +2101,67 @@ export class Basement3DStudio {
     this.staticGroup.clear();
 
     const brassMat = new THREE.MeshStandardMaterial({
-      color: 0xd4a24c,
-      roughness: 0.28,
-      metalness: 0.82,
+      color: 0xd8a64c,
+      roughness: 0.25,
+      metalness: 0.85,
     });
+    brassMat.userData.sharedMaterial = true;
     const darkFrameMat = new THREE.MeshStandardMaterial({
       color: 0x334155,
-      roughness: 0.42,
-      metalness: 0.65,
+      roughness: 0.40,
+      metalness: 0.68,
     });
+    darkFrameMat.userData.sharedMaterial = true;
+    const galvSteelMat = new THREE.MeshStandardMaterial({
+      color: 0x9aa6b4,
+      roughness: 0.34,
+      metalness: 0.78,
+    });
+    galvSteelMat.userData.sharedMaterial = true;
     this.brassMat = brassMat;
+    this.galvSteelMat = galvSteelMat;
+
+    // Back-wall galvanized Unistrut mounting rails (grounds overhead headers & building risers cleanly)
+    for (const uy of [2.48, 1.56]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.045, 0.036), galvSteelMat);
+      rail.position.set(0.3, uy, -2.455);
+      rail.castShadow = true;
+      rail.receiveShadow = true;
+      this.staticGroup.add(rail);
+    }
+
+    // Overhead galvanized perforated steel cable ladder tray above server row
+    const trayY = 2.74;
+    const trayZ = -2.02;
+    for (const dz of [-0.11, 0.11]) {
+      const sideRail = new THREE.Mesh(new THREE.BoxGeometry(5.55, 0.055, 0.022), galvSteelMat);
+      sideRail.position.set(-1.12, trayY, trayZ + dz);
+      sideRail.castShadow = true;
+      this.staticGroup.add(sideRail);
+    }
+    for (let rxPos = -3.75; rxPos <= 1.55; rxPos += 0.32) {
+      const rung = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.018, 0.22), galvSteelMat);
+      rung.position.set(rxPos, trayY - 0.014, trayZ);
+      this.staticGroup.add(rung);
+    }
+    for (const rodX of [-3.4, -1.6, 0.2, 1.4]) {
+      const rod = makePipeMesh([rodX, trayY, trayZ], [rodX, 3.14, trayZ], 0.009, galvSteelMat);
+      if (rod) this.staticGroup.add(rod);
+    }
+
+    // Flush linear stainless steel floor trench drain grate in front of CDU & Buffer Tank
+    const drainMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.85, 0.19),
+      new THREE.MeshStandardMaterial({
+        map: getFloorDrainTexture(),
+        roughness: 0.36,
+        metalness: 0.72,
+      })
+    );
+    drainMesh.rotation.x = -Math.PI / 2;
+    drainMesh.position.set(2.26, 0.004, -0.42);
+    drainMesh.receiveShadow = true;
+    this.staticGroup.add(drainMesh);
 
     // Vertiv Liebert XDU1350 Plate Heat Exchanger / CDU (bridges isolated primary dielectric <-> secondary water)
     if (this.templates.cdu) {
@@ -732,8 +2174,8 @@ export class Basement3DStudio {
     } else {
       this.cduBox = new THREE.Box3(new THREE.Vector3(1.02, 0, -1.96), new THREE.Vector3(1.82, 1.87, -0.88));
     }
-    const cduShadow = makeContactShadow(1.38, 1.48);
-    cduShadow.position.set(1.42, 0.004, -1.42);
+    const cduShadow = makeContactShadow(1.42, 1.52);
+    cduShadow.position.set(1.42, 0.005, -1.42);
     this.staticGroup.add(cduShadow);
 
     // 1,000 L Thermal Buffer Tank (right of heat exchanger)
@@ -747,8 +2189,8 @@ export class Basement3DStudio {
     } else {
       this.tankBox = new THREE.Box3(new THREE.Vector3(2.46, 0, -1.95), new THREE.Vector3(3.66, 1.23, -0.89));
     }
-    const tankShadow = makeContactShadow(1.56, 1.44);
-    tankShadow.position.set(3.06, 0.004, -1.42);
+    const tankShadow = makeContactShadow(1.58, 1.48);
+    tankShadow.position.set(3.06, 0.005, -1.42);
     this.staticGroup.add(tankShadow);
 
     const cduRight = this.cduBox.max.x;
@@ -761,6 +2203,42 @@ export class Basement3DStudio {
 
     const secHotY = Math.min(tankTop - 0.28, 0.88);
     const secColdY = 0.38;
+
+    // Swiss Reflex-style red hydronic pressure expansion vessel nestled neatly behind the CDU-Tank gap
+    const expVesselGrp = new THREE.Group();
+    const expRedMat = new THREE.MeshStandardMaterial({ color: 0xc81e1e, roughness: 0.26, metalness: 0.32 });
+    const expBody = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.185, 0.52, 22), expRedMat);
+    expBody.position.y = 0.34;
+    expVesselGrp.add(expBody);
+    const expTop = new THREE.Mesh(new THREE.SphereGeometry(0.185, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), expRedMat);
+    expTop.position.y = 0.60;
+    expVesselGrp.add(expTop);
+    const expFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.10, 18), darkFrameMat);
+    expFoot.position.y = 0.05;
+    expVesselGrp.add(expFoot);
+    const expBand = new THREE.Mesh(new THREE.CylinderGeometry(0.190, 0.190, 0.022, 22), galvSteelMat);
+    expBand.position.y = 0.34;
+    expVesselGrp.add(expBand);
+    expVesselGrp.position.set(2.14, 0.0, -2.14);
+    enableShadows(expVesselGrp, true, true);
+    this.staticGroup.add(expVesselGrp);
+    const expShadow = makeContactShadow(0.54, 0.54);
+    expShadow.position.set(2.14, 0.005, -2.14);
+    this.staticGroup.add(expShadow);
+    // Stainless braided connector tapping expansion vessel cleanly into the secondary cold return
+    buildOrthogonalPipe(
+      this.staticGroup,
+      [
+        [2.14, 0.78, -2.14],
+        [2.14, 0.78, -1.94],
+        [2.14, secColdY, -1.94],
+        [2.14, secColdY, tankMidZ],
+      ],
+      0.015,
+      galvSteelMat,
+      brassMat,
+      [true, true]
+    );
 
     // Flush-mounted thermal stratification sight-glass bezel on exact front face of the 1,000 L buffer tank
     const sightMinY = 0.24;
@@ -775,23 +2253,24 @@ export class Basement3DStudio {
       darkFrameMat
     );
     sightBezel.position.set(sightX, sightMinY + sightH * 0.5, sightZ - 0.008);
+    sightBezel.castShadow = true;
     this.staticGroup.add(sightBezel);
     for (const capY of [sightMinY - 0.02, sightMaxY + 0.02]) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.03, 12), brassMat);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.03, 14), brassMat);
       cap.position.set(sightX, capY, sightZ + 0.01);
       this.staticGroup.add(cap);
     }
 
     this.tankHotBar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.026, 0.026, 1.0, 12),
-      new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xea580c, emissiveIntensity: 0.72, roughness: 0.22 })
+      new THREE.CylinderGeometry(0.026, 0.026, 1.0, 14),
+      new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xea580c, emissiveIntensity: 0.74, roughness: 0.20 })
     );
     this.tankHotBar.position.set(sightX, sightMinY + sightH * 0.7, sightZ + 0.01);
     this.staticGroup.add(this.tankHotBar);
 
     this.tankColdBar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.026, 0.026, 1.0, 12),
-      new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0ea5e9, emissiveIntensity: 0.52, roughness: 0.22 })
+      new THREE.CylinderGeometry(0.026, 0.026, 1.0, 14),
+      new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0ea5e9, emissiveIntensity: 0.54, roughness: 0.20 })
     );
     this.tankColdBar.position.set(sightX, sightMinY + sightH * 0.25, sightZ + 0.01);
     this.staticGroup.add(this.tankColdBar);
@@ -806,27 +2285,28 @@ export class Basement3DStudio {
       this.staticGroup.add(valve);
     }
 
-    // Vertiv Power Distribution Panel mounted on far-left wall
+    // Vertiv Power Distribution Panel mounted flush along the left wall (keeps back-left clear for scenario props!)
     if (this.templates.panel) {
       const panel = this.templates.panel.clone(true);
-      panel.position.set(-4.55, 0.0, -1.55);
-      panel.scale.setScalar(0.86);
+      panel.position.set(-4.84, 0.0, 0.92);
+      panel.rotation.y = Math.PI / 2;
+      panel.scale.setScalar(0.84);
       this.staticGroup.add(panel);
     }
 
-    // SimReady ceiling LED fixtures & wall safety extinguisher for plant-room realism
+    // SimReady ceiling LED fixtures & wall safety extinguisher
     if (this.templates.ledPanel) {
       for (const lx of [-1.8, 1.8]) {
         const lp = this.templates.ledPanel.clone(true);
-        lp.position.set(lx, 3.04, -0.8);
+        lp.position.set(lx, 3.05, -0.8);
         lp.scale.set(0.24, 0.06, 0.16);
         this.staticGroup.add(lp);
       }
     }
     if (this.templates.extinguisher) {
       const ext = this.templates.extinguisher.clone(true);
-      ext.position.set(-4.85, 0.0, 0.45);
-      ext.scale.setScalar(1.15);
+      ext.position.set(-4.86, 0.0, 1.85);
+      ext.scale.setScalar(1.12);
       this.staticGroup.add(ext);
     }
 
@@ -834,16 +2314,16 @@ export class Basement3DStudio {
     const waterHotMat = new THREE.MeshStandardMaterial({
       color: 0xea580c,
       emissive: 0xc2410c,
-      emissiveIntensity: 0.38,
-      roughness: 0.28,
-      metalness: 0.35,
+      emissiveIntensity: 0.36,
+      roughness: 0.24,
+      metalness: 0.38,
     });
     const waterColdMat = new THREE.MeshStandardMaterial({
       color: 0x0284c7,
       emissive: 0x0369a1,
-      emissiveIntensity: 0.30,
-      roughness: 0.28,
-      metalness: 0.35,
+      emissiveIntensity: 0.28,
+      roughness: 0.24,
+      metalness: 0.38,
     });
     this.staticHotMat = waterHotMat;
     this.staticColdMat = waterColdMat;
@@ -874,7 +2354,7 @@ export class Basement3DStudio {
       [true, true]
     );
 
-    // 3. Top of Tank -> straight UP to ceiling slab flange (hot building heating riser, ZERO air gap!)
+    // 3. Top of Tank -> straight UP to ceiling slab flange (hot building heating riser)
     const riserHotX = tankMidX - 0.22;
     const riserColdX = tankMidX + 0.22;
     const pTankToBuildingHot = buildOrthogonalPipe(
@@ -888,7 +2368,6 @@ export class Basement3DStudio {
       brassMat,
       [true, true]
     );
-    // Seated brass bulkhead nozzle right on the top surface of the tank
     const hotTopNozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.072, 0.055, 16), brassMat);
     hotTopNozzle.position.set(riserHotX, tankTop + 0.01, tankMidZ);
     this.staticGroup.add(hotTopNozzle);
@@ -909,6 +2388,19 @@ export class Basement3DStudio {
     coldTopNozzle.position.set(riserColdX, tankTop + 0.01, tankMidZ);
     this.staticGroup.add(coldTopNozzle);
 
+    // Three analog Swiss brass dial gauges mounted on secondary headers & supply riser
+    const gTemp = makeAnalogGauge("temp", brassMat);
+    gTemp.position.set(cduRight + 0.14, secHotY + 0.032, tankMidZ);
+    this.staticGroup.add(gTemp);
+
+    const gPress = makeAnalogGauge("pressure", brassMat);
+    gPress.position.set(tankLeft - 0.16, secColdY + 0.032, tankMidZ);
+    this.staticGroup.add(gPress);
+
+    const gRiser = makeAnalogGauge("temp", brassMat);
+    gRiser.position.set(riserHotX, 1.78, tankMidZ + 0.04);
+    this.staticGroup.add(gRiser);
+
     this.secondaryPaths = {
       hotCduToTank: pCduToTankHot,
       hotRiser: pTankToBuildingHot,
@@ -920,53 +2412,65 @@ export class Basement3DStudio {
       tankMidZ,
       tankMidX,
     };
+
+    if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
   }
 
   buildRoomFurniture(roomStyle) {
     if (!this.furnitureGroup) return;
-    while (this.furnitureGroup.children.length > 0) {
-      const ch = this.furnitureGroup.children.pop();
-      ch.traverse((o) => {
-        if (o.isMesh) {
-          if (o.geometry) o.geometry.dispose();
-          if (o.material) {
-            if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
-            else o.material.dispose();
-          }
-        }
-      });
-    }
+    disposeSubtree(this.furnitureGroup);
     this.currentRoomStyle = roomStyle;
+    this.animatedCausticTex = null;
 
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0xba8b57, roughness: 0.72, metalness: 0.05 });
-    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.42, metalness: 0.65 });
-    const brushedSteel = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.30, metalness: 0.78 });
-    const whiteEnamel = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.28, metalness: 0.12 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0xb6844f, roughness: 0.66, metalness: 0.04 });
+    const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.70, metalness: 0.04 });
+    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.38, metalness: 0.72 });
+    const brushedSteel = new THREE.MeshStandardMaterial({ color: 0xd2dce6, roughness: 0.24, metalness: 0.84 });
+    const mirrorSteel = new THREE.MeshStandardMaterial({ color: 0xe2eaf2, roughness: 0.16, metalness: 0.90 });
+    const copperMat = new THREE.MeshStandardMaterial({ color: 0xc87444, roughness: 0.26, metalness: 0.86 });
+    const whiteEnamel = new THREE.MeshStandardMaterial({ color: 0xf6f9fc, roughness: 0.24, metalness: 0.12 });
     const branchHotMat = new THREE.MeshStandardMaterial({
       color: 0xea580c,
       emissive: 0xc2410c,
       emissiveIntensity: 0.34,
-      roughness: 0.3,
-      metalness: 0.35,
+      roughness: 0.26,
+      metalness: 0.38,
+    });
+    const branchColdMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7,
+      emissive: 0x0369a1,
+      emissiveIntensity: 0.28,
+      roughness: 0.26,
+      metalness: 0.38,
     });
     const rx = this.secondaryPaths?.riserHotX ?? 2.84;
+    const cxR = this.secondaryPaths?.riserColdX ?? 3.28;
     const rz = this.secondaryPaths?.tankMidZ ?? -1.42;
 
-    if (roomStyle === "basement") {
-      // Residential Basement: Wall hydronic radiator connected to the hot riser + washing machine & oak workbench
-      for (let f = 0; f < 10; f++) {
-        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.72, 0.11), whiteEnamel);
-        fin.position.set(3.88 + f * 0.095, 0.68, -2.38);
+    if (roomStyle === "basel_basement") {
+      // 1. BASEL MULTI-FAMILY BASEMENT: Ribbed cast-iron radiator + V-ZUG front-load laundry + oak workbench + basement light-well window
+      for (let f = 0; f < 12; f++) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.78, 0.12), whiteEnamel);
+        fin.position.set(3.86 + f * 0.092, 0.72, -2.38);
         this.furnitureGroup.add(fin);
       }
-      // Copper/hot tap-off line connecting the buffer tank hot riser straight to the basement radiator!
+      // Top & bottom radiator collector headers + brass thermostatic TRV valve head
+      for (const ry of [1.04, 0.40]) {
+        const hdr = makePipeMesh([3.82, ry, -2.38], [4.92, ry, -2.38], 0.022, whiteEnamel);
+        if (hdr) this.furnitureGroup.add(hdr);
+      }
+      const trv = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.08, 12), whiteEnamel);
+      trv.rotation.z = Math.PI / 2;
+      trv.position.set(3.80, 1.04, -2.36);
+      this.furnitureGroup.add(trv);
+
       buildOrthogonalPipe(
         this.furnitureGroup,
         [
           [rx, 1.56, rz],
           [rx, 1.56, -2.36],
-          [3.88, 1.56, -2.36],
-          [3.88, 0.98, -2.36],
+          [3.82, 1.56, -2.36],
+          [3.82, 1.04, -2.36],
         ],
         0.022,
         branchHotMat,
@@ -974,62 +2478,266 @@ export class Basement3DStudio {
         [true, true]
       );
 
-      // Front-load Swiss washing machine visible on back-left
-      const washer = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.88, 0.64), whiteEnamel);
-      washer.position.set(-4.05, 0.44, -1.65);
+      // Swiss V-ZUG style front-load washing machine on back-left (framed cleanly in default hero view)
+      const washer = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.90, 0.66), whiteEnamel);
+      washer.position.set(-3.45, 0.45, -1.62);
       this.furnitureGroup.add(washer);
-      const drumRing = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.028, 12, 24), brushedSteel);
-      drumRing.position.set(-4.05, 0.42, -1.32);
+      const wShadow = makeContactShadow(0.92, 0.90);
+      wShadow.position.set(-3.45, 0.005, -1.62);
+      this.furnitureGroup.add(wShadow);
+      const ctrlPanel = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.14, 0.02), darkSteel);
+      ctrlPanel.position.set(-3.45, 0.81, -1.29);
+      this.furnitureGroup.add(ctrlPanel);
+      const dialKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.026, 16), brushedSteel);
+      dialKnob.rotation.x = Math.PI / 2;
+      dialKnob.position.set(-3.45, 0.81, -1.275);
+      this.furnitureGroup.add(dialKnob);
+      const drumRing = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.028, 14, 28), mirrorSteel);
+      drumRing.position.set(-3.45, 0.42, -1.285);
       this.furnitureGroup.add(drumRing);
       const drumGlass = new THREE.Mesh(
-        new THREE.CircleGeometry(0.16, 20),
-        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.15, metalness: 0.5 })
+        new THREE.CircleGeometry(0.17, 24),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.10, metalness: 0.65 })
       );
-      drumGlass.position.set(-4.05, 0.42, -1.318);
+      drumGlass.position.set(-3.45, 0.42, -1.282);
       this.furnitureGroup.add(drumGlass);
 
-      // Oak workbench + red toolbox along left wall
-      const benchTop = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.06, 1.55), woodMat);
-      benchTop.position.set(-4.55, 0.90, 0.55);
+      // Oak workbench + pegboard + red steel toolbox on left wall
+      const benchTop = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.06, 1.48), woodMat);
+      benchTop.position.set(-4.65, 0.90, -0.45);
       this.furnitureGroup.add(benchTop);
+      const benchShelf = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.03, 1.38), woodMat);
+      benchShelf.position.set(-4.65, 0.28, -0.45);
+      this.furnitureGroup.add(benchShelf);
       for (const dz of [-0.66, 0.66]) {
         for (const dx of [-0.30, 0.30]) {
-          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.88, 0.06), darkSteel);
-          leg.position.set(-4.55 + dx, 0.44, 0.55 + dz);
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.88, 0.055), darkSteel);
+          leg.position.set(-4.65 + dx, 0.44, -0.45 + dz);
           this.furnitureGroup.add(leg);
         }
       }
       const toolbox = new THREE.Mesh(
-        new THREE.BoxGeometry(0.32, 0.22, 0.52),
-        new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.45 })
+        new THREE.BoxGeometry(0.30, 0.22, 0.50),
+        new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.28, metalness: 0.48 })
       );
-      toolbox.position.set(-4.55, 1.04, 0.65);
+      toolbox.position.set(-4.62, 1.04, -0.35);
       this.furnitureGroup.add(toolbox);
-    } else if (roomStyle === "farm_barn") {
-      // Emmental Dairy: Stainless cheese-pasteurisation vat fed directly by the hot water loop + milk churns + cheese wheels
-      const vat = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.64, 1.05, 24), brushedSteel);
-      vat.position.set(4.32, 0.525, -0.78);
-      this.furnitureGroup.add(vat);
-      const vatRim = new THREE.Mesh(new THREE.TorusGeometry(0.64, 0.036, 10, 24), darkSteel);
-      vatRim.rotation.x = Math.PI / 2;
-      vatRim.position.set(4.32, 1.05, -0.78);
-      this.furnitureGroup.add(vatRim);
-      const milkTop = new THREE.Mesh(
-        new THREE.CircleGeometry(0.60, 24),
-        new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.25 })
-      );
-      milkTop.rotation.x = -Math.PI / 2;
-      milkTop.position.set(4.32, 1.045, -0.78);
-      this.furnitureGroup.add(milkTop);
 
-      // Hot-water feed line from buffer tank riser straight into dairy pasteurisation vat jacket
+      // High frosted basement light-well window on left wall casting cool daylight
+      const lwFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.68, 1.42), darkSteel);
+      lwFrame.position.set(-5.15, 2.34, -0.40);
+      this.furnitureGroup.add(lwFrame);
+      const lwGlass = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, 0.56, 1.30),
+        new THREE.MeshBasicMaterial({ color: 0xdbf0ff })
+      );
+      lwGlass.position.set(-5.12, 2.34, -0.40);
+      this.furnitureGroup.add(lwGlass);
+    } else if (roomStyle === "borehole_utility") {
+      // 2. RIEHEN GEOTHERMAL BOREHOLE UTILITY: Twin SIA 384/6 Erdsonde ground-probe risers + glycol expansion vessel + Minergie brine HMI
+      const insulMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.72, metalness: 0.12 });
+      const brineGreenMat = new THREE.MeshStandardMaterial({ color: 0x0d9488, roughness: 0.28, metalness: 0.35 });
+      const valveRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.4 });
+      const valveBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.4 });
+
+      // Concrete bedrock collar plinth on the right where the 180 m SIA 384/6 borehole enters the ground
+      const plinth = new THREE.Mesh(
+        new THREE.BoxGeometry(1.18, 0.14, 0.92),
+        new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.76, metalness: 0.1 })
+      );
+      plinth.position.set(4.42, 0.07, -1.25);
+      this.furnitureGroup.add(plinth);
+      const pShadow = makeContactShadow(1.45, 1.22);
+      pShadow.position.set(4.42, 0.005, -1.25);
+      this.furnitureGroup.add(pShadow);
+
+      // Twin insulated geothermal probe risers plunging into floor flange sleeves
+      for (const [bx, isSupply] of [[4.18, true], [4.62, false]]) {
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.10, 0.08, 18), brushedSteel);
+        sleeve.position.set(bx, 0.16, -1.25);
+        this.furnitureGroup.add(sleeve);
+        const riser = makePipeMesh([bx, 0.14, -1.25], [bx, 1.68, -1.25], 0.044, insulMat);
+        if (riser) this.furnitureGroup.add(riser);
+        // Brass ball-valve body + colored lever handle
+        const vBody = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.056, 0.12, 16), this.brassMat);
+        vBody.position.set(bx, 1.05, -1.25);
+        this.furnitureGroup.add(vBody);
+        const lever = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 0.026), isSupply ? valveRedMat : valveBlueMat);
+        lever.position.set(bx + 0.07, 1.05, -1.20);
+        this.furnitureGroup.add(lever);
+        const g = makeAnalogGauge(isSupply ? "temp" : "pressure", this.brassMat);
+        g.position.set(bx, 1.68, -1.25);
+        this.furnitureGroup.add(g);
+      }
+
+      // Geothermal brine distribution cross-header + summer recharge lines from buffer tank
+      const hdrBar = makePipeMesh([4.05, 1.56, -1.25], [4.75, 1.56, -1.25], 0.036, this.brassMat);
+      if (hdrBar) this.furnitureGroup.add(hdrBar);
       buildOrthogonalPipe(
         this.furnitureGroup,
         [
           [rx, 1.56, rz],
-          [4.32, 1.56, rz],
-          [4.32, 1.56, -0.78],
-          [4.32, 1.05, -0.78],
+          [4.18, 1.56, rz],
+          [4.18, 1.56, -1.25],
+        ],
+        0.024,
+        branchHotMat,
+        this.brassMat,
+        [true, true]
+      );
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [4.62, 1.24, -1.25],
+          [4.62, 1.24, rz],
+          [cxR, 1.24, rz],
+        ],
+        0.022,
+        branchColdMat,
+        this.brassMat,
+        [true, true]
+      );
+
+      // Teal glycol brine expansion vessel beside borehole header
+      const gExp = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.62, 22), brineGreenMat);
+      gExp.position.set(4.48, 0.42, -0.35);
+      this.furnitureGroup.add(gExp);
+      const gCap = new THREE.Mesh(new THREE.SphereGeometry(0.20, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), brineGreenMat);
+      gCap.position.set(4.48, 0.73, -0.35);
+      this.furnitureGroup.add(gCap);
+      const gFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.20, 0.12, 18), darkSteel);
+      gFoot.position.set(4.48, 0.06, -0.35);
+      this.furnitureGroup.add(gFoot);
+
+      // Wall-mounted Swiss Minergie Erdsonde Telemetry Controller cabinet on back-left (fully visible in default view)
+      const hmiCab = new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.94, 0.24), whiteEnamel);
+      hmiCab.position.set(-3.45, 1.56, -2.34);
+      this.furnitureGroup.add(hmiCab);
+      const hmiScreen = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.66, 0.66),
+        new THREE.MeshBasicMaterial({ map: getBoreholeControllerTexture() })
+      );
+      hmiScreen.position.set(-3.45, 1.63, -2.215);
+      this.furnitureGroup.add(hmiScreen);
+    } else if (roomStyle === "alpine_chalet") {
+      // 3. DAVOS ALPINE CHALET SPA PLANT ROOM: Panoramic frosted mountain window (clear of risers!) + cedar-copper spa calorifier + alpine timber bench
+      const winFrame = new THREE.Mesh(new THREE.BoxGeometry(1.94, 1.06, 0.12), darkWoodMat);
+      winFrame.position.set(4.54, 2.24, -2.44);
+      this.furnitureGroup.add(winFrame);
+      const winGlass = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.78, 0.90),
+        new THREE.MeshBasicMaterial({ map: getAlpineWindowTexture() })
+      );
+      winGlass.position.set(4.54, 2.24, -2.375);
+      this.furnitureGroup.add(winGlass);
+      for (const mx of [4.08, 4.54, 5.00]) {
+        const muntin = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.94, 0.04), darkWoodMat);
+        muntin.position.set(mx, 2.24, -2.36);
+        this.furnitureGroup.add(muntin);
+      }
+      // Second crisp alpine snow window on open back-left wall above firewood bench
+      const winFrameL = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.96, 0.12), darkWoodMat);
+      winFrameL.position.set(-2.95, 2.24, -2.44);
+      this.furnitureGroup.add(winFrameL);
+      const winGlassL = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.42, 0.80),
+        new THREE.MeshBasicMaterial({ map: getAlpineWindowTexture() })
+      );
+      winGlassL.position.set(-2.95, 2.24, -2.375);
+      this.furnitureGroup.add(winGlassL);
+      const muntinL = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.84, 0.04), darkWoodMat);
+      muntinL.position.set(-2.95, 2.24, -2.36);
+      this.furnitureGroup.add(muntinL);
+
+      // Cedar-clad & copper-banded Alpine Spa & Sauna Calorifier vessel on the right
+      const spaTank = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 1.38, 26), woodMat);
+      spaTank.position.set(4.36, 0.72, -0.92);
+      this.furnitureGroup.add(spaTank);
+      const spaDome = new THREE.Mesh(
+        new THREE.SphereGeometry(0.46, 26, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+        copperMat
+      );
+      spaDome.position.set(4.36, 1.41, -0.92);
+      this.furnitureGroup.add(spaDome);
+      for (const by of [0.24, 0.72, 1.24]) {
+        const hoop = new THREE.Mesh(new THREE.CylinderGeometry(0.472, 0.472, 0.045, 26), copperMat);
+        hoop.position.set(4.36, by, -0.92);
+        this.furnitureGroup.add(hoop);
+      }
+      const spaShadow = makeContactShadow(1.22, 1.22);
+      spaShadow.position.set(4.36, 0.005, -0.92);
+      this.furnitureGroup.add(spaShadow);
+
+      // Gleaming copper supply branch from buffer tank into the alpine spa heat exchanger
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [rx, 1.56, rz],
+          [4.36, 1.56, rz],
+          [4.36, 1.56, -0.92],
+          [4.36, 1.82, -0.92],
+        ],
+        0.025,
+        copperMat,
+        this.brassMat,
+        [true, true]
+      );
+
+      // Authentic Alpine spruce utility bench + neatly stacked seasoned firewood logs on back-left
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.08, 0.48), woodMat);
+      bench.position.set(-3.12, 0.50, -2.14);
+      this.furnitureGroup.add(bench);
+      for (const lx of [-3.72, -2.52]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.48, 0.44), darkWoodMat);
+        leg.position.set(lx, 0.24, -2.14);
+        this.furnitureGroup.add(leg);
+      }
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 5; c++) {
+          const log = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.062, 0.42, 12), darkWoodMat);
+          log.rotation.x = Math.PI / 2;
+          log.position.set(-3.50 + c * 0.18 + (r % 2) * 0.06, 0.08 + r * 0.11, -2.14);
+          this.furnitureGroup.add(log);
+        }
+      }
+    } else if (roomStyle === "emmental_dairy") {
+      // 4. EMMENTAL CREAMERY: Stainless cheese-pasteurisation vat with overhead agitator bridge + polished milk churns + oak Emmental cheese shelves
+      const vat = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 1.02, 28), mirrorSteel);
+      vat.position.set(4.36, 0.51, -0.85);
+      this.furnitureGroup.add(vat);
+      const vatShadow = makeContactShadow(1.52, 1.52);
+      vatShadow.position.set(4.36, 0.005, -0.85);
+      this.furnitureGroup.add(vatShadow);
+      const vatRim = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.036, 12, 28), brushedSteel);
+      vatRim.rotation.x = Math.PI / 2;
+      vatRim.position.set(4.36, 1.02, -0.85);
+      this.furnitureGroup.add(vatRim);
+      const milkTop = new THREE.Mesh(
+        new THREE.CircleGeometry(0.58, 28),
+        new THREE.MeshStandardMaterial({ color: 0xfffaf0, roughness: 0.18, metalness: 0.04 })
+      );
+      milkTop.rotation.x = -Math.PI / 2;
+      milkTop.position.set(4.36, 1.01, -0.85);
+      this.furnitureGroup.add(milkTop);
+      // Motorized overhead stainless agitator bridge & gearbox spanning the cheese vat
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(1.30, 0.07, 0.14), brushedSteel);
+      bridge.position.set(4.36, 1.09, -0.85);
+      this.furnitureGroup.add(bridge);
+      const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.24, 16), darkSteel);
+      motor.position.set(4.36, 1.24, -0.85);
+      this.furnitureGroup.add(motor);
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.32, 10), mirrorSteel);
+      shaft.position.set(4.36, 0.96, -0.85);
+      this.furnitureGroup.add(shaft);
+
+      // Hot-water feed pipe into cheese pasteurisation vat thermal jacket
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [rx, 1.56, rz],
+          [4.36, 1.56, rz],
+          [4.36, 1.56, -0.85],
+          [4.36, 1.05, -1.42],
         ],
         0.024,
         branchHotMat,
@@ -1037,171 +2745,469 @@ export class Basement3DStudio {
         [true, true]
       );
 
-      // 3 Stainless Milk Churns visible on left-front
-      for (const [cx, cz] of [[-3.85, -0.85], [-3.85, -0.35], [-3.40, -0.60]]) {
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.56, 16), brushedSteel);
-        body.position.set(cx, 0.28, cz);
+      // 3 Mirror-polished Swiss stainless milk churns with domed lids & handles
+      for (const [cx, cz] of [[-3.55, -0.78], [-3.18, -0.52], [-3.72, -0.26]]) {
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.175, 0.54, 18), mirrorSteel);
+        body.position.set(cx, 0.27, cz);
         this.furnitureGroup.add(body);
-        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.14, 0.14, 16), brushedSteel);
-        neck.position.set(cx, 0.62, cz);
-        this.furnitureGroup.add(neck);
+        const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.15, 0.12, 18), mirrorSteel);
+        shoulder.position.set(cx, 0.59, cz);
+        this.furnitureGroup.add(shoulder);
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.04, 18), brushedSteel);
+        lid.position.set(cx, 0.67, cz);
+        this.furnitureGroup.add(lid);
+        const cs = makeContactShadow(0.46, 0.46);
+        cs.position.set(cx, 0.005, cz);
+        this.furnitureGroup.add(cs);
       }
 
-      // Oak cheese-aging shelves with golden Emmental wheels along back-left wall
-      const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xf4c430, roughness: 0.55 });
+      // Heavy Bernese oak cheese-aging rack with 9 golden Emmental wheels on back-left wall
+      const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xefc040, roughness: 0.48, metalness: 0.04 });
+      for (const ux of [-4.22, -2.88]) {
+        const upright = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.88, 0.48), darkWoodMat);
+        upright.position.set(ux, 0.94, -2.18);
+        this.furnitureGroup.add(upright);
+      }
       for (let s = 0; s < 3; s++) {
-        const sy = 0.55 + s * 0.52;
-        const plank = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.48), woodMat);
-        plank.position.set(-3.95, sy, -2.22);
+        const sy = 0.52 + s * 0.52;
+        const plank = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.045, 0.48), woodMat);
+        plank.position.set(-3.55, sy, -2.18);
         this.furnitureGroup.add(plank);
         for (let w = 0; w < 3; w++) {
-          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.13, 18), cheeseMat);
-          wheel.position.set(-4.42 + w * 0.47, sy + 0.085, -2.22);
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.135, 22), cheeseMat);
+          wheel.position.set(-3.96 + w * 0.41, sy + 0.09, -2.18);
           this.furnitureGroup.add(wheel);
         }
       }
-    } else if (roomStyle === "greenhouse") {
-      // Thurgau Hydroponic Glasshouse: Conservatory mullions + raised tomato grow bench fed by warm root-zone line
-      const mullionMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.4, metalness: 0.5 });
-      for (let mx = -4.2; mx <= 4.4; mx += 1.4) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3.1, 0.08), mullionMat);
-        post.position.set(mx, 1.55, -2.46);
+    } else if (roomStyle === "thurgau_glasshouse") {
+      // 5. THURGAU HYDROPONIC TOMATO GLASSHOUSE: Structural conservatory mullions + ebb-and-flow tomato bench + overhead grow LED bar + fertigation tank
+      // 3D conservatory steel mullions + clean horizontal structural transoms
+      const mullionMat = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.36, metalness: 0.58 });
+      for (let mx = -4.8; mx <= 5.4; mx += 1.45) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.065, 3.12, 0.085), mullionMat);
+        post.position.set(mx, 1.56, -2.45);
         this.furnitureGroup.add(post);
       }
-      const foliageMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.72 });
-      const tomatoMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35 });
-      const potMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.78 });
-      const tray = new THREE.Mesh(new THREE.BoxGeometry(1.30, 0.10, 2.05), brushedSteel);
-      tray.position.set(4.32, 0.78, -0.68);
+      for (const ty of [1.86, 2.86]) {
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(11.4, 0.055, 0.075), mullionMat);
+        transom.position.set(0.2, ty, -2.45);
+        this.furnitureGroup.add(transom);
+      }
+      const foliageLight = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.65 });
+      const foliageDeep = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.72 });
+      const tomatoMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.24, metalness: 0.05 });
+      const potMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.78 });
+
+      // Galvanized ebb-and-flow hydroponic bench on right
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.12, 2.08), brushedSteel);
+      tray.position.set(4.38, 0.78, -0.72);
       this.furnitureGroup.add(tray);
       for (const dz of [-0.90, 0.90]) {
-        const bLeg = new THREE.Mesh(new THREE.BoxGeometry(1.20, 0.76, 0.06), darkSteel);
-        bLeg.position.set(4.32, 0.38, -0.68 + dz);
-        this.furnitureGroup.add(bLeg);
-      }
-      // Root-zone heating pipe from buffer tank riser right under the hydroponic grow tray!
-      buildOrthogonalPipe(
-        this.furnitureGroup,
-        [
-          [rx, 1.56, rz],
-          [4.32, 1.56, rz],
-          [4.32, 0.70, rz],
-          [4.32, 0.70, -0.68],
-        ],
-        0.022,
-        branchHotMat,
-        this.brassMat,
-        [true, true]
-      );
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 2; c++) {
-          const px = 4.02 + c * 0.60;
-          const pz = -1.25 + r * 0.56;
-          const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.18, 12), potMat);
-          pot.position.set(px, 0.92, pz);
-          this.furnitureGroup.add(pot);
-          const plant = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24, 0), foliageMat);
-          plant.position.set(px, 1.24, pz);
-          this.furnitureGroup.add(plant);
-          const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), tomatoMat);
-          fruit.position.set(px - 0.14, 1.20, pz + 0.14);
-          this.furnitureGroup.add(fruit);
+        for (const dx of [-0.52, 0.52]) {
+          const bLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.76, 10), darkSteel);
+          bLeg.position.set(4.38 + dx, 0.38, -0.72 + dz);
+          this.furnitureGroup.add(bLeg);
         }
       }
-    } else if (roomStyle === "pool_plant") {
-      // St. Jakob / Davos Aquatic Plant Room: Illuminated turquoise pool window + twin blue sand filter vessels
-      const poolGlass = new THREE.Mesh(
-        new THREE.BoxGeometry(3.2, 1.15, 0.08),
-        new THREE.MeshStandardMaterial({
-          color: 0x38bdf8,
-          emissive: 0x0ea5e9,
-          emissiveIntensity: 0.45,
-          roughness: 0.12,
-          metalness: 0.2,
-        })
-      );
-      poolGlass.position.set(3.55, 1.85, -2.44);
-      this.furnitureGroup.add(poolGlass);
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(3.34, 1.28, 0.05), brushedSteel);
-      frame.position.set(3.55, 1.85, -2.47);
-      this.furnitureGroup.add(frame);
+      const benchShadow = makeContactShadow(1.55, 2.35);
+      benchShadow.position.set(4.38, 0.005, -0.72);
+      this.furnitureGroup.add(benchShadow);
 
-      const filterMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.32, metalness: 0.25 });
-      for (const [fx, fz] of [[4.38, -0.92], [4.38, -0.05]]) {
-        const vessel = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 1.05, 20), filterMat);
-        vessel.position.set(fx, 0.525, fz);
-        this.furnitureGroup.add(vessel);
-        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), filterMat);
-        dome.position.set(fx, 1.05, fz);
-        this.furnitureGroup.add(dome);
+      // Suspended full-spectrum aluminum horticultural LED grow bar above the tomato bench
+      const growBar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 1.92), darkSteel);
+      growBar.position.set(4.38, 2.42, -0.72);
+      this.furnitureGroup.add(growBar);
+      const growEmit = new THREE.Mesh(
+        new THREE.BoxGeometry(0.20, 0.02, 1.84),
+        new THREE.MeshBasicMaterial({ color: 0xfff2cc })
+      );
+      growEmit.position.set(4.38, 2.385, -0.72);
+      this.furnitureGroup.add(growEmit);
+      for (const dz of [-0.75, 0.75]) {
+        const wire = makePipeMesh([4.38, 2.45, -0.72 + dz], [4.38, 3.12, -0.72 + dz], 0.006, brushedSteel);
+        if (wire) this.furnitureGroup.add(wire);
       }
-      // Pool-basin warm-water heat transfer branch from hot riser into the blue filter manifold
+
+      // Low-temp 38 C root-zone heating manifold loop running directly beneath the hydroponic bed
       buildOrthogonalPipe(
         this.furnitureGroup,
         [
           [rx, 1.56, rz],
           [4.38, 1.56, rz],
-          [4.38, 1.56, -0.92],
-          [4.38, 1.38, -0.92],
+          [4.38, 0.68, rz],
+          [4.38, 0.68, -0.72],
         ],
-        0.024,
+        0.022,
         branchHotMat,
         this.brassMat,
         [true, true]
       );
-    } else {
-      // Commercial Bakery / Hospital Plant Bay: Brushed stainless hot-water boiler + steel prep bench
-      const boiler = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.55, 20), brushedSteel);
-      boiler.position.set(4.32, 0.775, -0.82);
-      this.furnitureGroup.add(boiler);
+
+      // Multi-tiered organic leafy tomato vines, vertical trellis stakes & glossy red tomato clusters
+      const leafRand = makeSeededRand(9041);
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 2; c++) {
+          const px = 4.08 + c * 0.58;
+          const pz = -1.32 + r * 0.58;
+          const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.10, 0.18, 14), potMat);
+          pot.position.set(px, 0.92, pz);
+          this.furnitureGroup.add(pot);
+          const stake = makePipeMesh([px, 0.95, pz], [px, 2.38, pz], 0.008, mullionMat);
+          if (stake) this.furnitureGroup.add(stake);
+          // Organic multi-frond leafy canopy (asymmetric faceted foliage clusters)
+          for (let tier = 0; tier < 4; tier++) {
+            for (let frond = 0; frond < 3; frond++) {
+              const ang = frond * 2.1 + tier * 0.9 + leafRand() * 0.5;
+              const rad = 0.12 + leafRand() * 0.06;
+              const leaf = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(rad, 0),
+                (tier + frond) % 2 === 0 ? foliageLight : foliageDeep
+              );
+              leaf.position.set(
+                px + Math.cos(ang) * (0.09 + leafRand() * 0.06),
+                1.10 + tier * 0.24 + (leafRand() - 0.5) * 0.06,
+                pz + Math.sin(ang) * (0.09 + leafRand() * 0.06)
+              );
+              leaf.rotation.set(leafRand() * 2.5, leafRand() * 3.1, leafRand() * 2.5);
+              leaf.scale.set(1.35, 0.48, 0.92);
+              this.furnitureGroup.add(leaf);
+            }
+          }
+          for (const [fx, fy, fz] of [[-0.14, 1.24, 0.16], [0.11, 1.46, 0.15], [-0.08, 1.68, 0.14], [0.14, 1.22, -0.10]]) {
+            const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 10), tomatoMat);
+            fruit.position.set(px + fx, fy, pz + fz);
+            this.furnitureGroup.add(fruit);
+          }
+        }
+      }
+
+      // Translucent hydroponic nutrient fertigation dosing drum on back-left (fully visible in default view!)
+      const fertTank = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.34, 0.34, 1.02, 22),
+        new THREE.MeshStandardMaterial({ color: 0xbae6fd, roughness: 0.24, metalness: 0.08 })
+      );
+      fertTank.position.set(-3.15, 0.51, -1.78);
+      this.furnitureGroup.add(fertTank);
+      const fertCap = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.06, 22), mullionMat);
+      fertCap.position.set(-3.15, 1.04, -1.78);
+      this.furnitureGroup.add(fertCap);
+      const fShadow = makeContactShadow(0.92, 0.92);
+      fShadow.position.set(-3.15, 0.005, -1.78);
+      this.furnitureGroup.add(fShadow);
+    } else if (roomStyle === "st_jakob_pool") {
+      // 6. ST. JAKOB MUNICIPAL POOL HALL: Animated turquoise caustic underwater viewing windows (clear of vertical risers!) + twin fiberglass sand filters + life-ring
+      const causticTex = getPoolCausticTexture();
+      this.animatedCausticTex = causticTex;
+      const poolGlassMat = new THREE.MeshStandardMaterial({
+        color: 0xe0fbff,
+        map: causticTex,
+        emissive: 0x06b6d4,
+        emissiveMap: causticTex,
+        emissiveIntensity: 0.76,
+        roughness: 0.08,
+        metalness: 0.18,
+      });
+      for (const [wx, ww] of [[4.56, 2.02], [-2.42, 1.52]]) {
+        const poolGlass = new THREE.Mesh(new THREE.BoxGeometry(ww, 1.12, 0.06), poolGlassMat);
+        poolGlass.position.set(wx, 2.04, -2.44);
+        this.furnitureGroup.add(poolGlass);
+        const winFrame = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.14, 1.26, 0.05), mirrorSteel);
+        winFrame.position.set(wx, 2.04, -2.465);
+        this.furnitureGroup.add(winFrame);
+      }
+
+      // Twin commercial cobalt-blue fiberglass high-rate sand-filter vessels with multiport valves & pressure gauges
+      const filterMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.22, metalness: 0.24 });
+      for (const [fx, fz] of [[4.42, -1.04], [4.42, -0.10]]) {
+        const baseRing = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.37, 0.12, 24), darkSteel);
+        baseRing.position.set(fx, 0.06, fz);
+        this.furnitureGroup.add(baseRing);
+        const vessel = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.96, 24), filterMat);
+        vessel.position.set(fx, 0.60, fz);
+        this.furnitureGroup.add(vessel);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.35, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2), filterMat);
+        dome.position.set(fx, 1.08, fz);
+        this.furnitureGroup.add(dome);
+        const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.07, 18), darkSteel);
+        hatch.position.set(fx, 1.43, fz);
+        this.furnitureGroup.add(hatch);
+        const pg = makeAnalogGauge("pressure", this.brassMat);
+        pg.position.set(fx - 0.14, 1.40, fz + 0.08);
+        this.furnitureGroup.add(pg);
+        const fs = makeContactShadow(0.95, 0.95);
+        fs.position.set(fx, 0.005, fz);
+        this.furnitureGroup.add(fs);
+      }
+
+      // Warm basin heat transfer manifold into the sand filter battery
       buildOrthogonalPipe(
         this.furnitureGroup,
         [
           [rx, 1.56, rz],
-          [4.32, 1.56, rz],
-          [4.32, 1.56, -0.82],
+          [4.42, 1.56, rz],
+          [4.42, 1.56, -1.04],
+          [4.42, 1.44, -1.04],
         ],
-        0.024,
+        0.026,
         branchHotMat,
         this.brassMat,
         [true, true]
       );
-      const table = new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.06, 1.75), brushedSteel);
-      table.position.set(-4.35, 0.90, -0.25);
-      this.furnitureGroup.add(table);
-      for (const dz of [-0.76, 0.76]) {
-        for (const dx of [-0.32, 0.32]) {
-          const l = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.88, 10), brushedSteel);
-          l.position.set(-4.35 + dx, 0.44, -0.25 + dz);
-          this.furnitureGroup.add(l);
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [4.42, 1.24, -1.04],
+          [4.42, 1.24, -0.10],
+        ],
+        0.024,
+        branchColdMat,
+        this.brassMat,
+        [true, true]
+      );
+
+      // Poolside red-and-white safety life-ring on back-left (clear of left underwater window!)
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35 });
+      const lifeRing = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.064, 14, 28), ringMat);
+      lifeRing.position.set(-3.72, 1.62, -2.41);
+      this.furnitureGroup.add(lifeRing);
+      for (let k = 0; k < 4; k++) {
+        const band = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.14, 0.14), whiteEnamel);
+        const ang = (k * Math.PI) / 2;
+        band.position.set(-3.72 + Math.cos(ang) * 0.26, 1.62 + Math.sin(ang) * 0.26, -2.41);
+        band.rotation.z = ang;
+        this.furnitureGroup.add(band);
+      }
+    } else if (roomStyle === "lucerne_bakery") {
+      // 7. LUCERNE ARTISANAL BAKERY WASHROOM BAY: Insulated stainless 58 C wash-water calorifier + 6-tier golden bread proofing rack + stainless wash sink
+      const jacketMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.24, metalness: 0.80 });
+      const boiler = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.56, 26), jacketMat);
+      boiler.position.set(4.38, 0.78, -0.88);
+      this.furnitureGroup.add(boiler);
+      const bDome = new THREE.Mesh(new THREE.SphereGeometry(0.45, 26, 14, 0, Math.PI * 2, 0, Math.PI / 2), mirrorSteel);
+      bDome.position.set(4.38, 1.56, -0.88);
+      this.furnitureGroup.add(bDome);
+      for (const by of [0.35, 0.92, 1.45]) {
+        const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.458, 0.458, 0.025, 26), darkSteel);
+        strap.position.set(4.38, by, -0.88);
+        this.furnitureGroup.add(strap);
+      }
+      const bGauge = makeAnalogGauge("temp", this.brassMat);
+      bGauge.position.set(4.38, 1.24, -0.41);
+      this.furnitureGroup.add(bGauge);
+      const bShadow = makeContactShadow(1.18, 1.18);
+      bShadow.position.set(4.38, 0.005, -0.88);
+      this.furnitureGroup.add(bShadow);
+
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [rx, 1.56, rz],
+          [4.38, 1.56, rz],
+          [4.38, 1.56, -0.88],
+        ],
+        0.025,
+        branchHotMat,
+        this.brassMat,
+        [true, true]
+      );
+
+      // Tall mobile stainless bakery proofing rack with 6 perforated sheet pans & golden Swiss artisan loaves on back-left
+      const crustMat = new THREE.MeshStandardMaterial({ color: 0xc67c2c, roughness: 0.62, metalness: 0.04 });
+      const rackX = -3.72;
+      const rackZ = -1.78;
+      for (const dx of [-0.34, 0.34]) {
+        for (const dz of [-0.26, 0.26]) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.76, 10), brushedSteel);
+          post.position.set(rackX + dx, 0.90, rackZ + dz);
+          this.furnitureGroup.add(post);
         }
       }
+      for (let t = 0; t < 6; t++) {
+        const ty = 0.26 + t * 0.27;
+        const pan = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.022, 0.48), brushedSteel);
+        pan.position.set(rackX, ty, rackZ);
+        this.furnitureGroup.add(pan);
+        for (let l = 0; l < 2; l++) {
+          const loaf = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), crustMat);
+          loaf.scale.set(1.35, 0.68, 0.92);
+          loaf.position.set(rackX - 0.16 + l * 0.32, ty + 0.065, rackZ);
+          this.furnitureGroup.add(loaf);
+        }
+      }
+      const rShadow = makeContactShadow(0.96, 0.78);
+      rShadow.position.set(rackX, 0.005, rackZ);
+      this.furnitureGroup.add(rShadow);
+
+      // Commercial stainless washdown sink & arched chrome gooseneck faucet on left wall
+      const sinkTop = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.16, 1.24), brushedSteel);
+      sinkTop.position.set(-4.68, 0.86, -0.45);
+      this.furnitureGroup.add(sinkTop);
+      const splash = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 1.24), mirrorSteel);
+      splash.position.set(-5.02, 1.08, -0.45);
+      this.furnitureGroup.add(splash);
+      const faucet = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.016, 10, 18, Math.PI), mirrorSteel);
+      faucet.position.set(-4.88, 1.12, -0.45);
+      this.furnitureGroup.add(faucet);
+    } else {
+      // 8. ST. GALLEN HOSPITAL STERILE DHW & STERILISATION WING: Twin mirror-stainless hygienic calorifiers + glowing HMI telemetry wall display + medical instrument cart
+      for (const [hx, hz] of [[4.24, -1.26], [4.54, -0.28]]) {
+        const vessel = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 1.48, 28), mirrorSteel);
+        vessel.position.set(hx, 0.80, hz);
+        this.furnitureGroup.add(vessel);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.36, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), mirrorSteel);
+        cap.position.set(hx, 1.54, hz);
+        this.furnitureGroup.add(cap);
+        const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.36, 0.12, 24), darkSteel);
+        skirt.position.set(hx, 0.06, hz);
+        this.furnitureGroup.add(skirt);
+        const manway = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.04, 18), brushedSteel);
+        manway.rotation.x = Math.PI / 2;
+        manway.position.set(hx, 0.62, hz + 0.36);
+        this.furnitureGroup.add(manway);
+        const hs = makeContactShadow(0.96, 0.96);
+        hs.position.set(hx, 0.005, hz);
+        this.furnitureGroup.add(hs);
+      }
+
+      // Insulated hygienic DHW header linking buffer tank to twin hospital calorifiers
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [rx, 1.56, rz],
+          [4.24, 1.56, rz],
+          [4.24, 1.56, -1.26],
+          [4.24, 1.88, -1.26],
+        ],
+        0.025,
+        branchHotMat,
+        this.brassMat,
+        [true, true]
+      );
+      buildOrthogonalPipe(
+        this.furnitureGroup,
+        [
+          [4.24, 1.88, -1.26],
+          [4.54, 1.88, -1.26],
+          [4.54, 1.88, -0.28],
+        ],
+        0.022,
+        mirrorSteel,
+        this.brassMat,
+        [true, true]
+      );
+
+      // Wall-mounted Hospital Sterile DHW Telemetry Screen on back-right wall (100% clear of tank risers!)
+      const monFrame = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.92, 0.08), darkSteel);
+      monFrame.position.set(4.52, 2.24, -2.44);
+      this.furnitureGroup.add(monFrame);
+      const monScreen = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.62, 0.80),
+        new THREE.MeshBasicMaterial({ map: getHospitalScreenTexture() })
+      );
+      monScreen.position.set(4.52, 2.24, -2.395);
+      this.furnitureGroup.add(monScreen);
+
+      // Sterile stainless surgical/autoclave instrument prep table + sterilization trays on back-left
+      const table = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.055, 0.72), mirrorSteel);
+      table.position.set(-3.35, 0.90, -1.78);
+      this.furnitureGroup.add(table);
+      const lowerShelf = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.03, 0.64), brushedSteel);
+      lowerShelf.position.set(-3.35, 0.30, -1.78);
+      this.furnitureGroup.add(lowerShelf);
+      for (const dx of [-0.56, 0.56]) {
+        for (const dz of [-0.30, 0.30]) {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.88, 12), mirrorSteel);
+          leg.position.set(-3.35 + dx, 0.44, -1.78 + dz);
+          this.furnitureGroup.add(leg);
+        }
+      }
+      // Autoclave stainless sterilization cassettes resting cleanly on top
+      for (const tx of [-3.61, -3.07]) {
+        const cassette = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.34), brushedSteel);
+        cassette.position.set(tx, 1.00, -1.78);
+        this.furnitureGroup.add(cassette);
+        const lidTrim = new THREE.Mesh(
+          new THREE.BoxGeometry(0.44, 0.024, 0.36),
+          new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3, metalness: 0.2 })
+        );
+        lidTrim.position.set(tx, 1.075, -1.78);
+        this.furnitureGroup.add(lidTrim);
+      }
+      const tShadow = makeContactShadow(1.48, 0.98);
+      tShadow.position.set(-3.35, 0.005, -1.78);
+      this.furnitureGroup.add(tShadow);
     }
+
+    // Cast & receive shadows on all room props (except contact shadows / emissive flat screens)
+    this.furnitureGroup.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.material?.transparent || o.material?.isMeshBasicMaterial) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
+    if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
   }
 
   applyRoomStyle(roomStyle) {
-    const styleKey = ROOM_STYLES[roomStyle] ? roomStyle : "basement";
+    const styleKey = ROOM_STYLES[roomStyle] ? roomStyle : "basel_basement";
     const st = ROOM_STYLES[styleKey];
     const tex = getRoomTextures(styleKey);
-    if (this.scene) this.scene.background = new THREE.Color(st.bg);
+    if (this.scene) {
+      this.scene.background = new THREE.Color(st.bg);
+      if (this.scene.fog) {
+        this.scene.fog.color.setHex(st.fogHex);
+        this.scene.fog.density = st.fogDensity;
+      }
+    }
     if (this.floorMat) {
       this.floorMat.color.setHex(st.floor);
       this.floorMat.map = tex.floorTex;
+      this.floorMat.bumpMap = tex.floorBump;
+      this.floorMat.bumpScale = st.floorBump;
+      this.floorMat.roughnessMap = tex.floorRough;
+      this.floorMat.roughness = st.floorRough;
+      this.floorMat.metalness = st.floorMetal;
+      this.floorMat.envMapIntensity = st.floorEnv;
       this.floorMat.needsUpdate = true;
     }
     if (this.wallMat) {
       this.wallMat.color.setHex(st.wall);
       this.wallMat.map = tex.wallTex;
+      this.wallMat.bumpMap = tex.wallBump;
+      this.wallMat.bumpScale = st.wallBump;
+      this.wallMat.roughnessMap = tex.wallRough;
       this.wallMat.needsUpdate = true;
     }
-    if (this.ceilingMat) this.ceilingMat.color.setHex(st.ceiling);
+    if (this.ceilingMat) {
+      this.ceilingMat.color.setHex(st.ceiling);
+      this.ceilingMat.map = tex.ceilTex;
+      this.ceilingMat.needsUpdate = true;
+    }
     if (this.beamMat) this.beamMat.color.setHex(st.beam);
     if (this.accentMat) this.accentMat.color.setHex(st.accent);
     if (this.hemiLight) {
       this.hemiLight.color.setHex(st.hemiTop);
       this.hemiLight.groundColor.setHex(st.hemiBot);
+      this.hemiLight.intensity = st.hemiInt;
     }
-    if (this.keyLight) this.keyLight.color.setHex(st.keyHex);
+    if (this.keyLight) {
+      this.keyLight.color.setHex(st.keyHex);
+      this.keyLight.intensity = st.keyInt;
+    }
+    if (this.fillLight) {
+      this.fillLight.color.setHex(st.fillHex);
+      this.fillLight.intensity = st.fillInt;
+    }
+    for (const tl of this.trofferLights) {
+      tl.color.setHex(st.trofferHex);
+      tl.intensity = st.trofferInt;
+    }
+    if (this.accentLight && st.accentLight) {
+      this.accentLight.color.setHex(st.accentLight.hex);
+      this.accentLight.position.set(...st.accentLight.pos);
+      this.accentLight.intensity = st.accentLight.int;
+      this.accentLight.distance = st.accentLight.dist;
+    }
     if (this.accentBand) {
       this.accentBand.position.y = st.accentY;
       this.accentBand.scale.y = st.accentH / 0.14;
@@ -1209,28 +3215,16 @@ export class Basement3DStudio {
     if (this.currentRoomStyle !== styleKey) {
       this.buildRoomFurniture(styleKey);
     }
+    if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
   }
 
   syncConfig({ modelId, count, activeCount, tankSocPct, loadRatio, roomStyle }) {
     this.lastConfig = { modelId, count, activeCount, tankSocPct, loadRatio, roomStyle };
     if (!this.ready || !this.templatesLoaded || !this.dynamicGroup) return;
-    this.applyRoomStyle(roomStyle || "basement");
+    this.applyRoomStyle(roomStyle || "basel_basement");
 
-    // Dispose previous dynamic server units & branch manifolds (preserving shared SimReady template GPU buffers)
-    while (this.dynamicGroup.children.length > 0) {
-      const ch = this.dynamicGroup.children.pop();
-      ch.traverse((o) => {
-        if (o.isMesh) {
-          if (!o.userData.sharedTemplate && o.geometry) o.geometry.dispose();
-          if (o.material) {
-            if (!o.userData.sharedTemplate || o.userData.clonedMaterial) {
-              if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
-              else o.material.dispose();
-            }
-          }
-        }
-      });
-    }
+    // Dispose previous dynamic server units & branch manifolds (preserving shared SimReady template GPU buffers & shared materials)
+    disposeSubtree(this.dynamicGroup);
     this.pipeHotMats = [];
     this.pipeColdMats = [];
     this.ledMats = [];
@@ -1450,6 +3444,21 @@ export class Basement3DStudio {
         [true, true]
       );
 
+      // Armored matte-black 3-phase power whip dropping cleanly from the overhead cable ladder tray into rack roof
+      const whipMat = new THREE.MeshStandardMaterial({ color: 0x1e242d, roughness: 0.52, metalness: 0.25 });
+      buildOrthogonalPipe(
+        this.dynamicGroup,
+        [
+          [px, 2.73, -2.02],
+          [px, 2.73, portZ],
+          [px, topH + 0.01, portZ],
+        ],
+        0.014,
+        whipMat,
+        null,
+        [false, false]
+      );
+
       // Animated dielectric coolant flow beads gliding smoothly along the exact orthogonal branches
       if (isRunning) {
         const pGeo = new THREE.SphereGeometry(spec.pipeRadius * 1.48, 10, 8);
@@ -1531,6 +3540,7 @@ export class Basement3DStudio {
     if (this.staticHotMat) {
       this.staticHotMat.emissiveIntensity = headerIntensity;
     }
+    if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
     this.renderOnce();
   }
 
@@ -1546,8 +3556,8 @@ export class Basement3DStudio {
 
   resetCamera() {
     if (!this.camera || !this.controls) return;
-    this.camera.position.set(1.25, 2.42, 6.45);
-    this.controls.target.set(0.45, 1.08, -1.05);
+    this.camera.position.set(0.50, 2.02, 7.62);
+    this.controls.target.set(0.50, 1.14, -1.20);
     this.controls.update();
     this.renderOnce();
   }
@@ -1591,6 +3601,10 @@ export class Basement3DStudio {
         const sc = 0.75 + u * 0.75;
         hp.mesh.scale.set(sc, sc, 1);
         hp.mat.opacity = Math.sin(u * Math.PI) * 0.38;
+      }
+      if (this.animatedCausticTex) {
+        this.animatedCausticTex.offset.x = Math.sin(t * 0.42) * 0.045;
+        this.animatedCausticTex.offset.y = (t * 0.018) % 1.0;
       }
       this.renderOnce();
     };
