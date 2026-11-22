@@ -3,23 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>CalorGrid — Interactive 3D Executive &amp; Platform Experience</title>
+<title>CalorGrid — Interactive 3D Architectural Showcase &amp; Platform</title>
 <link rel="icon" type="image/svg+xml" href="assets/calorgrid-logo.svg">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./assets/three/build/three.module.js",
+    "three/addons/": "./assets/three/jsm/"
+  }
+}
+</script>
 <style>
   :root {
-    --bg: #07090e;
-    --surface: rgba(13, 17, 25, 0.72);
-    --surface-strong: rgba(13, 17, 25, 0.88);
-    --border: rgba(255, 255, 255, 0.11);
-    --border-hi: rgba(255, 255, 255, 0.24);
+    --bg: #060910;
+    --glass: rgba(9, 13, 22, 0.72);
+    --glass-hi: rgba(11, 16, 28, 0.88);
+    --border: rgba(255, 255, 255, 0.12);
+    --border-hi: rgba(255, 255, 255, 0.26);
     --ink: #f8fafc;
     --muted: #94a3b8;
     --orange: #f97316;
     --emerald: #10b981;
-    --gold: #f59e0b;
     --cyan: #38bdf8;
-    --rx: 0deg;
-    --ry: 0deg;
+    --gold: #fbbf24;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -29,76 +35,77 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* 3D Spatial Perspective Viewport */
-  .stage-3d {
-    position: fixed; inset: 0;
-    perspective: 1800px;
-    perspective-origin: 50% 48%;
-    overflow: clip;
-    background: var(--bg);
+  /* Continuous Full-Viewport 3D WebGL Canvas */
+  #gl {
+    position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+    z-index: 1; cursor: grab;
+  }
+  #gl:active { cursor: grabbing; }
+
+  /* Subtle Editorial Readability Scrim (keeps left copy ultra-legible while 3D gleams on the right) */
+  .scrim {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background:
+      linear-gradient(95deg, rgba(6, 9, 16, 0.84) 0%, rgba(6, 9, 16, 0.44) 36%, rgba(6, 9, 16, 0.04) 64%, rgba(6, 9, 16, 0.12) 100%),
+      linear-gradient(180deg, rgba(6, 9, 16, 0.48) 0%, rgba(6, 9, 16, 0) 18%, rgba(6, 9, 16, 0) 76%, rgba(6, 9, 16, 0.76) 100%);
   }
 
-  /* Each Act lives in true 3D depth space */
-  .act {
-    position: absolute; inset: 0;
-    transform-style: preserve-3d;
+  /* 3D Projected Pins Layer (Swiss Cities + Hardware Inspection Hotspots) */
+  #pins-layer {
+    position: fixed; inset: 0; z-index: 5; pointer-events: none; overflow: clip;
+  }
+  .pin-city {
+    position: absolute; transform: translate(-50%, -100%);
+    font-size: 11px; font-weight: 700; white-space: nowrap;
+    padding: 3px 9px; border-radius: 999px;
+    background: rgba(7, 11, 20, 0.84); color: #f1f5f9;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    transition: opacity 0.35s ease, border-color 0.3s ease, color 0.3s ease;
     opacity: 0; pointer-events: none;
-    transform: translate3d(0, 0, -240px) scale(0.93) rotateX(3deg);
-    transition:
-      opacity 0.72s cubic-bezier(.16, 1, .3, 1),
-      transform 0.88s cubic-bezier(.16, 1, .3, 1),
-      filter 0.72s ease;
-    filter: blur(4px);
-    overflow: clip;
   }
-  .act.is-past {
-    transform: translate3d(0, 0, 180px) scale(1.06) rotateX(-2deg);
+  .pin-city.show { opacity: 1; }
+  .pin-city.sink { border-color: rgba(16, 185, 129, 0.72); color: #6ee7b7; }
+  .pin-city.warm { border-color: rgba(249, 115, 22, 0.72); color: #fdba74; }
+
+  .pin-hw {
+    position: absolute; transform: translate(-50%, -50%);
+    pointer-events: auto; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px 5px 7px; border-radius: 999px;
+    background: rgba(9, 14, 24, 0.86); color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(14px);
+    font: inherit; font-size: 11.5px; font-weight: 700; white-space: nowrap;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    transition: opacity 0.35s ease, transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     opacity: 0;
-    filter: blur(6px);
   }
-  .act.is-active {
-    opacity: 1; pointer-events: auto;
-    transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
-    filter: blur(0px);
-    z-index: 4;
+  .pin-hw.show { opacity: 1; }
+  .pin-hw:hover, .pin-hw.on {
+    border-color: rgba(16, 185, 129, 0.85); background: rgba(6, 36, 27, 0.92);
+    transform: translate(-50%, -50%) scale(1.05);
   }
+  .pin-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 10px; font-weight: 800;
+    background: linear-gradient(135deg, #f97316, #fb923c); color: #090d16;
+  }
+  .pin-hw.on .pin-dot { background: linear-gradient(135deg, #10b981, #34d399); }
 
-  /* Full-bleed photorealistic cinema media backdrop with subtle Ken-Burns motion */
-  .bg-media {
-    position: absolute; inset: -3%; width: 106%; height: 106%;
-    object-fit: cover; object-position: center;
-    transform: scale(1.02);
-    transition: transform 12s cubic-bezier(.2, .6, .3, 1);
-    pointer-events: none;
+  /* Loading Curtain */
+  #loader {
+    position: fixed; inset: 0; z-index: 90;
+    background: radial-gradient(circle at 50% 45%, #0f172a 0%, #060910 75%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    transition: opacity 0.65s ease, visibility 0.65s ease;
   }
-  .act.is-active .bg-media.ken { transform: scale(1.08); }
-  .bg-scrim {
-    position: absolute; inset: 0; pointer-events: none;
-    background:
-      linear-gradient(95deg, rgba(6, 9, 15, 0.90) 0%, rgba(6, 9, 15, 0.62) 44%, rgba(6, 9, 15, 0.24) 100%),
-      linear-gradient(180deg, rgba(6, 9, 15, 0.56) 0%, rgba(6, 9, 15, 0.04) 24%, rgba(6, 9, 15, 0.14) 72%, rgba(6, 9, 15, 0.88) 100%);
-  }
-  .bg-scrim.soft {
-    background:
-      linear-gradient(100deg, rgba(6, 9, 15, 0.84) 0%, rgba(6, 9, 15, 0.36) 46%, rgba(6, 9, 15, 0.14) 100%),
-      linear-gradient(180deg, rgba(6, 9, 15, 0.45) 0%, rgba(6, 9, 15, 0) 20%, rgba(6, 9, 15, 0.12) 76%, rgba(6, 9, 15, 0.82) 100%);
-  }
-  .bg-studio {
-    position: absolute; inset: 0; pointer-events: none;
-    background:
-      radial-gradient(ellipse 72% 60% at 75% 22%, rgba(249, 115, 22, 0.13), transparent 65%),
-      radial-gradient(ellipse 65% 60% at 20% 80%, rgba(16, 185, 129, 0.11), transparent 65%),
-      linear-gradient(180deg, #070a11 0%, #0b101b 100%);
-  }
+  #loader.done { opacity: 0; visibility: hidden; pointer-events: none; }
+  .l-bar { width: 220px; height: 3px; border-radius: 99px; background: rgba(255,255,255,0.12); overflow: hidden; }
+  .l-fill { height: 100%; width: 12%; background: linear-gradient(90deg, #f97316, #10b981); transition: width 0.25s ease; }
 
-  /* Subtle 3D tilt container driven by pointer */
-  .tilt-3d {
-    transform: rotateX(var(--rx)) rotateY(var(--ry));
-    transform-style: preserve-3d;
-    transition: transform 0.25s ease-out;
-  }
-
-  /* Top chrome */
+  /* Top Chrome */
   header.topbar {
     position: fixed; top: 16px; left: 22px; right: 22px; z-index: 40;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -107,7 +114,7 @@
   .brand {
     pointer-events: auto; display: inline-flex; align-items: center; gap: 10px;
     padding: 7px 14px 7px 9px; border-radius: 999px;
-    background: rgba(10, 14, 22, 0.72); backdrop-filter: blur(20px) saturate(160%);
+    background: rgba(9, 13, 22, 0.78); backdrop-filter: blur(20px) saturate(160%);
     border: 1px solid var(--border);
   }
   .brand img { width: 22px; height: 22px; display: block; }
@@ -118,837 +125,935 @@
   .pill-link {
     font: inherit; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--ink);
     padding: 7px 13px; border-radius: 999px; cursor: pointer;
-    background: rgba(10, 14, 22, 0.72); backdrop-filter: blur(20px);
+    background: rgba(9, 13, 22, 0.78); backdrop-filter: blur(20px);
     border: 1px solid var(--border); transition: all 0.2s ease;
   }
-  .pill-link:hover { border-color: var(--border-hi); background: rgba(25, 33, 48, 0.85); }
-  .pill-link.live { background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.48); color: #6ee7b7; }
-
-  /* Inner Act Layout Grid */
-  .act-inner {
-    position: relative; z-index: 6; width: 100%; height: 100%;
-    max-width: 1460px; margin: 0 auto;
-    padding: 82px 34px 92px;
-    display: flex; flex-direction: column; justify-content: space-between;
+  .pill-link:hover { border-color: var(--border-hi); background: rgba(22, 30, 46, 0.9); }
+  .pill-link.live { background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.52); color: #6ee7b7; }
+  .orbit-hint {
+    font-size: 11px; font-weight: 600; color: #94a3b8;
+    padding: 6px 11px; border-radius: 999px;
+    background: rgba(9, 13, 22, 0.65); border: 1px solid var(--border);
   }
+
+  /* Overlay Story Slides (pointer-events: none so 3D canvas stays 100% draggable!) */
+  .hud-layer {
+    position: fixed; inset: 0; z-index: 15; pointer-events: none; overflow: clip;
+  }
+  .act {
+    position: absolute; inset: 0;
+    padding: 78px 34px 86px;
+    max-width: 1520px; margin: 0 auto;
+    display: flex; flex-direction: column; justify-content: space-between;
+    opacity: 0; transform: translateY(18px);
+    transition: opacity 0.55s cubic-bezier(.16, 1, .3, 1), transform 0.65s cubic-bezier(.16, 1, .3, 1);
+    pointer-events: none;
+  }
+  .act.on { opacity: 1; transform: translateY(0); z-index: 4; }
+  .act.on .interactive { pointer-events: auto; }
 
   .eyebrow {
     display: inline-flex; align-items: center; gap: 8px;
     font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
-    color: var(--orange); margin-bottom: 12px;
+    color: var(--orange); margin-bottom: 10px;
   }
   .eyebrow.green { color: #34d399; }
   .eyebrow.gold { color: #fbbf24; }
   .eyebrow::before { content: ""; width: 18px; height: 1.5px; background: currentColor; }
 
   h1.title {
-    font-size: clamp(32px, 4.3vw, 62px); font-weight: 750;
-    line-height: 1.04; letter-spacing: -0.04em; color: #ffffff;
-    max-width: 760px; text-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
+    font-size: clamp(30px, 3.85vw, 56px); font-weight: 780;
+    line-height: 1.04; letter-spacing: -0.04em; color: #fff;
+    max-width: 560px; text-shadow: 0 12px 38px rgba(0, 0, 0, 0.65);
   }
-  h1.title.compact { font-size: clamp(26px, 3.2vw, 44px); max-width: 640px; }
-  h1.title span.hi { color: #fb923c; }
-  h1.title span.hi-g { color: #34d399; }
+  h1.title.compact { font-size: clamp(25px, 3.0vw, 42px); max-width: 490px; }
+  h1.title .hi { color: #fb923c; }
+  h1.title .hi-g { color: #34d399; }
   p.lead {
-    margin-top: 14px; font-size: clamp(14.5px, 1.35vw, 18px); line-height: 1.5;
-    color: #cbd5e1; max-width: 560px; font-weight: 400;
+    margin-top: 13px; font-size: clamp(14px, 1.2vw, 16.5px); line-height: 1.52;
+    color: #cbd5e1; max-width: 460px;
   }
 
-  /* Hairline Apple-style metric strip */
-  .kpi-strip {
-    display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch;
-  }
+  /* Glass Panels & KPIs */
+  .kpi-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
   .kpi {
-    background: var(--surface); backdrop-filter: blur(24px) saturate(160%);
+    background: var(--glass); backdrop-filter: blur(22px) saturate(160%);
     border: 1px solid var(--border); border-radius: 16px;
-    padding: 16px 22px; min-width: 195px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    padding: 14px 18px; min-width: 180px;
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.42);
   }
-  .kpi.hl-green { border-color: rgba(16, 185, 129, 0.38); background: rgba(6, 28, 22, 0.72); }
-  .kpi.hl-orange { border-color: rgba(249, 115, 22, 0.38); background: rgba(32, 15, 8, 0.72); }
-  .kpi-l { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .kpi-v {
-    font-size: clamp(26px, 2.8vw, 40px); font-weight: 800; letter-spacing: -0.03em;
-    line-height: 1.08; margin-top: 4px; font-variant-numeric: tabular-nums; color: #fff;
-  }
+  .kpi.green { background: rgba(6, 30, 23, 0.78); border-color: rgba(16, 185, 129, 0.42); }
+  .kpi.orange { background: rgba(34, 15, 7, 0.78); border-color: rgba(249, 115, 22, 0.42); }
+  .kpi-l { font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+  .kpi-v { font-size: clamp(23px, 2.5vw, 35px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; margin-top: 4px; font-variant-numeric: tabular-nums; }
   .kpi-v.orange { color: #fb923c; }
   .kpi-v.green { color: #34d399; }
-  .kpi-v.gold { color: #fbbf24; }
-  .kpi-s { font-size: 12.5px; color: #cbd5e1; margin-top: 4px; }
+  .kpi-v.cyan { color: #38bdf8; }
+  .kpi-s { font-size: 12px; color: #cbd5e1; margin-top: 3px; }
 
-  /* Act 2 Floating Right Two-Sided Split */
-  .act2-grid {
-    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 430px);
-    gap: 28px; align-items: center; flex: 1;
-  }
-  .split-card {
-    background: var(--surface-strong); backdrop-filter: blur(26px) saturate(165%);
-    border: 1px solid var(--border); border-radius: 22px; padding: 22px;
-    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
-  }
-  .split-row {
-    padding: 14px 16px; border-radius: 14px;
-    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  .split-row + .split-row { margin-top: 12px; }
-  .split-row.green { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.34); }
-  .split-row.orange { background: rgba(249, 115, 22, 0.10); border-color: rgba(249, 115, 22, 0.34); }
-
-  /* Act 3 Three.js Swiss Alps full-bleed canvas */
-  #swiss-canvas {
-    position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab;
-  }
-  #swiss-canvas:active { cursor: grabbing; }
-  #swiss-pins { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
-  .act3-scrim {
-    position: absolute; inset: 0; z-index: 5; pointer-events: none;
-    background: radial-gradient(ellipse 46% 52% at 14% 20%, rgba(5, 9, 18, 0.88) 0%, rgba(5, 9, 18, 0.42) 60%, rgba(5, 9, 18, 0) 100%);
-  }
-  section[data-act="2"] .act-inner { z-index: 6; }
-  .spin {
-    position: absolute; transform: translate(-50%, -100%);
-    font-size: 11px; font-weight: 700; white-space: nowrap;
-    padding: 3px 9px; border-radius: 999px;
-    background: rgba(8, 12, 22, 0.88); color: #f8fafc;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
-  }
-  .spin.sink { border-color: rgba(16, 185, 129, 0.7); color: #6ee7b7; }
-  .spin.warm { border-color: rgba(249, 115, 22, 0.7); color: #fdba74; }
-
-  .act3-bottom {
-    display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap;
-    pointer-events: none;
-  }
-  .act3-bottom > * { pointer-events: auto; }
-  .season-dock {
-    background: var(--surface-strong); backdrop-filter: blur(22px);
-    border: 1px solid var(--border); border-radius: 18px; padding: 14px 16px;
-    width: min(400px, 100%);
+  .card {
+    background: var(--glass-hi); backdrop-filter: blur(24px) saturate(165%);
+    border: 1px solid var(--border); border-radius: 20px; padding: 18px 20px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.52);
   }
 
-  /* Segmented sleek pills */
   .seg { display: flex; gap: 6px; flex-wrap: wrap; }
   .seg button {
-    flex: 1 1 auto; font: inherit; font-size: 12.5px; font-weight: 650;
-    padding: 8px 12px; border-radius: 10px; cursor: pointer;
+    flex: 1 1 auto; font: inherit; font-size: 12px; font-weight: 680;
+    padding: 8px 11px; border-radius: 10px; cursor: pointer;
     background: rgba(255, 255, 255, 0.06); color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.12); transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.13); transition: all 0.2s ease;
   }
-  .seg button:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
-  .seg button.on { background: #ffffff; color: #090d16; border-color: #ffffff; }
+  .seg button:hover { background: rgba(255, 255, 255, 0.13); color: #fff; }
+  .seg button.on { background: #fff; color: #060910; border-color: #fff; }
   .seg button.on.em { background: #10b981; color: #042117; border-color: #34d399; }
-  .seg button.on.warm { background: #f97316; color: #ffffff; border-color: #fb923c; }
+  .seg button.on.warm { background: #f97316; color: #fff; border-color: #fb923c; }
 
-  /* Act 4: Floating Apple-Studio-Display 3D Platform Walkthrough inside the slide! */
-  .act4-grid {
-    display: grid; grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
-    gap: 24px; align-items: stretch; flex: 1; min-height: 0; margin-top: 10px;
+  /* Act 2 Bottom Bar */
+  .act-bottom-split {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   }
+  .hw-detail-box {
+    width: min(390px, 100%);
+  }
+
+  /* Act 4 Left Configurator Rail + Optional Live 4-Tab Portal Overlay */
   .act4-rail {
-    display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+    width: min(370px, 100%); display: flex; flex-direction: column; gap: 9px; margin-top: 14px;
   }
   .host-btn {
-    width: 100%; text-align: left; font: inherit; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    width: 100%; text-align: left; font: inherit; color: #fff; cursor: pointer;
+    padding: 11px 14px; border-radius: 14px;
+    background: rgba(9, 13, 22, 0.78); backdrop-filter: blur(20px);
+    border: 1px solid var(--border); transition: all 0.2s ease;
+  }
+  .host-btn:hover { border-color: var(--border-hi); background: rgba(18, 26, 42, 0.88); }
+  .host-btn.on { background: rgba(6, 36, 27, 0.86); border-color: rgba(16, 185, 129, 0.72); }
+  .host-btn .hn { font-size: 13.5px; font-weight: 700; }
+  .host-btn .hs { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .host-btn .hv { font-size: 14px; font-weight: 800; color: #34d399; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* Floating Live Portal Bezel on Act 4 (slides in cleanly only when toggled!) */
+  .live-bezel {
+    position: fixed; top: 76px; right: 28px; bottom: 82px; left: 472px; z-index: 25;
+    border-radius: 20px; overflow: clip;
+    background: #060a12; border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 34px 96px rgba(0, 0, 0, 0.75);
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none; transform: translateX(36px) scale(0.97);
+    transition: opacity 0.42s ease, transform 0.45s cubic-bezier(.16, 1, .3, 1);
+  }
+  .live-bezel.open { opacity: 1; pointer-events: auto; transform: translateX(0) scale(1); }
+  .bezel-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 12px 14px; border-radius: 14px;
-    background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); color: var(--ink);
-    transition: all 0.22s ease;
+    padding: 9px 14px; background: rgba(12, 18, 30, 0.95); border-bottom: 1px solid var(--border);
   }
-  .host-btn:hover { background: rgba(255, 255, 255, 0.09); border-color: var(--border-hi); }
-  .host-btn.on {
-    background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.55);
-    box-shadow: 0 10px 28px rgba(16, 185, 129, 0.14);
-  }
-  .host-btn .hn { font-size: 14px; font-weight: 700; }
-  .host-btn .hs { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-  .host-btn .hv { font-size: 14.5px; font-weight: 800; color: #34d399; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .bezel-bar iframe { flex: 1; }
 
-  .studio-frame {
-    position: relative; border-radius: 22px; overflow: clip;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: #05080f;
-    box-shadow: 0 36px 90px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    display: flex; flex-direction: column; min-height: 380px;
+  /* Act 5 Money Panel (Left Column while 3D Scaling GPU Fleet fills right 60%!) */
+  .act5-col {
+    width: min(465px, 100%); display: flex; flex-direction: column; gap: 12px; margin-top: 12px;
   }
-  .studio-frame.is-live { transform: none !important; }
-  .studio-bar {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 9px 14px; background: rgba(15, 21, 33, 0.92);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.09); z-index: 5;
-  }
-  .dots { display: flex; gap: 6px; }
-  .dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: block; }
-  .studio-viewport {
-    position: relative; flex: 1; min-height: 0; overflow: hidden;
-  }
-  .studio-viewport video,
-  .studio-viewport iframe {
-    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: cover;
-  }
-  .studio-hud {
-    position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 4;
-    display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap;
-    pointer-events: none;
-  }
-  .studio-badge {
-    background: rgba(7, 10, 17, 0.80); backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
-    padding: 9px 14px;
-  }
-
-  /* Act 5: Executive Money Engine (Apple/Stripe dark studio + real GPU photography) */
-  .act5-grid {
-    display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(340px, 460px);
-    gap: 26px; align-items: center; flex: 1; margin-top: 10px;
-  }
-  .money-panel {
-    background: var(--surface-strong); backdrop-filter: blur(24px);
-    border: 1px solid var(--border); border-radius: 22px; padding: 24px 26px;
-    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5);
-  }
-  .bar-list { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
-  .bar-item .top { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 6px; }
-  .bar-track { height: 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s cubic-bezier(.16, 1, .3, 1); }
-
-  .hw-pair {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;
-  }
-  .hw-card {
-    position: relative; border-radius: 14px; overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.14); background: #0a0f1a; aspect-ratio: 16/9;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  }
-  .hw-card::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(180deg, rgba(6, 9, 15, 0.08) 0%, rgba(6, 9, 15, 0) 48%, rgba(6, 9, 15, 0.72) 100%);
-  }
-  .hw-card img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(0.92) contrast(1.06); }
-  .hw-cap {
-    position: absolute; left: 10px; bottom: 9px; z-index: 2;
-    font-size: 11px; font-weight: 700; color: #fff;
-    background: rgba(6, 9, 15, 0.84); backdrop-filter: blur(8px); padding: 4px 9px; border-radius: 7px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-  }
-
+  .bar-item { margin-top: 9px; }
+  .bar-item .top { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 5px; }
+  .bar-track { height: 9px; border-radius: 99px; background: rgba(255, 255, 255, 0.09); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; }
   .big-profit {
-    font-size: clamp(38px, 4.4vw, 60px); font-weight: 800; letter-spacing: -0.04em;
-    line-height: 1.02; color: #34d399; font-variant-numeric: tabular-nums;
-    margin: 6px 0 4px;
+    font-size: clamp(34px, 3.8vw, 52px); font-weight: 850; letter-spacing: -0.04em;
+    color: #34d399; line-height: 1.02; font-variant-numeric: tabular-nums;
   }
-  .fin-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
-  }
-  .fin-box {
-    background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border);
-    border-radius: 12px; padding: 11px 13px;
-  }
+  .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .mini-box { background: rgba(255,255,255,0.045); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; }
 
-  /* Act 6: Close QR bar */
-  .close-bottom {
-    display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap;
-  }
+  /* Act 6 QR Row */
   .qr-row { display: flex; gap: 12px; flex-wrap: wrap; }
   .qr-card {
-    display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff;
-    background: var(--surface-strong); backdrop-filter: blur(20px);
-    border: 1px solid var(--border); border-radius: 14px; padding: 9px 14px 9px 9px;
+    display: flex; align-items: center; gap: 11px; text-decoration: none; color: #fff;
+    background: var(--glass-hi); backdrop-filter: blur(20px);
+    border: 1px solid var(--border); border-radius: 14px; padding: 8px 13px 8px 8px;
     transition: transform 0.2s ease, border-color 0.2s ease;
   }
-  .qr-card:hover { transform: translateY(-2px); border-color: rgba(16, 185, 129, 0.6); }
-  .qr-card img { width: 64px; height: 64px; background: #fff; padding: 4px; border-radius: 8px; display: block; }
+  .qr-card:hover { transform: translateY(-2px); border-color: rgba(16, 185, 129, 0.65); }
+  .qr-card img { width: 60px; height: 60px; background: #fff; padding: 4px; border-radius: 8px; display: block; }
 
-  /* Floating bottom navigation dock */
+  /* Bottom Navigation Dock */
   nav.dock {
-    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 40;
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 45;
     display: flex; align-items: center; gap: 5px; padding: 6px 8px; border-radius: 999px;
-    background: rgba(10, 14, 22, 0.84); backdrop-filter: blur(22px) saturate(160%);
-    border: 1px solid var(--border); box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+    background: rgba(9, 13, 22, 0.86); backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid var(--border); box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6);
     max-width: calc(100vw - 24px); overflow-x: auto;
   }
   .d-arrow {
     width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.05); color: #fff; font-size: 14px; cursor: pointer;
+    background: rgba(255, 255, 255, 0.06); color: #fff; font-size: 14px; cursor: pointer;
     flex: none; display: grid; place-items: center;
   }
-  .d-arrow:hover { background: rgba(255, 255, 255, 0.14); }
+  .d-arrow:hover { background: rgba(255, 255, 255, 0.16); }
   .d-btn {
-    font: inherit; font-size: 12px; font-weight: 650; white-space: nowrap;
+    font: inherit; font-size: 12px; font-weight: 660; white-space: nowrap;
     padding: 7px 13px; border-radius: 999px; border: none; cursor: pointer;
     background: transparent; color: var(--muted); transition: all 0.2s ease;
   }
   .d-btn:hover { color: #fff; }
-  .d-btn.on { background: #ffffff; color: #070a11; }
+  .d-btn.on { background: #ffffff; color: #060910; }
 
   @media (max-width: 960px) {
-    .brand-sub { display: none; }
-    .act-inner { padding: 70px 16px 82px; overflow-y: auto; }
-    .act2-grid, .act4-grid, .act5-grid { grid-template-columns: 1fr; }
-    .studio-frame { min-height: 290px; }
-    .kpi { min-width: 145px; flex: 1 1 145px; padding: 12px 14px; }
+    .brand-sub, .orbit-hint { display: none; }
+    .act { padding: 68px 16px 80px; }
+    .live-bezel { left: 16px; right: 16px; top: 68px; bottom: 76px; }
   }
 </style>
 </head>
 <body>
 
+<div id="loader">
+  <img src="assets/calorgrid-logo.svg" alt="CalorGrid" style="width:42px;height:42px">
+  <div style="font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#cbd5e1">Loading Real 3D PBR Models &amp; Studio HDRI</div>
+  <div class="l-bar"><div class="l-fill" id="l-fill"></div></div>
+</div>
+
+<canvas id="gl"></canvas>
+<div class="scrim"></div>
+<div id="pins-layer"></div>
+
 <header class="topbar">
   <div class="brand">
     <img src="assets/calorgrid-logo.svg" alt="CalorGrid">
     <div class="brand-name">CalorGrid<span>.</span></div>
-    <div class="brand-sub">Useful Load &rarr; Useful Heat</div>
+    <div class="brand-sub">Interactive 3D Showroom</div>
   </div>
   <div class="top-actions">
+    <span class="orbit-hint">Drag to Orbit 3D &middot; Scroll to Fly</span>
     <a class="pill-link live" href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank">&#9654; Live 3D Portal &#8599;</a>
     <a class="pill-link" href="../" target="_blank">Excalidraw Deck &#8599;</a>
     <a class="pill-link" href="../CalorGrid_Technical_Report.pdf" target="_blank">Report PDF &#8599;</a>
   </div>
 </header>
 
-<main class="stage-3d" id="stage3d">
+<div class="hud-layer">
 
-  <!-- ACT 1: THE PARADOX (Photorealistic Alpine Data Center) -->
-  <section class="act is-active" data-act="0">
-    <img class="bg-media ken" src="assets/plate_datacenter.jpg" alt="Alpine hyperscale data center venting steam">
-    <div class="bg-scrim"></div>
-    <div class="act-inner">
-      <div style="margin-top: 2vh">
-        <div class="eyebrow">01 &middot; The Multi-Billion Paradox</div>
-        <h1 class="title">Data centers burn billions <span class="hi">venting heat.</span><br>Switzerland burns billions making it.</h1>
-        <p class="lead">Hyperscale AI clusters pay twice&mdash;once to power GPUs, and again for chillers dumping heat into freezing Alpine air&mdash;while nearby homes, pools, and hospitals burn fossil gas for the exact same warmth.</p>
+  <!-- ACT 1: THE PARADOX (Macro 3D NVIDIA GB300 Liquid Rack + Rising Waste Heat Plume) -->
+  <section class="act on" data-act="0">
+    <div style="margin-top:2vh">
+      <div class="eyebrow">01 &middot; The Multi-Billion Paradox</div>
+      <h1 class="title">Data centers burn billions <span class="hi">venting heat.</span><br>Switzerland burns billions making it.</h1>
+      <p class="lead">Inspect the live 3D NVIDIA GB300 liquid rack on the right: almost 100% of the electricity entering an AI server becomes thermal energy. Today, hyperscalers pay chillers to throw it into Alpine air.</p>
+    </div>
+    <div class="kpi-row interactive">
+      <div class="kpi orange">
+        <div class="kpi-l">Swiss Energy on Heating</div>
+        <div class="kpi-v orange">~50%</div>
+        <div class="kpi-s">Over 35% of national emissions</div>
       </div>
-      <div class="kpi-strip tilt-3d">
-        <div class="kpi hl-orange">
-          <div class="kpi-l">Swiss Energy on Heating</div>
-          <div class="kpi-v orange">~50%</div>
-          <div class="kpi-s">Over 35% of national emissions</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-l">IT Power Turned to Heat</div>
-          <div class="kpi-v">~100%</div>
-          <div class="kpi-s">Rejected outdoors by clouds today</div>
-        </div>
-        <div class="kpi hl-green">
-          <div class="kpi-l">Our Advantage</div>
-          <div class="kpi-v green">Move Bits, Not Pipes</div>
-          <div class="kpi-s">2&ndash;4 ms Swiss fiber beats trenching</div>
-        </div>
+      <div class="kpi">
+        <div class="kpi-l">IT Power Turned to Heat</div>
+        <div class="kpi-v">~100%</div>
+        <div class="kpi-s">Vented outdoors by clouds today</div>
+      </div>
+      <div class="kpi green">
+        <div class="kpi-l">Our Advantage</div>
+        <div class="kpi-v green">Move Bits, Not Pipes</div>
+        <div class="kpi-s">2&ndash;4 ms Swiss fiber beats trenching</div>
       </div>
     </div>
   </section>
 
-  <!-- ACT 2: THE SOLUTION (Real Photorealistic NVIDIA Isaac Sim 6.2 RTX 3D Basement) -->
+  <!-- ACT 2: THE DUAL-LOOP SOLUTION (Camera Pulls Back to Full Real PBR Plant Room + Clickable 3D Hotspots) -->
   <section class="act" data-act="1">
-    <video class="bg-media" src="assets/video/loop_room_rtx_basement_16x9.mp4" poster="assets/video/loop_room_rtx_basement_16x9.jpg" autoplay muted loop playsinline></video>
-    <div class="bg-scrim soft"></div>
-    <div class="act-inner">
-      <div class="act2-grid">
-        <div>
-          <div class="eyebrow green">02 &middot; Ray-Traced Dual-Loop Micro-Cloud</div>
-          <h1 class="title">Turn any building into a <span class="hi-g">micro-cloud</span> that pays to heat it.</h1>
-          <p class="lead">Liquid-cooled GPU racks tie into a building's existing heating loop through a sealed plate heat exchanger&mdash;capturing 80% of electrical energy at 45&ndash;55 &deg;C with zero potable-water contact.</p>
+    <div>
+      <div class="eyebrow green">02 &middot; Real 3D Dual-Loop Micro-Cloud</div>
+      <h1 class="title compact">Turn any building into a <span class="hi-g">micro-cloud</span> that pays to heat it.</h1>
+      <p class="lead">Click any 3D hotspot on the hardware to zoom straight into the GB300 rack, Vertiv sealed heat exchanger, or 1,000 L buffer tank.</p>
+    </div>
+    <div class="act-bottom-split">
+      <div class="kpi-row interactive">
+        <div class="kpi green">
+          <div class="kpi-l" style="color:#6ee7b7">Building Host (Zero Risk)</div>
+          <div class="kpi-v green">CHF 0 Upfront</div>
+          <div class="kpi-s">Saves <b>+CHF 2.7k to +CHF 19.9k/yr</b></div>
         </div>
-        <div class="split-card tilt-3d">
-          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:12px">Two-Sided Money Engine</div>
-          <div class="split-row green">
-            <div class="kpi-l" style="color:#6ee7b7">Building Host (Zero Risk)</div>
-            <div style="font-size:32px;font-weight:800;color:#34d399;letter-spacing:-0.03em;margin:2px 0">CHF 0 Upfront</div>
-            <div style="font-size:13px;color:#cbd5e1;line-height:1.4">CHF 0 server CAPEX &middot; CHF 0 server electricity &middot; keeps existing boiler &middot; saves <b>+CHF 2.7k to +CHF 19.9k/yr</b>.</div>
-          </div>
-          <div class="split-row orange">
-            <div class="kpi-l" style="color:#fdba74">AI Compute Buyer</div>
-            <div style="font-size:32px;font-weight:800;color:#fb923c;letter-spacing:-0.03em;margin:2px 0">&minus;60% vs AWS</div>
-            <div style="font-size:13px;color:#cbd5e1;line-height:1.4">Sovereign Swiss H100 &amp; B200 GPUs from <b>CHF 1.25/h Spot</b> across 6 cloud tiers&mdash;still earning <b>20% net margin</b>.</div>
-          </div>
+        <div class="kpi orange">
+          <div class="kpi-l" style="color:#fdba74">AI Compute Buyer</div>
+          <div class="kpi-v orange">&minus;60% vs AWS</div>
+          <div class="kpi-s">From CHF 1.25/h &middot; <b>20% net margin</b></div>
         </div>
       </div>
-      <div style="font-size:11.5px;color:#94a3b8">Background: Real NVIDIA Isaac Sim 6.2 RTX dual-loop hydronic twin (dielectric loop &harr; Liebert CDU &harr; 1,000 L buffer)</div>
+      <div class="card hw-detail-box interactive">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span class="kpi-l" id="hw-focus-tag" style="color:#34d399">Full Dual-Loop Assembly</span>
+          <button id="hw-reset-cam" type="button" style="font:inherit;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:#fff;cursor:pointer">Overview</button>
+        </div>
+        <div id="hw-focus-desc" style="font-size:12.5px;color:#cbd5e1;line-height:1.45">Dielectric GPU coolant delivers 55 &deg;C heat through a sealed Vertiv plate exchanger into the building's 1,000 L hydronic loop&mdash;zero potable-water contact.</div>
+      </div>
     </div>
   </section>
 
-  <!-- ACT 3: REAL SCULPTED 3D SWISSTOPO ALPS NETWORK (Live WebGL + Winter/Summer Morph) -->
+  <!-- ACT 3: REAL BORDER-CUT 3D SWISSTOPO ALPS NETWORK -->
   <section class="act" data-act="2">
-    <canvas id="swiss-canvas"></canvas>
-    <div id="swiss-pins"></div>
-    <div class="act3-scrim"></div>
-    <div class="act-inner" style="pointer-events:none">
-      <div style="pointer-events:none;max-width:440px">
-        <div class="eyebrow green">03 &middot; Interactive 3D Swiss Thermal-Compute Network</div>
-        <h1 class="title compact">Zero summer waste across <span class="hi-g">14 Swiss sites.</span></h1>
-        <p class="lead" style="max-width:410px">When homes stop heating in July, optical fiber shifts GPU workloads in 2 ms straight into swimming pools, alpine spas, and hospitals&mdash;keeping revenue running 365 days a year.</p>
-      </div>
-      <div class="act3-bottom">
-        <div class="kpi-strip">
-          <div class="kpi hl-green">
-            <div class="kpi-l">Wasted Heat</div>
-            <div class="kpi-v green">0.0 kWh</div>
-            <div class="kpi-s" id="s3-sub">100% captured locally in winter</div>
-          </div>
-          <div class="kpi hl-orange">
-            <div class="kpi-l">Useful Heat Monetized</div>
-            <div class="kpi-v orange">484 MWh/yr</div>
-            <div class="kpi-s">136 liquid racks &middot; 10 cantons</div>
-          </div>
+    <div>
+      <div class="eyebrow green">03 &middot; Real 3D Swisstopo Thermal-Compute Grid</div>
+      <h1 class="title compact">Zero summer waste across <span class="hi-g">14 Swiss sites.</span></h1>
+      <p class="lead">When homes stop heating in July, optical fiber shifts GPU workloads in 2 ms straight into swimming pools, alpine spas, and hospitals&mdash;monetizing compute 365 days a year.</p>
+    </div>
+    <div class="act-bottom-split">
+      <div class="kpi-row interactive">
+        <div class="kpi green">
+          <div class="kpi-l">Wasted Heat</div>
+          <div class="kpi-v green">0.0 kWh</div>
+          <div class="kpi-s" id="s3-sub">100% captured locally in winter</div>
         </div>
-        <div class="season-dock">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#94a3b8">
-            <span>Drag 3D Alps to Orbit</span>
-            <span id="s3-temp" style="color:#34d399">Jan &middot; 1 &deg;C</span>
-          </div>
-          <div class="seg">
-            <button class="on warm" id="s3-win" type="button">&#10052; Swiss Winter</button>
-            <button id="s3-sum" type="button">&#9728; Swiss Summer (2 ms Shift)</button>
-          </div>
+        <div class="kpi orange">
+          <div class="kpi-l">Useful Heat Monetized</div>
+          <div class="kpi-v orange">484 MWh/yr</div>
+          <div class="kpi-s">136 liquid racks &middot; 10 cantons</div>
+        </div>
+      </div>
+      <div class="card interactive" style="width:min(395px,100%)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#94a3b8">
+          <span>Interactive 3D Alps</span>
+          <span id="s3-temp" style="color:#34d399">Jan &middot; 1 &deg;C</span>
+        </div>
+        <div class="seg">
+          <button class="on warm" id="s3-win" type="button">&#10052; Swiss Winter</button>
+          <button id="s3-sum" type="button">&#9728; Swiss Summer (2 ms Shift)</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ACT 4: INTERACTIVE 3D PLATFORM WALKTHROUGH INSIDE THE SLIDE (RTX 3D + Live Portal Embed!) -->
+  <!-- ACT 4: INTERACTIVE 3D HARDWARE CONFIGURATOR + LIVE 4-TAB PORTAL -->
   <section class="act" data-act="3">
-    <div class="bg-studio"></div>
-    <div class="act-inner">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
-        <div>
-          <div class="eyebrow green">04 &middot; Live 3D Platform Walkthrough &mdash; Inside This Slide</div>
-          <h1 class="title compact">Watch the 3D platform turn <span class="hi-g">compute into cash flow.</span></h1>
+    <div>
+      <div class="eyebrow green">04 &middot; Live 3D Platform Walkthrough</div>
+      <h1 class="title compact" style="max-width:375px;font-size:clamp(24px,2.55vw,36px)">Watch the 3D platform turn <span class="hi-g">compute into cash flow.</span></h1>
+      <div class="act4-rail interactive">
+        <div class="seg" style="margin-bottom:2px">
+          <button class="on em" id="mode-3d" type="button">Live 3D Hardware Studio</button>
+          <button id="mode-web" type="button">&#9654; Embed Live 4-Tab Web App</button>
         </div>
-        <div class="seg" style="width:auto">
-          <button class="on em" id="mode-rtx" type="button">RTX 3D Twin Tour</button>
-          <button id="mode-live" type="button">&#9654; Embed Live 4-Tab Web App</button>
+        <div id="host-list" style="display:flex;flex-direction:column;gap:8px">
+          <button class="host-btn" data-h="home" type="button">
+            <div><div class="hn">Basel Family Residence</div><div class="hs">4&times; 1 kW VR3307 HydroNode &middot; CHF 0 CAPEX</div></div>
+            <div class="hv">+CHF 2,685/yr</div>
+          </button>
+          <button class="host-btn" data-h="dairy" type="button">
+            <div><div class="hn">Emmental Cheese Dairy</div><div class="hs">3&times; 2.9 kW OCP Winterfell &middot; Wash preheat</div></div>
+            <div class="hv">+CHF 7,463/yr</div>
+          </button>
+          <button class="host-btn on" data-h="pool" type="button">
+            <div><div class="hn">St. Jakob Swimming Pool</div><div class="hs">2&times; 10.4 kW NVIDIA GB300 &middot; Summer sink</div></div>
+            <div class="hv">+CHF 11,176/yr</div>
+          </button>
+          <button class="host-btn" data-h="hospital" type="button">
+            <div><div class="hn">St. Gallen Hospital Wing</div><div class="hs">2&times; 10.4 kW GB300 + Dual Tank &middot; 24/7 DHW</div></div>
+            <div class="hv">+CHF 19,907/yr</div>
+          </button>
         </div>
       </div>
-
-      <div class="act4-grid">
-        <div class="act4-rail">
-          <div style="display:flex;flex-direction:column;gap:8px" id="host-list">
-            <button class="host-btn" data-h="home" type="button">
-              <div><div class="hn">Basel Family Residence</div><div class="hs">4&times; 1 kW HydroNode &middot; CHF 0 upfront</div></div>
-              <div class="hv">+CHF 2,685/yr</div>
-            </button>
-            <button class="host-btn" data-h="dairy" type="button">
-              <div><div class="hn">Emmental Cheese Dairy</div><div class="hs">3&times; 2.9 kW Winterfell &middot; Wash-water preheat</div></div>
-              <div class="hv">+CHF 7,463/yr</div>
-            </button>
-            <button class="host-btn on" data-h="pool" type="button">
-              <div><div class="hn">St. Jakob Swimming Pool</div><div class="hs">2&times; 10.4 kW B200 AI &middot; Year-round summer sink</div></div>
-              <div class="hv">+CHF 11,176/yr</div>
-            </button>
-            <button class="host-btn" data-h="hospital" type="button">
-              <div><div class="hn">St. Gallen Hospital Wing</div><div class="hs">2&times; 10.4 kW B200 AI &middot; 24/7 sterilisation DHW</div></div>
-              <div class="hv">+CHF 19,907/yr</div>
-            </button>
-          </div>
-
-          <div class="split-card" style="padding:14px 16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span class="kpi-l">Live Customer Compute Tier</span>
-              <span id="p4-rate" style="font-size:15px;font-weight:800;color:#34d399">CHF 1.25/h (&minus;60%)</span>
-            </div>
-            <div class="seg" id="p4-tiers">
-              <button class="on em" data-t="spot" type="button">Spot (&minus;60%)</button>
-              <button data-t="od" type="button">On-Demand</button>
-              <button data-t="res" type="button">Reserved</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="studio-frame tilt-3d">
-          <div class="studio-bar">
-            <div class="dots"><i></i><i></i><i></i></div>
-            <div id="studio-title" style="font-size:12px;font-weight:600;color:#cbd5e1">CalorGrid 3D Twin &mdash; St. Jakob Pool Plant Room (Isaac Sim RTX)</div>
-            <a href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank" style="font-size:11.5px;font-weight:700;color:#6ee7b7;text-decoration:none">Pop Out &#8599;</a>
-          </div>
-          <div class="studio-viewport">
-            <video id="rtx-video" src="assets/video/loop_room_rtx_pool_16x9.mp4" poster="assets/video/loop_room_rtx_pool_16x9.jpg" autoplay muted loop playsinline></video>
-            <iframe id="live-iframe" title="Live CalorGrid 3D Web Portal" style="display:none;background:#f7f7f8"></iframe>
-            <div class="studio-hud" id="rtx-hud">
-              <div class="studio-badge">
-                <div class="kpi-l">Host Savings (CHF 0 CAPEX)</div>
-                <div id="hud-save" style="font-size:24px;font-weight:800;color:#34d399;margin-top:2px">+CHF 11,176/yr</div>
-              </div>
-              <div class="studio-badge">
-                <div class="kpi-l">Live Thermal Output</div>
-                <div id="hud-kw" style="font-size:24px;font-weight:800;color:#fb923c;margin-top:2px">16.6 kW &middot; 45 &deg;C</div>
-              </div>
-            </div>
-          </div>
-        </div>
+    </div>
+    <div class="kpi-row interactive" id="act4-kpis">
+      <div class="kpi green">
+        <div class="kpi-l">Selected Host Savings</div>
+        <div class="kpi-v green" id="p4-save">+CHF 11,176/yr</div>
+        <div class="kpi-s">CHF 0 upfront &middot; Keeps existing boiler</div>
+      </div>
+      <div class="kpi orange">
+        <div class="kpi-l">3D Thermal Output</div>
+        <div class="kpi-v orange" id="p4-kw">16.6 kW &middot; 45 &deg;C</div>
+        <div class="kpi-s" id="p4-hw">2&times; NVIDIA GB300 + Vertiv CDU + Dual Buffer</div>
       </div>
     </div>
   </section>
 
-  <!-- ACT 5: THE MONEY ENGINE (Stripe/Bloomberg Executive Studio + Real GPU Renders) -->
+  <!-- ACT 5: THE MONEY ENGINE (Live 3D Scaling GPU Rack Array + Pricing & Margin Simulator) -->
   <section class="act" data-act="4">
-    <div class="bg-studio"></div>
-    <div class="act-inner">
-      <div>
-        <div class="eyebrow gold">05 &middot; The Money Engine &amp; Scalable Profit</div>
-        <h1 class="title compact"><span class="hi">60% cheaper</span> than AWS.<br><span class="hi-g">20% net margin</span> at scale.</h1>
-      </div>
+    <div>
+      <div class="eyebrow gold">05 &middot; The Money Engine &amp; 3D Fleet Scale</div>
+      <h1 class="title compact"><span class="hi">60% cheaper</span> than AWS.<br><span class="hi-g">20% net margin</span> at scale.</h1>
 
-      <div class="act5-grid">
-        <div class="money-panel tilt-3d">
+      <div class="act5-col interactive">
+        <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:baseline">
-            <div style="font-size:15px;font-weight:700">H100 GPU Pricing vs. Cloud (CHF / GPU-hr)</div>
-            <div style="font-size:12px;color:#34d399;font-weight:700">Full All-In TCO + 20% Margin</div>
+            <span style="font-size:13.5px;font-weight:700">H100 Pricing vs. Cloud (CHF/GPU-hr)</span>
+            <span style="font-size:11px;font-weight:700;color:#34d399">All-In TCO + 20% Margin</span>
           </div>
-          <div class="bar-list">
-            <div class="bar-item">
-              <div class="top"><span style="color:#94a3b8">AWS US East (On-Demand)</span><strong>CHF 5.51 / h</strong></div>
-              <div class="bar-track"><div class="bar-fill" style="width:100%;background:#475569"></div></div>
-            </div>
-            <div class="bar-item">
-              <div class="top"><span style="color:#94a3b8">Specialist GPU Cloud Median</span><strong>CHF 3.60 / h</strong></div>
-              <div class="bar-track"><div class="bar-fill" style="width:65.3%;background:#64748b"></div></div>
-            </div>
-            <div class="bar-item">
-              <div class="top"><span><b>CalorGrid On-Demand</b> (0 ms instant)</span><strong style="color:#38bdf8">CHF 2.27 / h (&minus;59%)</strong></div>
-              <div class="bar-track"><div class="bar-fill" style="width:41.2%;background:linear-gradient(90deg,#0284c7,#38bdf8)"></div></div>
-            </div>
-            <div class="bar-item">
-              <div class="top"><span><b>CalorGrid Spot</b> (0-waste thermal window)</span><strong style="color:#34d399">CHF 1.25 / h (&minus;60% vs AWS Spot)</strong></div>
-              <div class="bar-track"><div class="bar-fill" style="width:22.7%;background:linear-gradient(90deg,#059669,#34d399)"></div></div>
-            </div>
+          <div class="bar-item">
+            <div class="top"><span style="color:#94a3b8">AWS US East (On-Demand)</span><strong>CHF 5.51 / h</strong></div>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;background:#475569"></div></div>
           </div>
-          <div class="hw-pair">
-            <div class="hw-card">
-              <img src="assets/gpu_b200_studio.jpg" alt="NVIDIA B200 Liquid-Cooled GPU">
-              <div class="hw-cap">NVIDIA B200 &middot; Spot CHF 1.98/h (&minus;88%)</div>
-            </div>
-            <div class="hw-card">
-              <img src="assets/gpu_h100_studio.jpg" alt="NVIDIA H100 Liquid-Cooled GPU">
-              <div class="hw-cap">NVIDIA H100 &middot; 520-GPU Alpine Cluster</div>
-            </div>
+          <div class="bar-item">
+            <div class="top"><span><b>CalorGrid On-Demand</b></span><strong style="color:#38bdf8">CHF 2.27 / h (&minus;59%)</strong></div>
+            <div class="bar-track"><div class="bar-fill" style="width:41.2%;background:linear-gradient(90deg,#0284c7,#38bdf8)"></div></div>
+          </div>
+          <div class="bar-item">
+            <div class="top"><span><b>CalorGrid Spot</b> (0-waste)</span><strong style="color:#34d399">CHF 1.25 / h (&minus;60%)</strong></div>
+            <div class="bar-track"><div class="bar-fill" style="width:22.7%;background:linear-gradient(90deg,#059669,#34d399)"></div></div>
           </div>
         </div>
 
-        <div class="money-panel tilt-3d" style="border-color:rgba(16,185,129,0.34)">
-          <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">Select Fleet Scale</div>
+        <div class="card" style="border-color:rgba(16,185,129,0.4)">
+          <div style="font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Click to Scale the 3D GPU Fleet Live</div>
           <div class="seg" id="scale-btns">
             <button class="on em" data-sc="0" type="button">65 Srv (Pilot)</button>
             <button data-sc="1" type="button">500 Srv (CH Grid)</button>
             <button data-sc="2" type="button">2,000 Srv (Alpine)</button>
           </div>
-          <div style="margin-top:20px">
+          <div style="margin-top:12px">
             <div class="kpi-l" style="color:#6ee7b7">Annual Net Profit (20% Net Margin)</div>
             <div class="big-profit" id="m-profit">CHF 1.25M</div>
-            <div id="m-fleet" style="font-size:13px;color:#cbd5e1">65 servers &middot; 520 H100 GPUs across 6 Alpine houses</div>
+            <div id="m-fleet" style="font-size:12px;color:#cbd5e1;margin-top:2px">65 servers &middot; 520 H100 GPUs across 6 Alpine houses</div>
           </div>
-          <div class="fin-grid">
-            <div class="fin-box">
+          <div class="mini-grid">
+            <div class="mini-box">
               <div class="kpi-l">Annual Revenue</div>
-              <div id="m-rev" style="font-size:21px;font-weight:800;color:#38bdf8;margin-top:3px">CHF 6.23M</div>
+              <div id="m-rev" style="font-size:18px;font-weight:800;color:#38bdf8;margin-top:2px">CHF 6.23M</div>
             </div>
-            <div class="fin-box">
+            <div class="mini-box">
               <div class="kpi-l">Host Gas Saved (&minus;87%)</div>
-              <div id="m-gas" style="font-size:21px;font-weight:800;color:#fb923c;margin-top:3px">CHF 227.5k</div>
-            </div>
-            <div class="fin-box">
-              <div class="kpi-l">Heat Covered</div>
-              <div style="font-size:21px;font-weight:800;color:#34d399;margin-top:3px">99.3%</div>
-            </div>
-            <div class="fin-box">
-              <div class="kpi-l">Stress Test vs AWS</div>
-              <div style="font-size:21px;font-weight:800;color:#fbbf24;margin-top:3px">&minus;22% Edge</div>
+              <div id="m-gas" style="font-size:18px;font-weight:800;color:#fb923c;margin-top:2px">CHF 227.5k</div>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <div></div>
   </section>
 
-  <!-- ACT 6: VISION & CLOSE (Photorealistic Swiss Alpine Twilight) -->
+  <!-- ACT 6: GLOBAL SCALE & CLOSE (Low-Angle Hero Orbit over 3D Switzerland + CH <-> NZ Global Arcs) -->
   <section class="act" data-act="5">
-    <img class="bg-media ken" src="assets/plate_swisstown.jpg" alt="Swiss Alpine village glowing warmly at twilight">
-    <div class="bg-scrim"></div>
-    <div class="act-inner">
-      <div style="margin-top: 2vh">
-        <div class="eyebrow green">06 &middot; Bankable Rollout &amp; Global Expansion</div>
-        <h1 class="title">Switzerland today.<br><span class="hi-g">Zero-waste global cloud</span> tomorrow.</h1>
-        <p class="lead">Anchor on year-round Basel pools and spas, expand to borehole homes, then pair Northern Hemisphere Swiss winters with Southern Hemisphere New Zealand winters for 100% heat capture.</p>
+    <div style="margin-top:2vh">
+      <div class="eyebrow green">06 &middot; Bankable Rollout &amp; Global Expansion</div>
+      <h1 class="title">Switzerland today.<br><span class="hi-g">Zero-waste global cloud</span> tomorrow.</h1>
+      <p class="lead">Anchor on year-round Basel pools and spas, scale to borehole homes, then pair Northern Hemisphere Swiss winters with Southern Hemisphere New Zealand winters for 100% heat capture.</p>
+    </div>
+    <div class="act-bottom-split">
+      <div class="kpi-row interactive">
+        <div class="kpi green">
+          <div class="kpi-l">Phase 1 &middot; M1&ndash;3</div>
+          <div class="kpi-v green" style="font-size:21px">Basel Pools &amp; Spas</div>
+          <div class="kpi-s">96% util &middot; Commercial C6</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-l">Phase 2 &middot; M4&ndash;6</div>
+          <div class="kpi-v" style="font-size:21px">Borehole Homes</div>
+          <div class="kpi-s">SIA 384/6 ground recharge</div>
+        </div>
+        <div class="kpi orange">
+          <div class="kpi-l">Phase 3 &middot; M6&ndash;12</div>
+          <div class="kpi-v orange" style="font-size:21px">CH &harr; NZ Global Spot</div>
+          <div class="kpi-s">100% capture &middot; 0.0 kWh waste</div>
+        </div>
       </div>
-      <div class="close-bottom">
-        <div class="kpi-strip">
-          <div class="kpi hl-green">
-            <div class="kpi-l">Phase 1 &middot; M1&ndash;3</div>
-            <div class="kpi-v green" style="font-size:22px">Basel Pools &amp; Spas</div>
-            <div class="kpi-s">96% util &middot; Commercial C6</div>
+      <div class="qr-row interactive">
+        <a class="qr-card" href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank">
+          <img src="assets/qr_live_app.svg" alt="Live App QR">
+          <div>
+            <div style="font-weight:800;font-size:13.5px;color:#6ee7b7">&#9654; Live 3D Web App &#8599;</div>
+            <div style="font-size:11px;color:#cbd5e1;margin-top:2px">Vaibhav &middot; Prakash &middot; Vilas</div>
           </div>
-          <div class="kpi">
-            <div class="kpi-l">Phase 2 &middot; M4&ndash;6</div>
-            <div class="kpi-v" style="font-size:22px">Borehole Homes</div>
-            <div class="kpi-s">SIA 384/6 ground recharge</div>
+        </a>
+        <a class="qr-card" href="https://github.com/prakash-aryan/calorgrid" target="_blank">
+          <img src="assets/qr_github_repo.svg" alt="GitHub QR">
+          <div>
+            <div style="font-weight:800;font-size:13.5px;color:#fdba74">GitHub Repository &#8599;</div>
+            <div style="font-size:11px;color:#cbd5e1;margin-top:2px">prakash-aryan/calorgrid</div>
           </div>
-          <div class="kpi hl-orange">
-            <div class="kpi-l">Phase 3 &middot; M6&ndash;12</div>
-            <div class="kpi-v orange" style="font-size:22px">CH &harr; NZ Global Spot</div>
-            <div class="kpi-s">100% capture &middot; 0.0 kWh waste</div>
-          </div>
-        </div>
-        <div class="qr-row">
-          <a class="qr-card" href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank">
-            <img src="assets/qr_live_app.svg" alt="Live App QR">
-            <div>
-              <div style="font-weight:800;font-size:14px;color:#6ee7b7">&#9654; Live 3D Web App &#8599;</div>
-              <div style="font-size:11.5px;color:#cbd5e1;margin-top:2px">Vaibhav &middot; Prakash &middot; Vilas</div>
-            </div>
-          </a>
-          <a class="qr-card" href="https://github.com/prakash-aryan/calorgrid" target="_blank">
-            <img src="assets/qr_github_repo.svg" alt="GitHub QR">
-            <div>
-              <div style="font-weight:800;font-size:14px;color:#fdba74">GitHub Repository &#8599;</div>
-              <div style="font-size:11.5px;color:#cbd5e1;margin-top:2px">prakash-aryan/calorgrid</div>
-            </div>
-          </a>
-        </div>
+        </a>
       </div>
     </div>
   </section>
 
-</main>
+</div>
 
-<nav class="dock" aria-label="Presentation Navigation">
+<!-- Live 4-Tab Web App Bezel (opens cleanly in Act 4 on demand) -->
+<div class="live-bezel" id="live-bezel">
+  <div class="bezel-bar">
+    <div style="display:flex;gap:6px">
+      <i style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.25);display:block"></i>
+      <i style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.25);display:block"></i>
+      <i style="width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.25);display:block"></i>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:#cbd5e1">Live CalorGrid 4-Tab WebGL Platform &mdash; Interactive Inside Slide</div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <a href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank" style="font-size:11.5px;font-weight:700;color:#6ee7b7;text-decoration:none">Pop Out &#8599;</a>
+      <button id="close-bezel" type="button" style="font:inherit;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,0.1);border:1px solid var(--border);color:#fff;cursor:pointer">Back to 3D</button>
+    </div>
+  </div>
+  <iframe id="live-iframe" title="CalorGrid Live 4-Tab Web Portal" style="width:100%;flex:1;border:0;background:#f7f7f8"></iframe>
+</div>
+
+<nav class="dock" aria-label="3D Presentation Navigation">
   <button class="d-arrow" id="prev" type="button" title="Previous">&#8592;</button>
   <button class="d-btn on" data-go="0" type="button">1. Paradox</button>
-  <button class="d-btn" data-go="1" type="button">2. Solution</button>
-  <button class="d-btn" data-go="2" type="button">3. 3D Swiss Map</button>
-  <button class="d-btn" data-go="3" type="button">4. Live 3D App</button>
-  <button class="d-btn" data-go="4" type="button">5. Money Engine</button>
+  <button class="d-btn" data-go="1" type="button">2. Dual-Loop 3D</button>
+  <button class="d-btn" data-go="2" type="button">3. 3D Swiss Alps</button>
+  <button class="d-btn" data-go="3" type="button">4. 3D Studio &amp; App</button>
+  <button class="d-btn" data-go="4" type="button">5. 3D Money Fleet</button>
   <button class="d-btn" data-go="5" type="button">6. Scale &amp; Close</button>
   <button class="d-arrow" id="next" type="button" title="Next">&#8594;</button>
 </nav>
 
 <script type="module">
-import * as THREE from "./assets/three.module.js";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 // ============================================================================
-// 1. SPATIAL 3D ACT NAVIGATION + SUBTLE POINTER 3D PARALLAX
+// 1. RENDERER, POLY HAVEN STUDIO HDRI & SELECTIVE UNREAL BLOOM PIPELINE
 // ============================================================================
-const acts = [...document.querySelectorAll(".act")];
-const dBtns = [...document.querySelectorAll(".d-btn")];
-let cur = 0;
-
-const stage3d = document.getElementById("stage3d");
-const studioFrame = document.querySelector(".studio-frame");
-
-function goAct(idx) {
-  cur = Math.max(0, Math.min(acts.length - 1, idx));
-  stage3d.scrollTop = 0;
-  stage3d.scrollLeft = 0;
-  window.scrollTo(0, 0);
-  acts.forEach((el, i) => {
-    el.classList.toggle("is-active", i === cur);
-    el.classList.toggle("is-past", i < cur);
-    el.querySelectorAll("video").forEach(v => {
-      if (i === cur) v.play().catch(() => {}); else v.pause();
-    });
-  });
-  dBtns.forEach((b, i) => b.classList.toggle("on", i === cur));
-  history.replaceState(null, "", `#${cur + 1}`);
-}
-
-dBtns.forEach(b => b.addEventListener("click", () => goAct(Number(b.dataset.go))));
-document.getElementById("prev").onclick = () => goAct(cur - 1);
-document.getElementById("next").onclick = () => goAct(cur + 1);
-window.addEventListener("keydown", e => {
-  if (["ArrowRight", " ", "PageDown", "ArrowDown"].includes(e.key)) { e.preventDefault(); goAct(cur + 1); }
-  else if (["ArrowLeft", "PageUp", "ArrowUp", "Backspace"].includes(e.key)) { e.preventDefault(); goAct(cur - 1); }
-  else if (e.key === "f" || e.key === "F") {
-    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
-  }
-});
-
-let wheelT = 0;
-window.addEventListener("wheel", e => {
-  if (e.target.closest("iframe") || Date.now() - wheelT < 700 || Math.abs(e.deltaY) < 28) return;
-  wheelT = Date.now();
-  goAct(cur + (e.deltaY > 0 ? 1 : -1));
-}, { passive: true });
-
-window.addEventListener("pointermove", e => {
-  const nx = (e.clientX / window.innerWidth - 0.5) * 2;
-  const ny = (e.clientY / window.innerHeight - 0.5) * 2;
-  document.documentElement.style.setProperty("--ry", `${(nx * 2.8).toFixed(2)}deg`);
-  document.documentElement.style.setProperty("--rx", `${(-ny * 2.2).toFixed(2)}deg`);
-});
-
-// ============================================================================
-// 2. ACT 4: REAL ISAAC SIM RTX 3D ROOM SWITCHER + LIVE 4-TAB PORTAL EMBED
-// ============================================================================
-const HOSTS = {
-  home:     { title: "Basel Family Residence — 4× HydroNode Basement (Isaac Sim RTX)", vid: "assets/video/loop_room_rtx_basement_16x9.mp4", poster: "assets/video/loop_room_rtx_basement_16x9.jpg", save: "+CHF 2,685/yr",  kw: "3.2 kW · 55 °C" },
-  dairy:    { title: "Emmental Cheese Dairy — 3× OCP Winterfell Room (Isaac Sim RTX)", vid: "assets/video/loop_room_rtx_dairy.mp4",          poster: "assets/video/loop_room_rtx_dairy.jpg",          save: "+CHF 7,463/yr",  kw: "6.9 kW · 52 °C" },
-  pool:     { title: "St. Jakob Pool — 2× NVIDIA B200 Plant Room (Isaac Sim RTX)",     vid: "assets/video/loop_room_rtx_pool_16x9.mp4",      poster: "assets/video/loop_room_rtx_pool_16x9.jpg",      save: "+CHF 11,176/yr", kw: "16.6 kW · 45 °C" },
-  hospital: { title: "St. Gallen Hospital — 2× B200 Thermal Wing (Isaac Sim RTX)",     vid: "assets/video/loop_rtx_stgallen.mp4",            poster: "assets/video/loop_rtx_stgallen.jpg",            save: "+CHF 19,907/yr", kw: "16.6 kW · 55 °C" },
-};
-const TIERS = {
-  spot: "CHF 1.25/h (−60%)",
-  od:   "CHF 2.27/h (−59%)",
-  res:  "CHF 1.36/h (−59%)",
-};
-const rtxVid = document.getElementById("rtx-video");
-const liveIf = document.getElementById("live-iframe");
-const rtxHud = document.getElementById("rtx-hud");
-let liveLoaded = false;
-
-function setAct4Mode(mode) {
-  const isLive = mode === "live";
-  document.getElementById("mode-rtx").classList.toggle("on", !isLive);
-  document.getElementById("mode-rtx").classList.toggle("em", !isLive);
-  document.getElementById("mode-live").classList.toggle("on", isLive);
-  document.getElementById("mode-live").classList.toggle("em", isLive);
-  rtxVid.style.display = isLive ? "none" : "block";
-  rtxHud.style.display = isLive ? "none" : "flex";
-  liveIf.style.display = isLive ? "block" : "none";
-  if (studioFrame) studioFrame.classList.toggle("is-live", isLive);
-  if (isLive) {
-    if (!liveLoaded) {
-      liveIf.src = "https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/";
-      liveLoaded = true;
-    }
-    document.getElementById("studio-title").textContent = "Live CalorGrid 4-Tab WebGL Platform — Interactive Inside Slide";
-  }
-}
-document.getElementById("mode-rtx").onclick = () => setAct4Mode("rtx");
-document.getElementById("mode-live").onclick = () => setAct4Mode("live");
-
-document.querySelectorAll("#host-list .host-btn").forEach(btn => {
-  btn.onclick = () => {
-    setAct4Mode("rtx");
-    document.querySelectorAll("#host-list .host-btn").forEach(b => b.classList.toggle("on", b === btn));
-    const h = HOSTS[btn.dataset.h];
-    document.getElementById("studio-title").textContent = h.title;
-    document.getElementById("hud-save").textContent = h.save;
-    document.getElementById("hud-kw").textContent = h.kw;
-    rtxVid.poster = h.poster;
-    rtxVid.src = h.vid;
-    rtxVid.play().catch(() => {});
-  };
-});
-document.querySelectorAll("#p4-tiers button").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll("#p4-tiers button").forEach(b => { b.classList.remove("on", "em"); });
-    btn.classList.add("on", "em");
-    document.getElementById("p4-rate").textContent = TIERS[btn.dataset.t];
-  };
-});
-
-// ============================================================================
-// 3. ACT 5: INTERACTIVE FLEET PROFIT SIMULATOR
-// ============================================================================
-const SCALES = [
-  { profit: "CHF 1.25M", rev: "CHF 6.23M", gas: "CHF 227.5k", fleet: "65 servers · 520 H100 GPUs across 6 Alpine houses" },
-  { profit: "CHF 9.62M", rev: "CHF 47.9M", gas: "CHF 1.75M",  fleet: "500 servers · 4,000 H100 GPUs across Swiss Grid" },
-  { profit: "CHF 38.5M", rev: "CHF 192M",  gas: "CHF 7.00M",  fleet: "2,000 servers · 16,000 H100 GPUs across Pan-Alpine Network" },
-];
-document.querySelectorAll("#scale-btns button").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll("#scale-btns button").forEach(b => b.classList.remove("on", "em"));
-    btn.classList.add("on", "em");
-    const sc = SCALES[Number(btn.dataset.sc)];
-    document.getElementById("m-profit").textContent = sc.profit;
-    document.getElementById("m-rev").textContent = sc.rev;
-    document.getElementById("m-gas").textContent = sc.gas;
-    document.getElementById("m-fleet").textContent = sc.fleet;
-  };
-});
-
-// ============================================================================
-// 4. ACT 3: REAL SCULPTED 3D SWISSTOPO SWITZERLAND RELIEF + FIBER LASER ARCS
-// ============================================================================
-const sCanvas = document.getElementById("swiss-canvas");
-const renderer = new THREE.WebGLRenderer({ canvas: sCanvas, antialias: true, powerPreference: "high-performance" });
+const canvas = document.getElementById("gl");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.22;
+renderer.toneMappingExposure = 1.08;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050912);
-scene.fog = new THREE.FogExp2(0x050912, 0.024);
+scene.background = new THREE.Color(0x05080f);
+scene.fog = new THREE.FogExp2(0x05080f, 0.0145);
 
-const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 140);
-camera.position.set(0.4, 10.6, 11.4);
-camera.lookAt(0, -0.4, 0.4);
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 180);
+camera.position.set(2.25, 1.52, 4.25);
 
-scene.add(new THREE.HemisphereLight(0xbae6fd, 0x0f172a, 1.0));
-const sun = new THREE.DirectionalLight(0xe0f2fe, 1.8);
-sun.position.set(8, 16, 10);
-scene.add(sun);
-const emLight = new THREE.PointLight(0x10b981, 32, 36);
-emLight.position.set(0, 5, 2);
-scene.add(emLight);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;
+controls.enableZoom = false; // wheel drives smooth 3D act transitions!
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minPolarAngle = 0.16;
 
-const loader = new THREE.TextureLoader();
-const colorTex = loader.load("assets/swiss_map_dark.jpg");
-colorTex.colorSpace = THREE.SRGBColorSpace;
-const dispTex = loader.load("assets/swiss_height.jpg");
+// Track manual orbit offset so users can inspect ANY 3D scene freely while smooth flights stay accurate
+let isUserDragging = false;
+let userOrbitActive = false;
+controls.addEventListener("start", () => { isUserDragging = true; userOrbitActive = true; });
+controls.addEventListener("end", () => { isUserDragging = false; });
 
-const MAP_W = 16.4, MAP_H = 10.86;
-const terrain = new THREE.Mesh(
-  new THREE.PlaneGeometry(MAP_W, MAP_H, 160, 108),
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.26, // restrained cinema bloom
+  0.34,
+  1.08  // strict HDR threshold: ONLY true emissive light sources & sparks bloom (zero fog on tanks/snow!)
+);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+// Load real CC0 Poly Haven Studio HDRI for authentic metallic & glass reflections
+const pmrem = new THREE.PMREMGenerator(renderer);
+new HDRLoader().load("assets/hdr/studio_small_09_1k.hdr", (hdrTex) => {
+  hdrTex.mapping = THREE.EquirectangularReflectionMapping;
+  scene.environment = pmrem.fromEquirectangular(hdrTex).texture;
+  scene.environmentIntensity = 0.92;
+  hdrTex.dispose();
+  pmrem.dispose();
+});
+
+// Sculpted Architectural Studio Lighting
+scene.add(new THREE.HemisphereLight(0xdbeafe, 0x090e1a, 0.52));
+const keyLight = new THREE.DirectionalLight(0xfff4e4, 1.65);
+keyLight.position.set(6, 12, 9);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 1;
+keyLight.shadow.camera.far = 42;
+keyLight.shadow.camera.left = -12;
+keyLight.shadow.camera.right = 12;
+keyLight.shadow.camera.top = 12;
+keyLight.shadow.camera.bottom = -12;
+keyLight.shadow.bias = -0.0005;
+scene.add(keyLight);
+scene.add(keyLight.target);
+
+const rimCool = new THREE.DirectionalLight(0x7dd3fc, 1.15);
+rimCool.position.set(-10, 7, -8);
+scene.add(rimCool);
+
+const accentLight = new THREE.PointLight(0xf97316, 8, 16, 1.8);
+accentLight.position.set(1.5, 2.6, 1.8);
+scene.add(accentLight);
+
+// ============================================================================
+// 2. SEAMLESS INFINITE OBSIDIAN STUDIO STAGE + CONTACT SHADOWS
+// ============================================================================
+function makeRadialTexture(stops) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  stops.forEach(([o, col]) => g.addColorStop(o, col));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+const glowTex = makeRadialTexture([[0, "rgba(255,255,255,1)"], [0.25, "rgba(255,255,255,0.75)"], [0.6, "rgba(255,255,255,0.18)"], [1, "rgba(255,255,255,0)"]]);
+const contactShadowTex = makeRadialTexture([[0, "rgba(0,0,0,0.82)"], [0.55, "rgba(0,0,0,0.38)"], [1, "rgba(0,0,0,0)"]]);
+
+// One seamless dark obsidian studio floor fading invisibly into fog (ZERO grey cut-out horizon!)
+const infiniteFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(600, 600),
   new THREE.MeshStandardMaterial({
-    map: colorTex, displacementMap: dispTex, displacementScale: 1.65,
-    roughness: 0.58, metalness: 0.25,
+    color: 0x060a12, roughness: 0.72, metalness: 0.14, envMapIntensity: 0.16,
   })
 );
-terrain.rotation.x = -Math.PI / 2;
-scene.add(terrain);
+infiniteFloor.rotation.x = -Math.PI / 2;
+infiniteFloor.position.y = -0.002;
+infiniteFloor.receiveShadow = true;
+scene.add(infiniteFloor);
 
-const SWISS_NODES = [
-  { id: "basel",    label: "Basel Homes",       x: 369.1, y: 109.4, sink: false, ox: -34, oy: -12 },
-  { id: "st_jakob", label: "St. Jakob Pool",    x: 396.0, y: 142.0, sink: true,  ox:  48, oy:  12 },
-  { id: "zurich",   label: "Zurich Homes",      x: 563.6, y: 164.5, sink: false, ox:   0, oy: -10 },
-  { id: "stgallen", label: "St. Gallen Hosp.",  x: 734.0, y: 150.2, sink: true,  ox:  14, oy: -10 },
-  { id: "bern",     label: "Bern Homes",        x: 340.3, y: 293.3, sink: false, ox: -36, oy:  -4 },
-  { id: "emmental", label: "Emmental Dairy",    x: 428.0, y: 296.0, sink: true,  ox:  44, oy:   8 },
-  { id: "davos",    label: "Davos Alpine Spa",  x: 827.7, y: 336.6, sink: true,  ox:   0, oy:  -8 },
-  { id: "geneva",   label: "Geneva Homes",      x:  85.0, y: 495.0, sink: false, ox:  10, oy:  -8 },
-  { id: "zermatt",  label: "Zermatt / Saas-Fee",x: 432.0, y: 518.0, sink: true,  ox:   0, oy:  -8 },
-  { id: "lugano",   label: "Lugano",            x: 642.0, y: 565.0, sink: false, ox:   0, oy:  -6 },
-];
-const pinsWrap = document.getElementById("swiss-pins");
-const nodes = {};
-
-function to3D(nx, ny) {
-  const u = nx / 1000.0, v = ny / 662.1;
-  return new THREE.Vector3((u - 0.5) * MAP_W, 0.55 + Math.max(0, v - 0.35) * 0.95, (v - 0.5) * MAP_H);
+function makeStageRings(parent, radius = 3.8, accentHex = 0x38bdf8) {
+  [radius * 0.62, radius, radius * 1.48].forEach((r, idx) => {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(r - 0.012, r + 0.012, 96),
+      new THREE.MeshBasicMaterial({ color: idx === 0 ? accentHex : 0xffffff, transparent: true, opacity: idx === 0 ? 0.24 : 0.06, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.004;
+    parent.add(ring);
+  });
 }
 
-SWISS_NODES.forEach(n => {
-  const p = to3D(n.x, n.y);
-  const bMat = new THREE.MeshBasicMaterial({ color: n.sink ? 0x10b981 : 0xf97316 });
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, n.sink ? 0.95 : 0.72, 16), bMat);
-  cyl.position.set(p.x, p.y + 0.45, p.z);
-  scene.add(cyl);
-  const el = document.createElement("div");
-  el.className = "spin " + (n.sink ? "sink" : "warm");
-  el.textContent = n.label;
-  pinsWrap.appendChild(el);
-  nodes[n.id] = { ...n, p, cyl, bMat, el };
-});
+function addShadowPad(parent, x, z, sx, sz) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(sx, sz),
+    new THREE.MeshBasicMaterial({ map: contactShadowTex, transparent: true, depthWrite: false })
+  );
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.006, z);
+  parent.add(m);
+}
 
-const ROUTES = [
-  ["basel", "st_jakob"], ["zurich", "stgallen"], ["bern", "emmental"],
-  ["zurich", "davos"], ["geneva", "zermatt"], ["lugano", "davos"],
+// Floating Subtle Atmospheric Bokeh Motes across all 4 3D showroom zones
+const moteCount = 650;
+const motePos = new Float32Array(moteCount * 3);
+for (let i = 0; i < moteCount; i++) {
+  motePos[i * 3]     = (Math.random() - 0.5) * 230;
+  motePos[i * 3 + 1] = 0.6 + Math.random() * 16;
+  motePos[i * 3 + 2] = -125 + Math.random() * 145;
+}
+const moteGeo = new THREE.BufferGeometry();
+moteGeo.setAttribute("position", new THREE.BufferAttribute(motePos, 3));
+const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+  map: glowTex, color: 0x94a3b8, size: 0.16, transparent: true, opacity: 0.28,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+scene.add(motes);
+
+// ============================================================================
+// 3. REAL BLENDER PBR GLB LOADER (DRACO WASM + STUDIO MATERIAL CALIBRATION)
+// ============================================================================
+const draco = new DRACOLoader();
+draco.setDecoderPath("assets/three/jsm/libs/draco/gltf/");
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(draco);
+
+function enhanceMat(root, key) {
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of mats) {
+      if (key === "swiss") {
+        if (m.name === "ArchitecturalPlinthMat") { o.visible = false; return; }
+        o.castShadow = false;
+        if (m.map) m.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        m.roughness = 0.86;
+        m.metalness = 0.02;
+        m.envMapIntensity = 0.35;
+        continue;
+      }
+      if (key === "gb300") {
+        m.color = new THREE.Color(0xd8e0ea);
+        m.envMapIntensity = 1.05;
+        if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0.05) {
+          m.color = new THREE.Color(0xffffff);
+          m.emissiveIntensity = 1.9;
+        }
+        continue;
+      }
+      if (key === "ocpPop" || key === "vr3307") {
+        m.color = new THREE.Color(key === "ocpPop" ? 0xcfd7e2 : 0xc0cad6);
+        m.envMapIntensity = 0.92;
+        continue;
+      }
+      const c = m.color;
+      const isDark = c && c.r < 0.05 && c.g < 0.05 && c.b < 0.05;
+      if (m.name === "vertiv_black" || isDark) {
+        m.color = new THREE.Color(0x232b37);
+        m.metalness = 0.56;
+        m.roughness = 0.30;
+        m.envMapIntensity = 1.15;
+      } else if (key === "tank") {
+        m.color = new THREE.Color(0x7c8a99);
+        m.metalness = 0.72;
+        m.roughness = 0.32;
+        m.envMapIntensity = 0.78;
+      } else if (m.metalness !== undefined && m.metalness > 0.65) {
+        m.roughness = Math.max(0.22, Math.min(0.40, m.roughness ?? 0.28));
+        m.envMapIntensity = 0.95;
+      }
+    }
+  });
+}
+
+function normalizeGLB(root, rotY = 0, key = "") {
+  const wrap = new THREE.Group();
+  if (rotY) root.rotation.y = rotY;
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const ctr = box.getCenter(new THREE.Vector3());
+  root.position.x -= ctr.x;
+  root.position.z -= ctr.z;
+  root.position.y -= box.min.y;
+  enhanceMat(root, key);
+  wrap.add(root);
+  return wrap;
+}
+
+const TEMPLATES = {};
+const ASSET_LIST = [
+  ["gb300",  "assets/glb/hardware_gb300_rack.glb",         0],
+  ["ocpPop", "assets/glb/hardware_ocp_populated_rack.glb", 0],
+  ["vr3307", "assets/glb/hardware_vr3307_rack.glb",        0],
+  ["cdu",    "assets/glb/hardware_cdu_exchanger.glb",     -Math.PI / 2],
+  ["tank",   "assets/glb/hardware_buffer_tank.glb",        0],
+  ["valve",  "assets/glb/hardware_valve_3way.glb",         0],
+  ["panel",  "assets/glb/hardware_power_panel.glb",        0],
+  ["swiss",  "assets/glb/switzerland_3d_relief.glb",       0],
 ];
-const arcs = ROUTES.map(([aId, bId], i) => {
-  const a = nodes[aId].p, b = nodes[bId].p;
-  const mid = a.clone().lerp(b, 0.5);
-  mid.y += 1.7 + (i % 2) * 0.6;
-  const curve = new THREE.QuadraticBezierCurve3(a.clone().add(new THREE.Vector3(0, 0.55, 0)), mid, b.clone().add(new THREE.Vector3(0, 0.55, 0)));
-  const tMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.42 });
-  scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 36, 0.042, 8, false), tMat));
-  const pMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
-  const pkt = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), pMat);
-  scene.add(pkt);
-  return { curve, tMat, pkt, pMat, off: i / ROUTES.length };
+
+let loadedN = 0;
+const lFill = document.getElementById("l-fill");
+await Promise.all(ASSET_LIST.map(([key, url, rotY]) => new Promise((res) => {
+  gltfLoader.load(url, (gltf) => {
+    TEMPLATES[key] = key === "swiss" ? (() => { enhanceMat(gltf.scene, "swiss"); return gltf.scene; })() : normalizeGLB(gltf.scene, rotY, key);
+    loadedN++;
+    lFill.style.width = `${Math.round((loadedN / ASSET_LIST.length) * 100)}%`;
+    res();
+  }, undefined, (err) => { console.error("GLB error:", url, err); res(); });
+})));
+
+const cloneT = (k) => TEMPLATES[k].clone(true);
+
+// ============================================================================
+// 4. ZONE A [0, 0, 0]: ACT 1 HERO GB300 RACK + ACT 2 FULL DUAL-LOOP PLANT ROOM
+// ============================================================================
+const zoneA = new THREE.Group();
+scene.add(zoneA);
+makeStageRings(zoneA, 3.6, 0xf97316);
+
+// Hero GB300 Liquid Rack (Act 1 focal centerpiece + Act 2 core rack)
+const heroRack = cloneT("gb300");
+heroRack.position.set(0.35, 0, 0.05);
+heroRack.scale.set(1.08, 1.0, 0.92);
+zoneA.add(heroRack);
+addShadowPad(zoneA, 0.35, 0.05, 1.75, 2.0);
+
+// Glowing thermal waste-heat rising plume (Act 1 ONLY — collapses smoothly in Act 2 when captured!)
+const plumeN = 90;
+const plumePos = new Float32Array(plumeN * 3);
+const plumeSpd = new Float32Array(plumeN);
+for (let i = 0; i < plumeN; i++) {
+  plumePos[i * 3]     = 0.35 + (Math.random() - 0.5) * 0.62;
+  plumePos[i * 3 + 1] = 2.02 + Math.random() * 1.8;
+  plumePos[i * 3 + 2] = 0.05 + (Math.random() - 0.5) * 0.85;
+  plumeSpd[i] = 0.50 + Math.random() * 0.85;
+}
+const plumeGeo = new THREE.BufferGeometry();
+plumeGeo.setAttribute("position", new THREE.BufferAttribute(plumePos, 3));
+const plumeMat = new THREE.PointsMaterial({
+  map: glowTex, color: new THREE.Color(2.2, 0.95, 0.25), size: 0.34, transparent: true, opacity: 0.62,
+  blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+});
+const wastePlume = new THREE.Points(plumeGeo, plumeMat);
+zoneA.add(wastePlume);
+
+// Dual-Loop Companion Assembly (glides cleanly up from floor when transitioning Act 1 -> Act 2!)
+const plantGroup = new THREE.Group();
+plantGroup.position.y = -2.8;
+plantGroup.visible = false;
+zoneA.add(plantGroup);
+
+const aPanel = cloneT("panel");  aPanel.position.set(-1.35, 0, -0.35); plantGroup.add(aPanel);
+const aOcp   = cloneT("ocpPop"); aOcp.position.set(-0.48, 0, -0.05); aOcp.scale.set(1.08, 0.98, 0.92); plantGroup.add(aOcp);
+const aCdu   = cloneT("cdu");    aCdu.position.set(1.52, 0, -0.08); plantGroup.add(aCdu);
+const aTank  = cloneT("tank");   aTank.position.set(2.82, 0, -0.08); aTank.scale.set(1.16, 1.35, 1.16); plantGroup.add(aTank);
+const aValve = cloneT("valve");  aValve.position.set(2.18, 0.72, -0.45); aValve.scale.set(0.75, 0.75, 0.75); plantGroup.add(aValve);
+addShadowPad(plantGroup, -1.35, -0.35, 1.4, 1.5);
+addShadowPad(plantGroup, -0.48, -0.05, 1.5, 1.7);
+addShadowPad(plantGroup,  1.52, -0.08, 1.8, 1.6);
+addShadowPad(plantGroup,  2.82, -0.08, 1.9, 1.9);
+
+// Tight realistic architectural copper & steel manifolds anchored cleanly into top/bottom ports!
+const loopHotCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0.35, 2.08, -0.18),
+  new THREE.Vector3(0.35, 2.30, -0.18),
+  new THREE.Vector3(1.52, 2.30, -0.18),
+  new THREE.Vector3(1.52, 2.12, -0.18),
+  new THREE.Vector3(2.15, 1.86, -0.20),
+  new THREE.Vector3(2.82, 1.70, -0.12),
+]);
+const loopColdCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(2.82, 0.42, 0.25),
+  new THREE.Vector3(2.15, 0.42, 0.25),
+  new THREE.Vector3(1.52, 0.48, 0.22),
+  new THREE.Vector3(0.35, 0.48, 0.22),
+]);
+const copperMat = new THREE.MeshStandardMaterial({ color: 0xc2652a, emissive: 0xea580c, emissiveIntensity: 0.45, roughness: 0.26, metalness: 0.85 });
+const coolMat   = new THREE.MeshStandardMaterial({ color: 0x3882a6, emissive: 0x0284c7, emissiveIntensity: 0.42, roughness: 0.26, metalness: 0.85 });
+plantGroup.add(new THREE.Mesh(new THREE.TubeGeometry(loopHotCurve, 44, 0.028, 12, false), copperMat));
+plantGroup.add(new THREE.Mesh(new THREE.TubeGeometry(loopColdCurve, 36, 0.026, 12, false), coolMat));
+
+const flowBeads = [];
+for (let i = 0; i < 8; i++) {
+  const isHot = i < 5;
+  const bead = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: isHot ? new THREE.Color(2.4, 1.1, 0.35) : new THREE.Color(0.45, 1.8, 2.6),
+    transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+  }));
+  bead.scale.set(0.24, 0.24, 1);
+  plantGroup.add(bead);
+  flowBeads.push({ mesh: bead, curve: isHot ? loopHotCurve : loopColdCurve, off: (i % 5) / 5, spd: isHot ? 0.26 : 0.22 });
+}
+
+// ============================================================================
+// 5. ZONE B [95, 0, -24]: REAL BORDER-CUT 3D SWISSTOPO ALPS + OPTICAL BEACONS
+// ============================================================================
+const ZB = new THREE.Vector3(95, 0, -24);
+const zoneB = new THREE.Group();
+zoneB.position.copy(ZB);
+scene.add(zoneB);
+
+// Delicate emerald orbital horizon ring beneath the border-cut Alps (ZERO gray disc!)
+const chHaloRing = new THREE.Mesh(
+  new THREE.RingGeometry(18.6, 18.74, 128),
+  new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+);
+chHaloRing.rotation.x = -Math.PI / 2;
+chHaloRing.position.y = 0.48;
+zoneB.add(chHaloRing);
+
+const swissRelief = cloneT("swiss");
+zoneB.add(swissRelief);
+
+// Exact LV95 calibrated 3D coordinates on switzerland_3d_relief.glb
+const SWISS_SITES = [
+  { id: "basel",    label: "Basel MFH",        c: [-5.18, 0.61, -8.46], sink: false, ox: -36, oy: -12 },
+  { id: "st_jakob", label: "St. Jakob Pool",   c: [-4.72, 0.63, -7.76], sink: true,  ox:  48, oy:  12 },
+  { id: "zurich",   label: "Zurich Homes",     c: [ 2.34, 0.77, -6.68], sink: false, ox:   0, oy: -10 },
+  { id: "stgallen", label: "St. Gallen Hosp.", c: [ 8.71, 0.96, -7.01], sink: true,  ox:  14, oy: -10 },
+  { id: "bern",     label: "Bern Homes",       c: [-5.87, 0.84, -1.47], sink: false, ox: -34, oy:  -4 },
+  { id: "emmental", label: "Emmental Dairy",   c: [-3.76, 1.01, -2.69], sink: true,  ox:  46, oy:   8 },
+  { id: "lucerne",  label: "Lucerne",          c: [ 0.38, 0.84, -2.47], sink: false, ox:   0, oy:  16 },
+  { id: "davos",    label: "Davos Alpine Spa", c: [12.30, 1.84, -0.12], sink: true,  ox:   8, oy: -10 },
+  { id: "geneva",   label: "Geneva Homes",     c: [-16.03,0.73,  6.96], sink: false, ox:  10, oy:  -8 },
+  { id: "valais",   label: "Valais Thermal",   c: [-6.61, 0.92,  6.48], sink: true,  ox:   0, oy: -10 },
+  { id: "lugano",   label: "Lugano",           c: [ 5.91, 0.75,  8.92], sink: false, ox:   0, oy:  -8 },
+];
+
+const pinsLayer = document.getElementById("pins-layer");
+const swissNodes = {};
+
+// Sleek Stripe-Globe optical light needles & expanding pulse rings (ZERO chunky LEGO sticks!)
+SWISS_SITES.forEach((s, idx) => {
+  const pos = new THREE.Vector3(...s.c);
+  const g = new THREE.Group();
+  g.position.copy(pos);
+  zoneB.add(g);
+
+  const col = s.sink ? 0x34d399 : 0xfb923c;
+  const stemMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.78 });
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, s.sink ? 1.15 : 0.82, 10), stemMat);
+  stem.position.y = (s.sink ? 1.15 : 0.82) * 0.5;
+  g.add(stem);
+
+  const orbMat = new THREE.MeshBasicMaterial({ color: s.sink ? 0xa7f3d0 : 0xffedd5 });
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 16), orbMat);
+  orb.position.y = s.sink ? 1.18 : 0.85;
+  g.add(orb);
+
+  const sprMat = new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+  const spr = new THREE.Sprite(sprMat);
+  spr.position.y = orb.position.y;
+  spr.scale.set(1.2, 1.2, 1);
+  g.add(spr);
+
+  const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.25, 32), ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.08;
+  g.add(ring);
+
+  const el = document.createElement("div");
+  el.className = "pin-city " + (s.sink ? "sink" : "warm");
+  el.textContent = s.label;
+  pinsLayer.appendChild(el);
+
+  swissNodes[s.id] = { ...s, pos, g, stemMat, orbMat, sprMat, ringMat, ring, el, phase: idx * 0.6 };
 });
 
-let season = "winter";
+const SWISS_ARCS = [
+  ["basel", "st_jakob"], ["basel", "zurich"], ["zurich", "stgallen"],
+  ["bern", "emmental"], ["zurich", "davos"], ["geneva", "valais"],
+  ["valais", "emmental"], ["lugano", "davos"], ["lucerne", "stgallen"],
+];
+
+function makeGradientFiberArc(p1, p2, apexBoost, colA, colB) {
+  const mid = p1.clone().lerp(p2, 0.5);
+  mid.y = Math.max(p1.y, p2.y) + apexBoost;
+  const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
+  const geo = new THREE.TubeGeometry(curve, 44, 0.036, 8, false);
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const ca = new THREE.Color(colA), cb = new THREE.Color(colB), tc = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const u = Math.min(1, Math.floor(i / 9) / 44);
+    tc.copy(ca).lerp(cb, u);
+    colors[i * 3] = tc.r; colors[i * 3 + 1] = tc.g; colors[i * 3 + 2] = tc.b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false });
+  const mesh = new THREE.Mesh(geo, mat);
+  zoneB.add(mesh);
+
+  const pkt = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(1.4, 2.3, 1.9), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  pkt.scale.set(0.95, 0.95, 1);
+  zoneB.add(pkt);
+  return { curve, mesh, mat, pkt };
+}
+
+const fiberArcs = SWISS_ARCS.map(([aId, bId], i) => {
+  const a = swissNodes[aId].pos.clone().add(new THREE.Vector3(0, 0.35, 0));
+  const b = swissNodes[bId].pos.clone().add(new THREE.Vector3(0, 0.35, 0));
+  const arc = makeGradientFiberArc(a, b, 1.8 + (i % 3) * 0.65, 0xf97316, 0x34d399);
+  arc.off = i / SWISS_ARCS.length;
+  return arc;
+});
+
+// Act 6 Graceful Intercontinental CH <-> NZ Orbital Fiber Arcs curving smoothly across upper-right sky
+const globalArcs = [
+  makeGradientFiberArc(new THREE.Vector3(-4.72, 1.0, -7.76), new THREE.Vector3(17, 1.2, -14), 9.2, 0x34d399, 0x38bdf8),
+  makeGradientFiberArc(new THREE.Vector3( 2.34, 1.1, -6.68), new THREE.Vector3(21, 1.2, -10), 8.0, 0xfb923c, 0x34d399),
+  makeGradientFiberArc(new THREE.Vector3(12.30, 2.2, -0.12), new THREE.Vector3(23, 1.2,  -4), 6.8, 0x34d399, 0xfbbf24),
+];
+globalArcs.forEach((a, i) => { a.off = i * 0.33; a.mat.opacity = 0; a.pkt.visible = false; });
+
+let seasonMode = "winter";
 function setSeason(m) {
-  season = m;
+  seasonMode = m;
   const isSum = m === "summer";
   document.getElementById("s3-win").classList.toggle("on", !isSum);
   document.getElementById("s3-win").classList.toggle("warm", !isSum);
@@ -956,64 +1061,479 @@ function setSeason(m) {
   document.getElementById("s3-sum").classList.toggle("em", isSum);
   document.getElementById("s3-temp").textContent = isSum ? "Jul · 29 °C" : "Jan · 1 °C";
   document.getElementById("s3-sub").textContent = isSum ? "9.3 kW shifted in 2 ms → pools & spas" : "100% captured locally in winter";
-  Object.values(nodes).forEach(n => {
-    n.bMat.color.setHex(isSum ? (n.sink ? 0x10b981 : 0x38bdf8) : (n.sink ? 0x10b981 : 0xf97316));
-    n.cyl.scale.y = isSum ? (n.sink ? 1.45 : 0.62) : (n.sink ? 1.0 : 1.25);
-    n.el.className = "spin " + (isSum ? (n.sink ? "sink" : "") : (n.sink ? "sink" : "warm"));
+  Object.values(swissNodes).forEach(n => {
+    const col = isSum ? (n.sink ? 0x34d399 : 0x38bdf8) : (n.sink ? 0x34d399 : 0xfb923c);
+    n.stemMat.color.setHex(col);
+    n.sprMat.color.setHex(col);
+    n.ringMat.color.setHex(col);
+    n.el.className = "pin-city " + (curAct === 2 ? "show " : "") + (isSum ? (n.sink ? "sink" : "") : (n.sink ? "sink" : "warm"));
   });
-  arcs.forEach(a => {
-    a.tMat.color.setHex(isSum ? 0x10b981 : 0xf97316);
-    a.tMat.opacity = isSum ? 0.88 : 0.36;
-    a.pMat.color.setHex(isSum ? 0x6ee7b7 : 0xfde047);
-  });
+  fiberArcs.forEach(a => { a.mat.opacity = isSum ? 0.92 : 0.42; });
 }
 document.getElementById("s3-win").onclick = () => setSeason("winter");
 document.getElementById("s3-sum").onclick = () => setSeason("summer");
 
-let drag = false, dx0 = 0, dy0 = 0, yaw = 0, tyaw = 0, pitch = 0, tpitch = 0;
-sCanvas.addEventListener("pointerdown", e => { drag = true; dx0 = e.clientX; dy0 = e.clientY; });
-window.addEventListener("pointermove", e => {
-  if (!drag) return;
-  tyaw = Math.max(-0.55, Math.min(0.55, tyaw - (e.clientX - dx0) * 0.004));
-  tpitch = Math.max(-0.22, Math.min(0.26, tpitch + (e.clientY - dy0) * 0.003));
-  dx0 = e.clientX; dy0 = e.clientY;
+// ============================================================================
+// 6. ZONE C [-95, 0, -24]: ACT 4 LIVE INTERACTIVE 3D HOST HARDWARE CONFIGURATOR
+// ============================================================================
+const ZC = new THREE.Vector3(-95, 0, -24);
+const zoneC = new THREE.Group();
+zoneC.position.copy(ZC);
+scene.add(zoneC);
+makeStageRings(zoneC, 4.4, 0x10b981);
+
+const hostStageGroup = new THREE.Group();
+zoneC.add(hostStageGroup);
+
+// Sleek circular dark obsidian anodized turntable plinth
+const plinth = new THREE.Mesh(
+  new THREE.CylinderGeometry(3.45, 3.62, 0.14, 72),
+  new THREE.MeshStandardMaterial({ color: 0x0d1320, roughness: 0.42, metalness: 0.55, envMapIntensity: 0.45 })
+);
+plinth.position.y = 0.07;
+plinth.receiveShadow = true;
+zoneC.add(plinth);
+
+const plinthRing = new THREE.Mesh(
+  new THREE.TorusGeometry(3.52, 0.018, 12, 96),
+  new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.7, 1.1), toneMapped: false })
+);
+plinthRing.rotation.x = Math.PI / 2;
+plinthRing.position.y = 0.145;
+zoneC.add(plinthRing);
+
+const HOST_PRESETS = {
+  home: {
+    save: "+CHF 2,685/yr", kw: "3.2 kW · 55 °C", hw: "4× VR3307 HydroNode + Vertiv CDU + 1,000 L Buffer",
+    color: 0x38bdf8,
+    items: [
+      { k: "vr3307", p: [-1.55, 0.14, -0.15], s: [0.95, 0.72, 0.76] },
+      { k: "vr3307", p: [-0.88, 0.14, -0.15], s: [0.95, 0.72, 0.76] },
+      { k: "vr3307", p: [-0.21, 0.14, -0.15], s: [0.95, 0.72, 0.76] },
+      { k: "vr3307", p: [ 0.46, 0.14, -0.15], s: [0.95, 0.72, 0.76] },
+      { k: "cdu",    p: [ 1.32, 0.14, -0.15], s: [0.82, 0.82, 0.82] },
+      { k: "tank",   p: [ 2.22, 0.14, -0.15], s: [0.95, 1.15, 0.95] },
+    ],
+  },
+  dairy: {
+    save: "+CHF 7,463/yr", kw: "6.9 kW · 52 °C", hw: "3× OCP Winterfell Racks + Vertiv CDU + 1,000 L Buffer",
+    color: 0xfbbf24,
+    items: [
+      { k: "ocpPop", p: [-1.45, 0.14, -0.15], s: [1.08, 0.96, 0.92] },
+      { k: "ocpPop", p: [-0.62, 0.14, -0.15], s: [1.08, 0.96, 0.92] },
+      { k: "ocpPop", p: [ 0.21, 0.14, -0.15], s: [1.08, 0.96, 0.92] },
+      { k: "cdu",    p: [ 1.25, 0.14, -0.15], s: [0.95, 0.95, 0.95] },
+      { k: "tank",   p: [ 2.30, 0.14, -0.15], s: [1.10, 1.32, 1.10] },
+    ],
+  },
+  pool: {
+    save: "+CHF 11,176/yr", kw: "16.6 kW · 45 °C", hw: "2× NVIDIA GB300 AI Racks + Vertiv CDU + Dual Buffer",
+    color: 0x10b981,
+    items: [
+      { k: "gb300", p: [-1.38, 0.14, -0.12], s: [1.12, 1.02, 0.92] },
+      { k: "gb300", p: [-0.42, 0.14, -0.12], s: [1.12, 1.02, 0.92] },
+      { k: "cdu",   p: [ 0.72, 0.14, -0.12], s: [1.0,  1.0,  1.0 ] },
+      { k: "tank",  p: [ 1.82, 0.14, -0.32], s: [1.05, 1.35, 1.05] },
+      { k: "tank",  p: [ 1.82, 0.14,  0.72], s: [1.05, 1.35, 1.05] },
+    ],
+  },
+  hospital: {
+    save: "+CHF 19,907/yr", kw: "16.6 kW · 55 °C", hw: "2× GB300 + Power Panel + CDU + Dual Buffer (24/7)",
+    color: 0xf97316,
+    items: [
+      { k: "panel", p: [-2.05, 0.14, -0.20], s: [0.92, 0.92, 0.92] },
+      { k: "gb300", p: [-1.15, 0.14, -0.12], s: [1.12, 1.02, 0.92] },
+      { k: "gb300", p: [-0.20, 0.14, -0.12], s: [1.12, 1.02, 0.92] },
+      { k: "cdu",   p: [ 0.92, 0.14, -0.12], s: [1.02, 1.02, 1.02] },
+      { k: "tank",  p: [ 2.02, 0.14, -0.32], s: [1.08, 1.38, 1.08] },
+      { k: "tank",  p: [ 2.02, 0.14,  0.72], s: [1.08, 1.38, 1.08] },
+    ],
+  },
+};
+
+let hostAnimProgress = 1;
+function buildHost3D(key) {
+  hostStageGroup.clear();
+  const cfg = HOST_PRESETS[key];
+  plinthRing.material.color.setHex(cfg.color);
+  document.getElementById("p4-save").textContent = cfg.save;
+  document.getElementById("p4-kw").textContent = cfg.kw;
+  document.getElementById("p4-hw").textContent = cfg.hw;
+  cfg.items.forEach(it => {
+    const m = cloneT(it.k);
+    m.position.set(...it.p);
+    m.scale.set(...it.s);
+    hostStageGroup.add(m);
+  });
+  hostAnimProgress = 0;
+}
+buildHost3D("pool");
+
+// ============================================================================
+// 7. ZONE D [0, 0, -110]: ACT 5 LIVE 3D SCALING GPU FLEET SHOWROOM
+// ============================================================================
+const ZD = new THREE.Vector3(0, 0, -110);
+const zoneD = new THREE.Group();
+zoneD.position.copy(ZD);
+scene.add(zoneD);
+makeStageRings(zoneD, 5.2, 0x10b981);
+
+// 3 Tiers of Real 3D Liquid GPU Rack Rows (Tier 0 = 4 racks, Tier 1 = 10 racks, Tier 2 = 18 racks!)
+const fleetRows = [[], [], []];
+const FLEET_LAYOUT = [
+  // Tier 0 (Pilot 65 Srv): Front hero row of 3 GB300 racks + CDU
+  { tier: 0, k: "gb300",  p: [-1.1, 0,  1.2] },
+  { tier: 0, k: "gb300",  p: [-0.2, 0,  1.2] },
+  { tier: 0, k: "gb300",  p: [ 0.7, 0,  1.2] },
+  { tier: 0, k: "cdu",    p: [ 1.85, 0, 1.2] },
+  // Tier 1 (CH Grid 500 Srv): Second row of 5 populated racks + tank
+  { tier: 1, k: "ocpPop", p: [-2.0, 0, -0.9] },
+  { tier: 1, k: "gb300",  p: [-1.1, 0, -0.9] },
+  { tier: 1, k: "gb300",  p: [-0.2, 0, -0.9] },
+  { tier: 1, k: "gb300",  p: [ 0.7, 0, -0.9] },
+  { tier: 1, k: "ocpPop", p: [ 1.6, 0, -0.9] },
+  { tier: 1, k: "tank",   p: [ 2.75, 0, -0.9] },
+  // Tier 2 (Alpine 2,000 Srv): Full 3rd row of 7 liquid racks + CDU
+  { tier: 2, k: "gb300",  p: [-2.9, 0, -3.1] },
+  { tier: 2, k: "ocpPop", p: [-2.0, 0, -3.1] },
+  { tier: 2, k: "gb300",  p: [-1.1, 0, -3.1] },
+  { tier: 2, k: "gb300",  p: [-0.2, 0, -3.1] },
+  { tier: 2, k: "gb300",  p: [ 0.7, 0, -3.1] },
+  { tier: 2, k: "gb300",  p: [ 1.6, 0, -3.1] },
+  { tier: 2, k: "ocpPop", p: [ 2.5, 0, -3.1] },
+  { tier: 2, k: "cdu",    p: [ 3.65, 0, -3.1] },
+];
+
+FLEET_LAYOUT.forEach(item => {
+  const m = cloneT(item.k);
+  m.position.set(item.p[0], item.tier === 0 ? 0 : -2.8, item.p[2]);
+  m.visible = item.tier === 0;
+  if (item.k === "gb300") m.scale.set(1.06, 1.0, 0.90);
+  if (item.k === "tank")  m.scale.set(1.12, 1.35, 1.12);
+  m.userData.targetY = item.tier === 0 ? 0 : -2.8;
+  zoneD.add(m);
+  fleetRows[item.tier].push(m);
+  addShadowPad(zoneD, item.p[0], item.p[2], 1.4, 1.6);
 });
-window.addEventListener("pointerup", () => { drag = false; });
+
+const SCALES = [
+  { profit: "CHF 1.25M", rev: "CHF 6.23M", gas: "CHF 227.5k", fleet: "65 servers · 520 H100 GPUs across 6 Alpine houses",  cam: [ 2.6, 2.4, -103.6], tgt: [-1.1, 1.05, -109.0] },
+  { profit: "CHF 9.62M", rev: "CHF 47.9M", gas: "CHF 1.75M",  fleet: "500 servers · 4,000 H100 GPUs across Swiss Grid",    cam: [ 4.4, 3.3, -101.8], tgt: [-1.3, 1.05, -110.1] },
+  { profit: "CHF 38.5M", rev: "CHF 192M",  gas: "CHF 7.00M",  fleet: "2,000 servers · 16,000 H100 GPUs across Alps",       cam: [ 6.1, 4.3,  -99.8], tgt: [-1.4, 1.05, -111.2] },
+];
+let curScale = 0;
+function setFleetScale(scIdx) {
+  curScale = scIdx;
+  const sc = SCALES[scIdx];
+  document.getElementById("m-profit").textContent = sc.profit;
+  document.getElementById("m-rev").textContent = sc.rev;
+  document.getElementById("m-gas").textContent = sc.gas;
+  document.getElementById("m-fleet").textContent = sc.fleet;
+  fleetRows.forEach((row, tier) => {
+    const active = tier <= scIdx;
+    row.forEach(m => {
+      m.userData.targetY = active ? 0 : -2.8;
+      if (active) m.visible = true;
+    });
+  });
+  if (curAct === 4) {
+    setCamTarget(new THREE.Vector3(...sc.cam), new THREE.Vector3(...sc.tgt));
+  }
+}
+document.querySelectorAll("#scale-btns button").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("#scale-btns button").forEach(b => b.classList.remove("on", "em"));
+    btn.classList.add("on", "em");
+    setFleetScale(Number(btn.dataset.sc));
+  };
+});
+
+// ============================================================================
+// 8. ACT 2 INTERACTIVE 3D HARDWARE HOTSPOTS (Click to Macro-Zoom in 3D!)
+// ============================================================================
+const HW_HOTSPOTS = [
+  {
+    id: "rack", num: "1", label: "GB300 Liquid Rack",
+    pos: new THREE.Vector3(0.35, 1.95, 0.45),
+    cam: new THREE.Vector3(1.15, 1.48, 2.55), tgt: new THREE.Vector3(0.15, 1.15, 0.05),
+    tag: "1 · NVIDIA GB300 Direct-to-Chip Rack",
+    desc: "Direct liquid cold-plates capture ~80% of electrical energy silently at 55 °C—earning 20% net margin at −60% vs AWS.",
+  },
+  {
+    id: "cdu", num: "2", label: "Sealed Plate CDU",
+    pos: new THREE.Vector3(1.52, 1.78, 0.42),
+    cam: new THREE.Vector3(2.25, 1.48, 2.55), tgt: new THREE.Vector3(1.38, 1.05, -0.05),
+    tag: "2 · Vertiv Liebert CDU & Plate Exchanger",
+    desc: "Closed-loop stainless plate exchanger transfers heat into the host's heating pipes with zero dielectric-to-potable water contact.",
+  },
+  {
+    id: "tank", num: "3", label: "1,000 L Buffer Tank",
+    pos: new THREE.Vector3(2.82, 1.55, 0.48),
+    cam: new THREE.Vector3(3.65, 1.52, 2.65), tgt: new THREE.Vector3(2.65, 0.98, -0.05),
+    tag: "3 · 1,000 L Thermal Storage Buffer",
+    desc: "Buffers hourly thermal demand so hosts save +CHF 2.7k to +CHF 19.9k/yr with CHF 0 upfront CAPEX while keeping their existing boiler.",
+  },
+];
+const hwEls = HW_HOTSPOTS.map(h => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "pin-hw";
+  btn.innerHTML = `<span class="pin-dot">${h.num}</span><span>${h.label}</span>`;
+  btn.onclick = () => {
+    hwEls.forEach(x => x.btn.classList.toggle("on", x.btn === btn));
+    document.getElementById("hw-focus-tag").textContent = h.tag;
+    document.getElementById("hw-focus-desc").textContent = h.desc;
+    setCamTarget(h.cam, h.tgt);
+  };
+  pinsLayer.appendChild(btn);
+  return { ...h, btn };
+});
+document.getElementById("hw-reset-cam").onclick = () => {
+  hwEls.forEach(x => x.btn.classList.remove("on"));
+  document.getElementById("hw-focus-tag").textContent = "Full Dual-Loop Assembly";
+  document.getElementById("hw-focus-desc").textContent = "Dielectric GPU coolant delivers 55 °C heat through a sealed Vertiv plate exchanger into the building's 1,000 L hydronic loop—zero potable-water contact.";
+  setCamTarget(ACT_CAMS[1].pos, ACT_CAMS[1].tgt);
+};
+
+// ============================================================================
+// 9. CONTINUOUS 3D CAMERA FLIGHT CHOREOGRAPHY ACROSS ALL 6 ACTS
+// ============================================================================
+const ACT_CAMS = [
+  // Act 1: Dramatic 3/4 Full-Height Hero GB300 Liquid Rack on right 55% (feet to top clearly framed!)
+  { pos: new THREE.Vector3(2.25, 1.52, 4.25),    tgt: new THREE.Vector3(-0.32, 1.05, 0.05),   light: new THREE.Vector3(0.5, 2.4, 1.8),    col: 0xf97316 },
+  // Act 2: Sweeping Architectural View of Complete Real PBR Dual-Loop Plant Room
+  { pos: new THREE.Vector3(1.55, 2.38, 6.45),    tgt: new THREE.Vector3(-0.18, 1.02, -0.10),  light: new THREE.Vector3(1.6, 2.8, 1.5),    col: 0x10b981 },
+  // Act 3: Real Border-Cut 3D Swisstopo Alps framed cleanly right-center (zero overlap, Davos & Lugano inside!)
+  { pos: new THREE.Vector3(89.2, 20.6, 7.6),     tgt: new THREE.Vector3(90.5, 0.6, -26.5),    light: new THREE.Vector3(95, 9, -22),       col: 0x34d399 },
+  // Act 4: Live Interactive 3D Host Configurator Pedestal framed cleanly right of rail
+  { pos: new THREE.Vector3(-92.8, 2.38, -17.4),  tgt: new THREE.Vector3(-96.2, 1.02, -24.1),  light: new THREE.Vector3(-94, 3.2, -22),    col: 0x10b981 },
+  // Act 5: Live 3D Scaling GPU Fleet Showroom (updates dynamically with 65/500/2000 tier!)
+  { pos: new THREE.Vector3(2.6, 2.4, -103.6),    tgt: new THREE.Vector3(-1.1, 1.05, -109.0),  light: new THREE.Vector3(1.0, 3.8, -108),   col: 0x10b981 },
+  // Act 6: Dramatic Low-Angle Hero Orbit over 3D Swiss Alps + Graceful CH <-> NZ Global Arcs
+  { pos: new THREE.Vector3(80.5, 11.2, -3.5),    tgt: new THREE.Vector3(93.8, 2.2, -25.8),    light: new THREE.Vector3(97, 10, -24),      col: 0xfb923c },
+];
+
+const desiredPos = ACT_CAMS[0].pos.clone();
+const desiredTgt = ACT_CAMS[0].tgt.clone();
+const desiredLightPos = ACT_CAMS[0].light.clone();
+const desiredLightCol = new THREE.Color(ACT_CAMS[0].col);
+
+function setCamTarget(pos, tgt) {
+  userOrbitActive = false;
+  desiredPos.copy(pos);
+  desiredTgt.copy(tgt);
+}
+
+const actEls = [...document.querySelectorAll(".act")];
+const dockBtns = [...document.querySelectorAll(".d-btn")];
+const liveBezel = document.getElementById("live-bezel");
+const liveIframe = document.getElementById("live-iframe");
+let liveLoaded = false;
+let curAct = 0;
+
+function setAct4Bezel(open) {
+  liveBezel.classList.toggle("open", open);
+  document.getElementById("mode-3d").classList.toggle("on", !open);
+  document.getElementById("mode-3d").classList.toggle("em", !open);
+  document.getElementById("mode-web").classList.toggle("on", open);
+  document.getElementById("mode-web").classList.toggle("em", open);
+  document.getElementById("act4-kpis").style.opacity = open ? "0" : "1";
+  if (open && !liveLoaded) {
+    liveIframe.src = "https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/";
+    liveLoaded = true;
+  }
+}
+document.getElementById("mode-3d").onclick = () => setAct4Bezel(false);
+document.getElementById("mode-web").onclick = () => setAct4Bezel(true);
+document.getElementById("close-bezel").onclick = () => setAct4Bezel(false);
+
+document.querySelectorAll("#host-list .host-btn").forEach(btn => {
+  btn.onclick = () => {
+    setAct4Bezel(false);
+    document.querySelectorAll("#host-list .host-btn").forEach(b => b.classList.toggle("on", b === btn));
+    buildHost3D(btn.dataset.h);
+  };
+});
+
+function goAct(idx) {
+  curAct = Math.max(0, Math.min(actEls.length - 1, idx));
+  window.scrollTo(0, 0);
+  if (curAct !== 3) setAct4Bezel(false);
+
+  actEls.forEach((el, i) => el.classList.toggle("on", i === curAct));
+  dockBtns.forEach((b, i) => b.classList.toggle("on", i === curAct));
+  history.replaceState(null, "", `#${curAct + 1}`);
+
+  const c = curAct === 4
+    ? { pos: new THREE.Vector3(...SCALES[curScale].cam), tgt: new THREE.Vector3(...SCALES[curScale].tgt), light: ACT_CAMS[4].light, col: ACT_CAMS[4].col }
+    : ACT_CAMS[curAct];
+
+  setCamTarget(c.pos, c.tgt);
+  desiredLightPos.copy(c.light);
+  desiredLightCol.setHex(c.col);
+
+  // Move shadow-casting directional key light smoothly onto the active stage!
+  keyLight.target.position.copy(c.tgt);
+  keyLight.position.copy(c.tgt).add(new THREE.Vector3(7, 13, 9));
+
+  // Toggle pin layers & distant off-camera zones cleanly (zero horizon ghosting!)
+  zoneD.visible = (curAct === 4);
+  zoneC.visible = (curAct === 3);
+  Object.values(swissNodes).forEach(n => n.el.classList.toggle("show", curAct === 2));
+  hwEls.forEach(h => h.btn.classList.toggle("show", curAct === 1));
+  globalArcs.forEach(a => {
+    a.mat.opacity = curAct === 5 ? 0.85 : 0.0;
+    a.pkt.visible = curAct === 5;
+  });
+}
+
+dockBtns.forEach(b => b.addEventListener("click", () => goAct(Number(b.dataset.go))));
+document.getElementById("prev").onclick = () => goAct(curAct - 1);
+document.getElementById("next").onclick = () => goAct(curAct + 1);
+
+window.addEventListener("keydown", e => {
+  if (["ArrowRight", " ", "PageDown", "ArrowDown"].includes(e.key)) { e.preventDefault(); goAct(curAct + 1); }
+  else if (["ArrowLeft", "PageUp", "ArrowUp", "Backspace"].includes(e.key)) { e.preventDefault(); goAct(curAct - 1); }
+  else if (e.key === "f" || e.key === "F") {
+    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+  }
+});
+
+let wheelLock = 0;
+window.addEventListener("wheel", e => {
+  if (e.target.closest("iframe") || Date.now() - wheelLock < 650 || Math.abs(e.deltaY) < 26) return;
+  wheelLock = Date.now();
+  goAct(curAct + (e.deltaY > 0 ? 1 : -1));
+}, { passive: true });
+
+let mouseX = 0, mouseY = 0;
+window.addEventListener("pointermove", e => {
+  mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+  mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+});
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
-const h0 = parseInt((location.hash || "#1").slice(1), 10);
-if (!isNaN(h0) && h0 >= 1 && h0 <= acts.length) goAct(h0 - 1);
+const hInit = parseInt((location.hash || "#1").slice(1), 10);
+if (!isNaN(hInit) && hInit >= 1 && hInit <= actEls.length) {
+  goAct(hInit - 1);
+  camera.position.copy(desiredPos);
+  controls.target.copy(desiredTgt);
+} else {
+  goAct(0);
+}
+document.getElementById("loader").classList.add("done");
 
+// ============================================================================
+// 10. 60 FPS CINEMATIC RENDER LOOP
+// ============================================================================
 const clock = new THREE.Clock();
-const tmp = new THREE.Vector3();
-function tick() {
-  requestAnimationFrame(tick);
+const proj = new THREE.Vector3();
+
+function animate() {
+  requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   const t = clock.elapsedTime;
-  if (cur === 2) {
-    yaw += (tyaw - yaw) * (1 - Math.exp(-5 * dt));
-    pitch += (tpitch - pitch) * (1 - Math.exp(-5 * dt));
-    const ang = yaw + Math.sin(t * 0.35) * 0.04;
-    camera.position.set(Math.sin(ang) * 14.2 - 2.6, 11.4 + pitch * 8, Math.cos(ang) * 13.6 - 1.2);
-    camera.lookAt(-2.6, 0.1, -1.6);
-    const spd = season === "summer" ? 0.42 : 0.18;
-    arcs.forEach(a => a.pkt.position.copy(a.curve.getPointAt((t * spd + a.off) % 1)));
-    Object.values(nodes).forEach(n => {
-      tmp.set(n.p.x, n.p.y + 1.15, n.p.z).project(camera);
-      n.el.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth + (n.ox || 0)}px`;
-      n.el.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight + (n.oy || 0)}px`;
-    });
-    renderer.render(scene, camera);
+  const k = 1 - Math.exp(-3.8 * dt);
+
+  // 1. Smooth damped 3D camera flight (yields immediately when user drags to orbit!)
+  if (!userOrbitActive) {
+    const px = mouseX * (curAct === 2 || curAct === 5 ? 0.65 : 0.16);
+    const py = -mouseY * (curAct === 2 || curAct === 5 ? 0.35 : 0.10);
+    camera.position.lerp(new THREE.Vector3(desiredPos.x + px, desiredPos.y + py, desiredPos.z), k);
+    controls.target.lerp(desiredTgt, k);
   }
+  controls.update();
+
+  // Smooth accent lighting & subtle dust drift
+  accentLight.position.lerp(desiredLightPos, k);
+  accentLight.color.lerp(desiredLightCol, k);
+  motes.rotation.y = t * 0.012;
+
+  // 2. Act 1 <-> Act 2 animations: hero rack gentle showcase + waste plume vs dual-loop reveal
+  const showPlant = curAct === 1;
+  if (showPlant) plantGroup.visible = true;
+  plantGroup.position.y += ((showPlant ? 0 : -2.8) - plantGroup.position.y) * (1 - Math.exp(-4.5 * dt));
+  if (!showPlant && plantGroup.position.y < -2.65) plantGroup.visible = false;
+  plumeMat.opacity += ((curAct === 0 ? 0.65 : 0.0) - plumeMat.opacity) * (1 - Math.exp(-5 * dt));
+  heroRack.rotation.y += ((curAct === 0 ? Math.sin(t * 0.45) * 0.25 : 0) - heroRack.rotation.y) * k;
+
+  if (curAct === 0) {
+    const arr = plumeGeo.attributes.position.array;
+    for (let i = 0; i < plumeN; i++) {
+      arr[i * 3 + 1] += plumeSpd[i] * dt;
+      arr[i * 3] += Math.sin(t * 2 + i) * 0.003;
+      if (arr[i * 3 + 1] > 4.2) {
+        arr[i * 3]     = 0.35 + (Math.random() - 0.5) * 0.68;
+        arr[i * 3 + 1] = 2.02;
+        arr[i * 3 + 2] = 0.05 + (Math.random() - 0.5) * 0.88;
+      }
+    }
+    plumeGeo.attributes.position.needsUpdate = true;
+  }
+
+  if (showPlant) {
+    flowBeads.forEach(b => b.mesh.position.copy(b.curve.getPointAt((t * b.spd + b.off) % 1)));
+    hwEls.forEach(h => {
+      proj.copy(h.pos).project(camera);
+      h.btn.style.left = `${(proj.x * 0.5 + 0.5) * window.innerWidth}px`;
+      h.btn.style.top  = `${(-proj.y * 0.5 + 0.5) * window.innerHeight}px`;
+    });
+  }
+
+  // 3. Act 3 & Act 6: Swiss Alps Beacons & Fiber Sparks
+  if (curAct === 2 || curAct === 5) {
+    const spd = seasonMode === "summer" ? 0.46 : 0.22;
+    fiberArcs.forEach(a => a.pkt.position.copy(a.curve.getPointAt((t * spd + a.off) % 1)));
+    if (curAct === 5) {
+      globalArcs.forEach(a => a.pkt.position.copy(a.curve.getPointAt((t * 0.32 + a.off) % 1)));
+    }
+    Object.values(swissNodes).forEach(n => {
+      const p = (t * 0.75 + n.phase) % 1;
+      n.ring.scale.setScalar(0.8 + p * 2.4);
+      n.ringMat.opacity = (1 - p) * 0.62;
+      if (curAct === 2) {
+        proj.copy(n.pos).add(ZB).add(new THREE.Vector3(0, 1.35, 0)).project(camera);
+        n.el.style.left = `${(proj.x * 0.5 + 0.5) * window.innerWidth + n.ox}px`;
+        n.el.style.top  = `${(-proj.y * 0.5 + 0.5) * window.innerHeight + n.oy}px`;
+      }
+    });
+  }
+
+  // 4. Act 4: Turntable subtle showcase + smooth spawn rise
+  if (curAct === 3) {
+    hostAnimProgress = Math.min(1, hostAnimProgress + dt * 2.6);
+    const e = 1 - Math.pow(1 - hostAnimProgress, 3);
+    hostStageGroup.position.y = (1 - e) * -0.55;
+    hostStageGroup.rotation.y = Math.sin(t * 0.35) * 0.22;
+  }
+
+  // 5. Act 5: Smoothly elevate scaling 3D rack rows!
+  if (curAct === 4) {
+    fleetRows.forEach(row => row.forEach(m => {
+      m.position.y += (m.userData.targetY - m.position.y) * (1 - Math.exp(-5.2 * dt));
+      if (m.userData.targetY < -2 && m.position.y < -2.6) m.visible = false;
+    }));
+  }
+
+  composer.render();
 }
-window.__GO_ACT__ = goAct;
+
+window.__GO_ACT__ = (i) => {
+  goAct(i);
+  camera.position.copy(desiredPos);
+  controls.target.copy(desiredTgt);
+  plantGroup.visible = i === 1;
+  plantGroup.position.y = i === 1 ? 0 : -2.8;
+  if (i === 4) fleetRows.forEach(row => row.forEach(m => { m.position.y = m.userData.targetY; m.visible = m.userData.targetY >= -1; }));
+};
 window.__READY_3D__ = true;
-tick();
+animate();
 </script>
 </body>
 </html>
