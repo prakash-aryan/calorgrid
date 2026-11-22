@@ -9061,8 +9061,47 @@ body:not(.app-mode-atlas) .compute-overlay {
   }
 }
 
+/* ============================================================================
+   FLUID FULL-WIDTH WIDESCREEN DESKTOP & SAFE SCROLLING (ALL RESOLUTIONS)
+   Eliminates huge empty side white margins on 1920px-2560px+ laptops/monitors
+   and guarantees zero clipped corners or hidden bottom Logs across every screen.
+   ============================================================================ */
+@media (min-width: 1081px) {
+  body:not(.app-mode-atlas) .cockpit-header {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+  body:not(.app-mode-atlas) .brand-cluster,
+  .swiss-network-overlay > *,
+  .app-split-shell,
+  .cc-shell {
+    max-width: 2160px !important;
+    width: 100% !important;
+  }
+  .swiss-network-overlay,
+  .configurator-overlay,
+  .heatledger-overlay,
+  .compute-overlay,
+  .app-overlay {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  .sn-body {
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 24vw, 450px) !important;
+  }
+  .app-split-shell {
+    grid-template-columns: minmax(0, 1fr) clamp(360px, 28vw, 490px) !important;
+  }
+  .cc-main-grid {
+    grid-template-columns: minmax(340px, 430px) minmax(0, 1fr) !important;
+  }
+}
+
 /* Prevent horizontal corner clipping on medium/narrow desktop windows (1081px - 1340px) */
 @media (min-width: 1081px) and (max-width: 1340px) {
+  body:not(.app-mode-atlas) .cockpit-header,
   .swiss-network-overlay,
   .app-overlay,
   .compute-overlay {
@@ -9080,5 +9119,27 @@ body:not(.app-mode-atlas) .compute-overlay {
   .cc-main-grid {
     grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) !important;
     gap: 12px !important;
+  }
+}
+
+/* Mobile & Tablet (<= 1080px): safe bottom breathing space above bottom nav for Logs & CTAs */
+@media (max-width: 1080px) {
+  .swiss-network-overlay,
+  .configurator-overlay,
+  .heatledger-overlay,
+  .compute-overlay,
+  .app-overlay {
+    padding-bottom: 84px !important;
+    overflow-x: hidden !important;
+  }
+  .cc-shell,
+  .cc-main-grid,
+  .cc-table-wrap {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .cc-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
