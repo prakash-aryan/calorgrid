@@ -2,6 +2,18 @@
 
 Two-sided decentralized heat-and-compute platform, 3D Swiss digital twin, conserved thermal-compute scheduler, live cloud GPU pricing engine and real CPU batch worker built by Team Invincibles (Vaibhav Motwani, Prakash Aryan and Vilas Harapanahalli) for the Sprintd Basel GreenTech Edition.
 
+## Live Links & Deliverables
+
+| Deliverable | Link |
+|---|---|
+| **Live Website Deployment (3D Web Portal)** | https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/ |
+| **Video Pitch & Live Portal Demo (Google Drive, no login)** | https://drive.google.com/file/d/12Og6d8koNJB6a1F6XPIgZtelmSdu8u-g/view?usp=sharing |
+| **Interactive Pitch Deck (HTML Webpage)** | https://calorgrid-deck.pages.dev/ |
+| **Pitch Deck (PDF)** | https://calorgrid-deck.pages.dev/CalorGrid_Round1_Deck.pdf |
+| **Technical Report (PDF)** | https://calorgrid-deck.pages.dev/CalorGrid_Technical_Report.pdf |
+
+![CalorGrid Live 4-Tab Swiss 3D Portal Walkthrough](docs/calorgrid_portal_demo.gif)
+
 ## Two-Sided Platform Overview
 
 CalorGrid turns compute electricity into useful building heat without operating a centralized cloud warehouse:
