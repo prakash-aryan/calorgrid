@@ -8,9 +8,11 @@ Two-sided decentralized heat-and-compute platform, 3D Swiss digital twin, conser
 |---|---|
 | **Live Website Deployment (3D Web Portal)** | https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/ |
 | **Video Pitch & Live Portal Demo (Google Drive, no login)** | https://drive.google.com/file/d/12Og6d8koNJB6a1F6XPIgZtelmSdu8u-g/view?usp=sharing |
-| **Interactive Pitch Deck (HTML Webpage)** | https://calorgrid-deck.pages.dev/ |
+| **Interactive 3D Cinematic Deck & Embedded 3D Demo (HTML)** | https://calorgrid-deck.pages.dev/3d/ |
+| **Interactive Pitch Deck (Excalidraw HTML)** | https://calorgrid-deck.pages.dev/ |
 | **Pitch Deck (PDF)** | https://calorgrid-deck.pages.dev/CalorGrid_Round1_Deck.pdf |
 | **Technical Report (PDF)** | https://calorgrid-deck.pages.dev/CalorGrid_Technical_Report.pdf |
+| **Post-Hackathon Retrospective & 3D Upgrade Notes** | [docs/HACKATHON_LESSONS.md](docs/HACKATHON_LESSONS.md) |
 
 ![CalorGrid Live 4-Tab Swiss 3D Portal Walkthrough](docs/calorgrid_portal_demo.gif)
 

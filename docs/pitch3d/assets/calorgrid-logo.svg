@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" role="img" aria-label="CalorGrid logo">
+  <defs>
+    <linearGradient id="cg-mark-bg" x1="4" y1="2" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="55%" stop-color="#d9480f"/>
+      <stop offset="100%" stop-color="#b9380c"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="37" height="37" rx="10.5" fill="url(#cg-mark-bg)"/>
+  <rect x="2" y="2" width="36" height="36" rx="10" stroke="#ffffff" stroke-opacity="0.26" stroke-width="1"/>
+  <path d="M26.5 14.2A8.5 8.5 0 1 0 26.5 25.8" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
+  <rect x="17" y="17" width="6" height="6" rx="1.6" fill="#ffffff" fill-opacity="0.96"/>
+  <circle cx="28.2" cy="12.2" r="2.6" fill="#fde047"/>
+</svg>

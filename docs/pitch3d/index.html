@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>CalorGrid 3D — Interactive Executive &amp; Platform Experience</title>
+<link rel="icon" type="image/svg+xml" href="assets/calorgrid-logo.svg">
+<style>
+  :root {
+    --bg: #050811;
+    --ink: #f8fafc;
+    --muted: #94a3b8;
+    --glass: rgba(11, 18, 32, 0.68);
+    --glass-border: rgba(148, 163, 184, 0.22);
+    --orange: #f97316;
+    --vermilion: #ea580c;
+    --emerald: #10b981;
+    --cyan: #38bdf8;
+    --gold: #facc15;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Display", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  #webgl {
+    position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+    cursor: grab;
+  }
+  #webgl:active { cursor: grabbing; }
+
+  /* Subtle cinematic vignette */
+  .vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 2;
+    background:
+      radial-gradient(ellipse at 50% 48%, rgba(5,8,17,0) 42%, rgba(4,7,15,0.62) 100%),
+      linear-gradient(180deg, rgba(5,8,17,0.55) 0%, rgba(5,8,17,0) 16%, rgba(5,8,17,0) 76%, rgba(5,8,17,0.78) 100%);
+  }
+
+  /* Top glass navigation bar */
+  header.topbar {
+    position: fixed; top: 14px; left: 18px; right: 18px; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    pointer-events: none;
+  }
+  .brand-pill {
+    pointer-events: auto;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 7px 14px 7px 9px; border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  }
+  .brand-pill img { width: 24px; height: 24px; display: block; }
+  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--orange); }
+  .brand-tag {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    padding-left: 8px; border-left: 1px solid rgba(148,163,184,0.28);
+  }
+  .top-links {
+    pointer-events: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .top-btn {
+    font: inherit; font-size: 12px; font-weight: 700; text-decoration: none;
+    color: var(--ink); padding: 7px 13px; border-radius: 999px;
+    background: var(--glass); backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border); cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+  .top-btn:hover { transform: translateY(-1px); border-color: rgba(248,250,252,0.45); background: rgba(20,30,52,0.85); }
+  .top-btn.accent {
+    background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.55); color: #6ee7b7;
+  }
+
+  /* Story HUD overlay container */
+  .hud-layer {
+    position: fixed; inset: 0; z-index: 10; pointer-events: none;
+    display: flex; align-items: stretch; justify-content: space-between;
+    padding: 74px 28px 84px;
+  }
+  .act-panel {
+    position: absolute; inset: 74px 28px 86px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    opacity: 0; transform: translateY(18px);
+    transition: opacity 0.55s cubic-bezier(.2,.8,.2,1), transform 0.65s cubic-bezier(.2,.8,.2,1);
+    pointer-events: none;
+  }
+  .act-panel.active { opacity: 1; transform: none; }
+  .act-panel.active .interactive { pointer-events: auto; }
+
+  .hero-copy {
+    max-width: 560px;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 11.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--orange); margin-bottom: 10px;
+  }
+  .eyebrow.emerald { color: #34d399; }
+  .eyebrow.cyan { color: var(--cyan); }
+  .eyebrow.gold { color: var(--gold); }
+  .eyebrow::before {
+    content: ""; width: 18px; height: 2px; background: currentColor; border-radius: 2px;
+  }
+  .headline {
+    font-size: clamp(28px, 3.8vw, 52px); font-weight: 800;
+    line-height: 1.06; letter-spacing: -0.035em;
+    color: #ffffff;
+    text-shadow: 0 8px 34px rgba(0,0,0,0.65);
+  }
+  .headline em {
+    font-style: normal;
+    background: linear-gradient(95deg, #fb923c, #facc15);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .headline em.em-green {
+    background: linear-gradient(95deg, #34d399, #38bdf8);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .lead {
+    margin-top: 12px; font-size: clamp(14px, 1.35vw, 17px); line-height: 1.48;
+    color: #cbd5e1; max-width: 500px;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.75);
+  }
+
+  /* Glass metric & control cards */
+  .money-row {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; max-width: 920px;
+  }
+  .glass-card {
+    background: var(--glass); backdrop-filter: blur(18px);
+    border: 1px solid var(--glass-border); border-radius: 16px;
+    padding: 14px 18px; box-shadow: 0 12px 38px rgba(0,0,0,0.38);
+    min-width: 170px;
+  }
+  .glass-card.glow-green { border-color: rgba(16,185,129,0.48); background: rgba(6, 36, 29, 0.72); }
+  .glass-card.glow-orange { border-color: rgba(249,115,22,0.48); background: rgba(42, 18, 8, 0.72); }
+  .glass-card.glow-cyan { border-color: rgba(56,189,248,0.45); background: rgba(8, 28, 48, 0.72); }
+  .glass-card.glow-gold { border-color: rgba(250,204,21,0.45); background: rgba(38, 30, 8, 0.72); }
+
+  .m-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+  .m-val {
+    font-size: clamp(24px, 2.7vw, 38px); font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.1; margin-top: 3px; font-variant-numeric: tabular-nums;
+  }
+  .m-val.orange { color: #fb923c; }
+  .m-val.green { color: #34d399; }
+  .m-val.cyan { color: #38bdf8; }
+  .m-val.gold { color: #fde047; }
+  .m-sub { font-size: 12.5px; color: #cbd5e1; margin-top: 4px; }
+
+  /* Interactive floating widget dock (right side on desktop, bottom on mobile) */
+  .split-body {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 18px;
+    flex-wrap: wrap;
+  }
+  .control-dock {
+    background: rgba(9, 15, 28, 0.80); backdrop-filter: blur(20px);
+    border: 1px solid rgba(148,163,184,0.28); border-radius: 18px;
+    padding: 16px 18px; width: min(410px, 100%);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.48);
+  }
+  .dock-title {
+    font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cyan); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .seg-group {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .seg-btn {
+    flex: 1 1 auto; font: inherit; font-size: 12.5px; font-weight: 700;
+    padding: 8px 11px; border-radius: 10px; cursor: pointer;
+    background: rgba(255,255,255,0.06); color: #cbd5e1;
+    border: 1px solid rgba(148,163,184,0.22);
+    transition: all 0.18s ease;
+  }
+  .seg-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .seg-btn.is-on {
+    background: linear-gradient(135deg, #059669, #0284c7); color: #fff;
+    border-color: rgba(110, 231, 183, 0.7);
+    box-shadow: 0 0 20px rgba(16,185,129,0.35);
+  }
+  .seg-btn.is-on.warm {
+    background: linear-gradient(135deg, #ea580c, #d97706);
+    border-color: rgba(253, 186, 116, 0.75);
+    box-shadow: 0 0 20px rgba(249,115,22,0.35);
+  }
+
+  /* Range slider */
+  .scale-slider {
+    width: 100%; accent-color: #34d399; cursor: pointer; margin: 6px 0 4px;
+    height: 6px;
+  }
+  .scale-ticks {
+    display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-weight: 600;
+  }
+
+  /* Live readouts inside control dock */
+  .dock-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;
+  }
+  .dock-cell {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.16);
+    border-radius: 11px; padding: 9px 11px;
+  }
+  .dock-cell .v { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  /* Close slide QR cards */
+  .qr-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .qr-card {
+    display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff;
+    background: var(--glass); backdrop-filter: blur(18px);
+    border: 1px solid var(--glass-border); border-radius: 14px; padding: 9px 14px 9px 9px;
+    transition: transform 0.18s ease, border-color 0.2s ease;
+  }
+  .qr-card:hover { transform: translateY(-2px); border-color: rgba(110,231,183,0.65); }
+  .qr-card img { width: 64px; height: 64px; background: #fff; padding: 4px; border-radius: 8px; display: block; }
+
+  /* Bottom cinematic chapter dock */
+  nav.bottom-dock {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 25;
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; border-radius: 999px;
+    background: rgba(9, 14, 26, 0.82); backdrop-filter: blur(18px);
+    border: 1px solid rgba(148,163,184,0.26);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    max-width: calc(100vw - 24px); overflow-x: auto;
+  }
+  .nav-arrow {
+    width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.28);
+    background: rgba(255,255,255,0.06); color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; flex: none; display: grid; place-items: center;
+    transition: background 0.15s ease;
+  }
+  .nav-arrow:hover { background: rgba(255,255,255,0.16); }
+  .chap-btn {
+    font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap;
+    padding: 7px 12px; border-radius: 999px; border: none; cursor: pointer;
+    background: transparent; color: var(--muted); transition: all 0.2s ease;
+  }
+  .chap-btn:hover { color: #fff; }
+  .chap-btn.active {
+    background: linear-gradient(135deg, #ea580c, #f97316); color: #fff;
+    box-shadow: 0 0 18px rgba(249,115,22,0.42);
+  }
+  .orbit-hint {
+    position: fixed; right: 22px; bottom: 24px; z-index: 15;
+    font-size: 11px; color: rgba(148,163,184,0.72); pointer-events: none;
+  }
+
+  /* 3D projected labels for Swiss cities & Money pillars */
+  #labels-layer {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;
+  }
+  .pin3d {
+    position: absolute; transform: translate(-50%, -100%);
+    font-size: 11px; font-weight: 700; white-space: nowrap;
+    padding: 3px 8px; border-radius: 999px;
+    background: rgba(9, 14, 26, 0.82); color: #f8fafc;
+    border: 1px solid rgba(148,163,184,0.35);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+    opacity: 0; transition: opacity 0.35s ease;
+  }
+  .pin3d.is-sink { border-color: rgba(16,185,129,0.7); color: #6ee7b7; }
+  .pin3d.is-warm { border-color: rgba(249,115,22,0.7); color: #fdba74; }
+  .pin3d.is-gold { border-color: rgba(250,204,21,0.75); color: #fef08a; font-size: 12px; padding: 4px 10px; }
+
+  @media (max-width: 820px) {
+    .brand-tag, .orbit-hint { display: none; }
+    .act-panel { inset: 64px 14px 76px; }
+    .glass-card { padding: 10px 12px; min-width: 135px; flex: 1 1 135px; }
+    .control-dock { padding: 12px 14px; }
+    .chap-btn { padding: 6px 9px; font-size: 11px; }
+    .qr-card img { width: 48px; height: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="webgl"></canvas>
+<div class="vignette"></div>
+<div id="labels-layer"></div>
+
+<header class="topbar">
+  <div class="brand-pill">
+    <img src="assets/calorgrid-logo.svg" alt="CalorGrid">
+    <div class="brand-name">CalorGrid<span>.</span></div>
+    <div class="brand-tag">Useful Load &rarr; Useful Heat</div>
+  </div>
+  <div class="top-links">
+    <a class="top-btn accent" href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank">&#9654; Full 4-Tab Portal &#8599;</a>
+    <a class="top-btn" href="../" target="_blank">Excalidraw Deck &#8599;</a>
+    <a class="top-btn" href="../CalorGrid_Technical_Report.pdf" target="_blank">Report PDF &#8599;</a>
+  </div>
+</header>
+
+<div class="hud-layer">
+  <!-- ACT 1: THE PARADOX -->
+  <section class="act-panel active" data-act="0">
+    <div class="hero-copy">
+      <div class="eyebrow">01 &middot; The Multi-Billion Paradox</div>
+      <h1 class="headline">Data Centers Burn Billions <em>Venting Heat.</em><br>Switzerland Burns Billions Making It.</h1>
+      <p class="lead">Hyperscale AI clusters pay twice&mdash;once for GPU power, and again for chillers dumping heat into cold Alpine air&mdash;while nearby homes and pools burn fossil gas for the exact same warmth.</p>
+    </div>
+    <div class="money-row">
+      <div class="glass-card glow-orange">
+        <div class="m-lbl">Swiss Energy Spent on Heat</div>
+        <div class="m-val orange">~50%</div>
+        <div class="m-sub">Over 35% of national CO<sub>2</sub></div>
+      </div>
+      <div class="glass-card">
+        <div class="m-lbl">Server Power Turned to Heat</div>
+        <div class="m-val">~100%</div>
+        <div class="m-sub">Rejected to the sky today</div>
+      </div>
+      <div class="glass-card glow-cyan">
+        <div class="m-lbl">CalorGrid Thesis</div>
+        <div class="m-val cyan">Move Bits, Not Pipes</div>
+        <div class="m-sub">2&ndash;4 ms optical fiber beats trenching</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 2: FLY INSIDE THE BUILDING -->
+  <section class="act-panel" data-act="1">
+    <div class="hero-copy">
+      <div class="eyebrow emerald">02 &middot; The Solution &mdash; Inside the Building</div>
+      <h1 class="headline">Turn Any Building Into a <em class="em-green">Micro-Cloud</em> That Pays You to Heat It.</h1>
+      <p class="lead">Direct-to-chip liquid-cooled AI servers tie into existing boilers through a sealed dual-loop plate exchanger&mdash;capturing 80% of electrical energy as clean 45&ndash;55 &deg;C hot water.</p>
+    </div>
+    <div class="money-row">
+      <div class="glass-card glow-green">
+        <div class="m-lbl">Building Host Pays</div>
+        <div class="m-val green">CHF 0</div>
+        <div class="m-sub">CHF 0 servers &middot; CHF 0 server electricity</div>
+      </div>
+      <div class="glass-card glow-orange">
+        <div class="m-lbl">Host Heating Bill Cut</div>
+        <div class="m-val orange">Up to &minus;87%</div>
+        <div class="m-sub">+CHF 2.7k to +CHF 19.9k/yr saved</div>
+      </div>
+      <div class="glass-card glow-cyan">
+        <div class="m-lbl">AI Customer Pays</div>
+        <div class="m-val cyan">&minus;60% vs AWS</div>
+        <div class="m-sub">Sovereign Swiss H100 &amp; B200 GPUs</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 3: 3D INTERACTIVE SWISS NETWORK -->
+  <section class="act-panel" data-act="2">
+    <div class="hero-copy">
+      <div class="eyebrow emerald">03 &middot; Live 3D Swiss Thermal-Compute Network</div>
+      <h1 class="headline">Zero Summer Waste Across <em class="em-green">14 Swiss Sites.</em></h1>
+      <p class="lead">When homes stop needing heat in July, our scheduler shifts GPU jobs over Swiss fiber in 2 ms straight into pools, alpine spas, and hospitals&mdash;keeping monetization running 365 days a year.</p>
+    </div>
+    <div class="split-body">
+      <div class="money-row">
+        <div class="glass-card glow-green">
+          <div class="m-lbl">Water-Loop Wasted Heat</div>
+          <div class="m-val green" id="act3-waste">0.0 kWh</div>
+          <div class="m-sub" id="act3-mode-sub">Smart optical fiber rerouting</div>
+        </div>
+        <div class="glass-card glow-orange">
+          <div class="m-lbl">Annual Useful Heat</div>
+          <div class="m-val orange">484 MWh/yr</div>
+          <div class="m-sub">136 liquid racks &middot; 10 cantons</div>
+        </div>
+      </div>
+      <div class="control-dock interactive">
+        <div class="dock-title"><span>Live Season Control</span><span id="act3-temp" style="color:#34d399;white-space:nowrap">Jan &middot; 1 &deg;C</span></div>
+        <div class="seg-group">
+          <button class="seg-btn warm is-on" id="btn-winter" type="button">&#10052; Swiss Winter (Homes Heat)</button>
+          <button class="seg-btn" id="btn-summer" type="button">&#9728; Swiss Summer (2 ms Sink Shift)</button>
+        </div>
+        <div class="m-sub" id="act3-desc" style="font-size:12.5px; line-height:1.4">Winter peak: Basel, Zurich, Bern &amp; Geneva residences absorb 100% of local server heat directly.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 4: INTERACTIVE 3D PLATFORM INSIDE THE DECK -->
+  <section class="act-panel" data-act="3">
+    <div class="hero-copy">
+      <div class="eyebrow cyan">04 &middot; Live 3D Product Walkthrough &mdash; Inside This Slide</div>
+      <h1 class="headline">One Platform. <em class="em-green">Two Sides.</em> Instant Cash Flow.</h1>
+      <p class="lead">Click any Swiss host archetype below to morph our 3D plant room live&mdash;and flip between instant On-Demand, Spot (&minus;60%), and fiber shift to see both ledgers react in real time.</p>
+    </div>
+    <div class="split-body">
+      <div class="money-row">
+        <div class="glass-card glow-green">
+          <div class="m-lbl">Host Saves / Year (CHF 0 Upfront)</div>
+          <div class="m-val green" id="act4-host-save">+CHF 11,176</div>
+          <div class="m-sub" id="act4-host-sub">St. Jakob Pool &middot; 2&times; B200 Liquid Racks</div>
+        </div>
+        <div class="glass-card glow-cyan">
+          <div class="m-lbl">Live GPU Rate</div>
+          <div class="m-val cyan" id="act4-gpu-rate">CHF 1.25/h</div>
+          <div class="m-sub" id="act4-gpu-sub">H100 Spot &middot; &minus;60% vs AWS</div>
+        </div>
+      </div>
+      <div class="control-dock interactive">
+        <div class="dock-title"><span>Interactive 3D Platform Controls</span><a href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank" style="color:#6ee7b7;text-decoration:none">Full App &#8599;</a></div>
+        <div class="seg-group" id="arch-btns">
+          <button class="seg-btn" data-arch="home" type="button">&#127968; Basel Home</button>
+          <button class="seg-btn is-on" data-arch="pool" type="button">&#127946; St. Jakob Pool</button>
+          <button class="seg-btn" data-arch="hospital" type="button">&#127973; Hospital Wing</button>
+        </div>
+        <div class="seg-group" id="tier-btns">
+          <button class="seg-btn is-on" data-tier="spot" type="button">Spot (&minus;60%)</button>
+          <button class="seg-btn" data-tier="ondemand" type="button">On-Demand (0 ms)</button>
+          <button class="seg-btn" data-tier="shift" type="button">Fiber Shift (Paused)</button>
+        </div>
+        <div class="dock-grid">
+          <div class="dock-cell"><div class="m-lbl">Live Heat Delivered</div><div class="v" id="act4-kw" style="color:#fb923c">16.6 kW</div></div>
+          <div class="dock-cell"><div class="m-lbl">Host Hardware &amp; Power</div><div class="v" style="color:#34d399">CHF 0</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 5: THE MONEY ENGINE -->
+  <section class="act-panel" data-act="4">
+    <div class="hero-copy">
+      <div class="eyebrow gold">05 &middot; The Business Model &amp; Profit Engine</div>
+      <h1 class="headline">60% Cheaper Than AWS. <em>20% Net Margin.</em></h1>
+      <p class="lead">Free host real estate, zero chillers, and displaced gas credits unlock massive unit-economic leverage. Drag the fleet slider to scale our 3D profit skyline in real time.</p>
+    </div>
+    <div class="split-body">
+      <div class="money-row">
+        <div class="glass-card glow-gold">
+          <div class="m-lbl">Annual Net Profit (20% Margin)</div>
+          <div class="m-val gold" id="act5-profit">CHF 1.25M/yr</div>
+          <div class="m-sub" id="act5-fleet-lbl">65 servers &middot; 520 H100 GPUs (6 Alpine hosts)</div>
+        </div>
+        <div class="glass-card glow-green">
+          <div class="m-lbl">Host Gas Bills Saved / Year</div>
+          <div class="m-val green" id="act5-gas">CHF 227.5k</div>
+          <div class="m-sub">&minus;87% annual gas spend &middot; 99.3% heat covered</div>
+        </div>
+      </div>
+      <div class="control-dock interactive">
+        <div class="dock-title"><span>Interactive 3D Profit Scale Simulator</span><span id="act5-srv-badge" style="color:#fde047">65 Servers</span></div>
+        <input class="scale-slider" id="fleet-slider" type="range" min="0" max="2" step="1" value="0">
+        <div class="scale-ticks">
+          <span>65 Srv (Pilot Cluster)</span>
+          <span>500 Srv (Swiss Grid)</span>
+          <span>2,000 Srv (Pan-Alpine)</span>
+        </div>
+        <div class="dock-grid">
+          <div class="dock-cell"><div class="m-lbl">Annual Compute Revenue</div><div class="v" id="act5-rev" style="color:#38bdf8">CHF 6.23M</div></div>
+          <div class="dock-cell"><div class="m-lbl">Stress-Test Edge vs AWS</div><div class="v" style="color:#34d399">&minus;22% Still Beats</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 6: GLOBAL ANTI-PHASE SCALE & CLOSE -->
+  <section class="act-panel" data-act="5">
+    <div class="hero-copy">
+      <div class="eyebrow emerald">06 &middot; Anti-Phase Global Scale &amp; Rollout</div>
+      <h1 class="headline">Switzerland Today.<br><em class="em-green">Anti-Phase Global Cloud</em> Tomorrow.</h1>
+      <p class="lead">Pairing Northern Hemisphere winters (Switzerland) with Southern Hemisphere winters (New Zealand) turns AI compute into a 100%-utilized, zero-waste global thermal utility.</p>
+    </div>
+    <div class="split-body">
+      <div class="money-row">
+        <div class="glass-card glow-green">
+          <div class="m-lbl">Phase 1 &middot; Months 1&ndash;3</div>
+          <div class="m-val green" style="font-size:21px">Basel Pools &amp; Spas</div>
+          <div class="m-sub">Commercial C6 &middot; 96% util</div>
+        </div>
+        <div class="glass-card glow-cyan">
+          <div class="m-lbl">Phase 2 &middot; Months 4&ndash;6</div>
+          <div class="m-val cyan" style="font-size:21px">Borehole Homes</div>
+          <div class="m-sub">SIA 384/6 ground recharge</div>
+        </div>
+        <div class="glass-card glow-gold">
+          <div class="m-lbl">Phase 3 &middot; Months 6&ndash;12</div>
+          <div class="m-val gold" style="font-size:21px">CH &harr; NZ Spot Grid</div>
+          <div class="m-sub">100% recovery &middot; 0.0 kWh waste</div>
+        </div>
+      </div>
+      <div class="qr-row interactive">
+        <a class="qr-card" href="https://subscriptions-external-pittsburgh-aruba.trycloudflare.com/" target="_blank">
+          <img src="assets/qr_live_app.svg" alt="Live App QR">
+          <div>
+            <div style="font-weight:800; font-size:14px; color:#6ee7b7">&#9654; Live 3D Web App &#8599;</div>
+            <div style="font-size:11.5px; color:#94a3b8; margin-top:2px">Vaibhav &middot; Prakash &middot; Vilas</div>
+          </div>
+        </a>
+        <a class="qr-card" href="https://github.com/prakash-aryan/calorgrid" target="_blank">
+          <img src="assets/qr_github_repo.svg" alt="GitHub QR">
+          <div>
+            <div style="font-weight:800; font-size:14px; color:#fdba74">GitHub Repository &#8599;</div>
+            <div style="font-size:11.5px; color:#94a3b8; margin-top:2px">prakash-aryan/calorgrid</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<nav class="bottom-dock" aria-label="3D Presentation Chapters">
+  <button class="nav-arrow" id="prev-btn" type="button" title="Previous (Left Arrow)">&#8592;</button>
+  <button class="chap-btn active" data-go="0" type="button">1. Paradox</button>
+  <button class="chap-btn" data-go="1" type="button">2. Micro-Cloud</button>
+  <button class="chap-btn" data-go="2" type="button">3. 3D Swiss Map</button>
+  <button class="chap-btn" data-go="3" type="button">4. Live 3D App</button>
+  <button class="chap-btn" data-go="4" type="button">5. Money Engine</button>
+  <button class="chap-btn" data-go="5" type="button">6. Global Scale</button>
+  <button class="nav-arrow" id="next-btn" type="button" title="Next (Right Arrow / Space)">&#8594;</button>
+</nav>
+<div class="orbit-hint">Drag to orbit in 3D &middot; Scroll or &larr;/&rarr; to fly between acts</div>
+
+<script type="module">
+import * as THREE from "./assets/three.module.js";
+
+// ============================================================================
+// CORE THREE.JS CINEMA ENGINE (Single Continuous World across 6 Camera Acts)
+// ============================================================================
+const canvas = document.getElementById("webgl");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050811);
+scene.fog = new THREE.FogExp2(0x050811, 0.017);
+
+const camera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 260);
+
+// Global Lighting Rig (tracks active act smoothly so every 3D scene gleams)
+const hemiLight = new THREE.HemisphereLight(0xbae6fd, 0x1e293b, 1.05);
+scene.add(hemiLight);
+const keyLight = new THREE.DirectionalLight(0xfff5e8, 1.85);
+keyLight.position.set(10, 18, 16);
+const keyTarget = new THREE.Object3D();
+scene.add(keyTarget);
+keyLight.target = keyTarget;
+scene.add(keyLight);
+const accentLight = new THREE.PointLight(0xf97316, 58, 52, 1.3);
+accentLight.position.set(0, 7, 6);
+scene.add(accentLight);
+const rimLight = new THREE.PointLight(0x38bdf8, 42, 56, 1.3);
+rimLight.position.set(-8, 7, -8);
+scene.add(rimLight);
+
+// Subtle continuous architectural floor plane + atmospheric particles
+const floorGrid = new THREE.GridHelper(240, 96, 0x1e293b, 0x0f172a);
+floorGrid.position.set(70, -2.5, 0);
+scene.add(floorGrid);
+
+// Floating atmospheric light motes spanning the entire 3D gallery
+const dustCount = 520;
+const dustPos = new Float32Array(dustCount * 3);
+for (let i = 0; i < dustCount; i++) {
+  dustPos[i * 3] = -20 + Math.random() * 195;
+  dustPos[i * 3 + 1] = -2 + Math.random() * 19;
+  dustPos[i * 3 + 2] = -22 + Math.random() * 44;
+}
+const dustGeo = new THREE.BufferGeometry();
+dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+const dustMat = new THREE.PointsMaterial({ color: 0x94a3b8, size: 0.11, transparent: true, opacity: 0.42 });
+const dustPts = new THREE.Points(dustGeo, dustMat);
+scene.add(dustPts);
+
+// Reusable sleek materials (brushed titanium gunmetal with crisp edge highlights)
+const darkMetal = new THREE.MeshStandardMaterial({ color: 0x243248, metalness: 0.62, roughness: 0.30 });
+const edgeLineMat = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.55 });
+const brushedSteel = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.78, roughness: 0.24 });
+function addEdgeFrame(mesh, geo) {
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeLineMat));
+}
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: 0x93c5fd, metalness: 0.05, roughness: 0.08, transmission: 0.72, transparent: true, opacity: 0.34
+});
+const chaletWood = new THREE.MeshStandardMaterial({ color: 0x7c4a2d, roughness: 0.75, metalness: 0.08 });
+const chaletRoof = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.55, metalness: 0.2 });
+
+// ============================================================================
+// ACT 1 (x = 0): HYPERSCALE WASTE MONOLITH vs COLD SWISS CHALETS
+// ============================================================================
+const act1 = new THREE.Group();
+act1.position.set(0, -2.5, 0);
+scene.add(act1);
+
+// Hyperscale datacenter monolith on right-center
+const dcGeo = new THREE.BoxGeometry(5.6, 4.4, 3.6);
+const dcBase = new THREE.Mesh(dcGeo, darkMetal);
+addEdgeFrame(dcBase, dcGeo);
+dcBase.position.set(2.8, 2.2, -1.2);
+act1.add(dcBase);
+
+// Glowing crimson GPU slit windows on monolith
+const redGlowMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+for (let r = 0; r < 5; r++) {
+  for (let c = 0; c < 4; c++) {
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.14, 0.08), redGlowMat);
+    slit.position.set(1.1 + c * 1.12, 0.9 + r * 0.72, 0.62);
+    act1.add(slit);
+  }
+}
+// Rooftop cooling chiller fans
+for (let i = 0; i < 3; i++) {
+  const chiller = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.72, 0.55, 20), brushedSteel);
+  chiller.position.set(1.2 + i * 1.6, 4.65, -1.2);
+  act1.add(chiller);
+}
+
+// Rising glowing crimson/orange waste-heat plume particles
+const plumeN = 180;
+const plumePos = new Float32Array(plumeN * 3);
+const plumeVel = new Float32Array(plumeN);
+for (let i = 0; i < plumeN; i++) {
+  plumePos[i * 3] = 0.5 + Math.random() * 4.6;
+  plumePos[i * 3 + 1] = 4.9 + Math.random() * 6.5;
+  plumePos[i * 3 + 2] = -2.2 + Math.random() * 2.0;
+  plumeVel[i] = 0.8 + Math.random() * 1.4;
+}
+const plumeGeo = new THREE.BufferGeometry();
+plumeGeo.setAttribute("position", new THREE.BufferAttribute(plumePos, 3));
+const plumeMat = new THREE.PointsMaterial({ color: 0xf97316, size: 0.28, transparent: true, opacity: 0.78 });
+const plumePts = new THREE.Points(plumeGeo, plumeMat);
+act1.add(plumePts);
+
+// Cold blue Swiss chalets burning gas on left
+const coldGlow = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+for (let i = 0; i < 3; i++) {
+  const ch = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.35, 1.5), chaletWood);
+  body.position.y = 0.68;
+  ch.add(body);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.45, 0.95, 4), chaletRoof);
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = 1.82;
+  ch.add(roof);
+  const win = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.36, 0.06), coldGlow);
+  win.position.set(0, 0.72, 0.76);
+  ch.add(win);
+  ch.position.set(-4.0 + i * 2.1, 0, 1.4 - (i % 2) * 1.4);
+  act1.add(ch);
+}
+
+// ============================================================================
+// ACT 2 (x = 28): GLASS CUTAWAY SWISS BUILDING + DUAL-LOOP LIQUID COOLED RACKS
+// ============================================================================
+const act2 = new THREE.Group();
+act2.position.set(28, -2.5, 0);
+scene.add(act2);
+
+// Concrete slab + glass architectural shell
+const bFloor = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.3, 6.2), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 }));
+bFloor.position.set(0.8, 0.15, 0);
+act2.add(bFloor);
+const bMidFloor = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.22, 6.2), glassMat);
+bMidFloor.position.set(0.8, 3.6, 0);
+act2.add(bMidFloor);
+
+// Glass cutaway wireframe room frame
+const roomWire = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(11.2, 6.4, 6.2)),
+  new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.32 })
+);
+roomWire.position.set(0.8, 3.35, 0);
+act2.add(roomWire);
+
+// 4 Liquid-cooled CalorGrid GPU racks
+const act2Leds = [];
+const rk2Geo = new THREE.BoxGeometry(1.05, 2.45, 1.35);
+for (let i = 0; i < 4; i++) {
+  const rk = new THREE.Mesh(rk2Geo, darkMetal);
+  addEdgeFrame(rk, rk2Geo);
+  rk.position.set(-2.9 + i * 1.42, 1.52, -0.4);
+  act2.add(rk);
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.08, 0.06), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+  for (let b = 0; b < 5; b++) {
+    const s = strip.clone();
+    s.position.set(-2.9 + i * 1.42, 0.72 + b * 0.4, 0.30);
+    act2.add(s);
+    act2Leds.push(s);
+  }
+}
+
+// Plate Heat Exchanger (CDU) + Translucent Thermal Buffer Cylinder
+const cdu = new THREE.Mesh(new THREE.BoxGeometry(1.25, 2.1, 1.15), brushedSteel);
+cdu.position.set(2.9, 1.35, -0.4);
+act2.add(cdu);
+const tank = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.92, 0.92, 2.75, 28),
+  new THREE.MeshPhysicalMaterial({ color: 0xf97316, emissive: 0x9a3412, emissiveIntensity: 0.55, roughness: 0.2, metalness: 0.15, transparent: true, opacity: 0.82 })
+);
+tank.position.set(5.1, 1.68, -0.4);
+act2.add(tank);
+
+// Upstairs warm radiant floor coils
+const coilCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(5.1, 3.05, -0.4),
+  new THREE.Vector3(5.1, 3.85, -0.4),
+  new THREE.Vector3(3.4, 3.85, 1.5),
+  new THREE.Vector3(0.2, 3.85, 1.5),
+  new THREE.Vector3(-2.6, 3.85, -0.2),
+  new THREE.Vector3(1.2, 3.85, -1.6),
+  new THREE.Vector3(4.5, 3.85, -1.6),
+]);
+const coilMesh = new THREE.Mesh(
+  new THREE.TubeGeometry(coilCurve, 64, 0.09, 10, false),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, emissive: 0xea580c, emissiveIntensity: 0.9, roughness: 0.25 })
+);
+act2.add(coilMesh);
+
+// Dual-loop pipe paths + animated glowing fluid spheres
+const loopPrimary = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(-2.9, 2.85, -0.4),
+  new THREE.Vector3(0.0, 3.0, -0.4),
+  new THREE.Vector3(2.9, 2.45, -0.4),
+]);
+const loopSecondary = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(3.5, 2.2, -0.4),
+  new THREE.Vector3(4.3, 2.55, -0.4),
+  new THREE.Vector3(5.1, 2.7, -0.4),
+]);
+act2.add(new THREE.Mesh(new THREE.TubeGeometry(loopPrimary, 32, 0.08, 10, false), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 })));
+act2.add(new THREE.Mesh(new THREE.TubeGeometry(loopSecondary, 24, 0.09, 10, false), new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.7 })));
+
+const act2Droplets = [];
+for (let i = 0; i < 14; i++) {
+  const isPrim = i < 7;
+  const sp = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 12, 12),
+    new THREE.MeshBasicMaterial({ color: isPrim ? 0x38bdf8 : 0xfde047 })
+  );
+  act2.add(sp);
+  act2Droplets.push({ mesh: sp, curve: isPrim ? loopPrimary : coilCurve, offset: (i % 7) / 7 });
+}
+
+// ============================================================================
+// ACT 3 (x = 56): SCULPTED 3D SWISSTOPO ALPS RELIEF + LIVE WINTER/SUMMER FIBER ARCS
+// ============================================================================
+const act3 = new THREE.Group();
+act3.position.set(56, -1.8, 0);
+scene.add(act3);
+
+const texLoader = new THREE.TextureLoader();
+const swissColorTex = texLoader.load("assets/swiss_map_dark.jpg");
+swissColorTex.colorSpace = THREE.SRGBColorSpace;
+const swissDispTex = texLoader.load("assets/swiss_height.jpg");
+
+const MAP_W = 15.6, MAP_H = 10.33;
+const mapGeo = new THREE.PlaneGeometry(MAP_W, MAP_H, 160, 108);
+const mapMat = new THREE.MeshStandardMaterial({
+  map: swissColorTex,
+  displacementMap: swissDispTex,
+  displacementScale: 1.55,
+  roughness: 0.62,
+  metalness: 0.22,
+});
+const swissMesh = new THREE.Mesh(mapGeo, mapMat);
+swissMesh.rotation.x = -Math.PI / 2;
+act3.add(swissMesh);
+
+// Glowing dark pedestal under Switzerland
+const mapRim = new THREE.Mesh(
+  new THREE.BoxGeometry(MAP_W + 0.4, 0.26, MAP_H + 0.4),
+  new THREE.MeshStandardMaterial({ color: 0x0b1220, metalness: 0.8, roughness: 0.3 })
+);
+mapRim.position.y = -0.18;
+act3.add(mapRim);
+
+// Real pixel-aligned Swiss cities (from swissGeo.ts 1000 x 662.1)
+const SWISS_NODES = [
+  { id: "basel", label: "Basel Homes", x: 369.1, y: 109.4, sink: false },
+  { id: "st_jakob", label: "St. Jakob Pool", x: 392.0, y: 136.0, sink: true },
+  { id: "zurich", label: "Zurich Homes", x: 563.6, y: 164.5, sink: false },
+  { id: "stgallen", label: "St. Gallen Hospital", x: 734.0, y: 150.2, sink: true },
+  { id: "bern", label: "Bern Homes", x: 340.3, y: 293.3, sink: false },
+  { id: "emmental", label: "Emmental Dairy", x: 425.0, y: 295.0, sink: true },
+  { id: "davos", label: "Davos Alpine Spa", x: 827.7, y: 336.6, sink: true },
+  { id: "geneva", label: "Geneva Homes", x: 85.0, y: 495.0, sink: false },
+  { id: "zermatt", label: "Zermatt / Saas-Fee", x: 432.0, y: 518.0, sink: true },
+  { id: "lugano", label: "Lugano", x: 642.0, y: 565.0, sink: false },
+];
+
+const labelsLayer = document.getElementById("labels-layer");
+const projectedPins = [];
+const nodeById = {};
+
+function swissTo3D(nx, ny) {
+  const u = nx / 1000.0;
+  const v = ny / 662.1;
+  return new THREE.Vector3((u - 0.5) * MAP_W, 0.55 + Math.max(0, v - 0.35) * 0.9, (v - 0.5) * MAP_H);
+}
+
+SWISS_NODES.forEach(n => {
+  const pos = swissTo3D(n.x, n.y);
+  const beaconMat = new THREE.MeshBasicMaterial({ color: n.sink ? 0x10b981 : 0xf97316 });
+  const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, n.sink ? 1.05 : 0.72, 16), beaconMat);
+  beacon.position.set(pos.x, pos.y + (n.sink ? 0.48 : 0.32), pos.z);
+  act3.add(beacon);
+
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.18, 0.32, 24),
+    new THREE.MeshBasicMaterial({ color: n.sink ? 0x34d399 : 0xfb923c, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+  );
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.set(pos.x, pos.y + 0.08, pos.z);
+  act3.add(halo);
+
+  const pinEl = document.createElement("div");
+  pinEl.className = "pin3d " + (n.sink ? "is-sink" : "is-warm");
+  pinEl.textContent = n.label;
+  labelsLayer.appendChild(pinEl);
+
+  const entry = { ...n, pos, beacon, beaconMat, halo, pinEl };
+  nodeById[n.id] = entry;
+  projectedPins.push({ act: 2, worldPos: () => new THREE.Vector3(56 + pos.x, -1.8 + pos.y + 1.15, pos.z), el: pinEl });
+});
+
+// Animated 3D Fiber Arcs across Switzerland (dynamically re-colored & boosted in Summer)
+const ROUTES = [
+  ["basel", "st_jakob"],
+  ["zurich", "stgallen"],
+  ["bern", "emmental"],
+  ["zurich", "davos"],
+  ["geneva", "zermatt"],
+  ["lugano", "davos"],
+];
+const fiberArcs = [];
+ROUTES.forEach(([aId, bId], idx) => {
+  const a = nodeById[aId].pos, b = nodeById[bId].pos;
+  const mid = a.clone().lerp(b, 0.5);
+  mid.y += 1.65 + (idx % 2) * 0.65;
+  const curve = new THREE.QuadraticBezierCurve3(a.clone().add(new THREE.Vector3(0, 0.6, 0)), mid, b.clone().add(new THREE.Vector3(0, 0.6, 0)));
+  const tubeMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.42 });
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 36, 0.045, 8, false), tubeMat);
+  act3.add(tube);
+  const pktMat = new THREE.MeshBasicMaterial({ color: 0x34d399 });
+  const pkt = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), pktMat);
+  act3.add(pkt);
+  fiberArcs.push({ curve, tubeMat, pkt, pktMat, offset: idx / ROUTES.length });
+});
+
+let swissSeason = "winter";
+function setSwissSeason(mode) {
+  swissSeason = mode;
+  document.getElementById("btn-winter").classList.toggle("is-on", mode === "winter");
+  document.getElementById("btn-winter").classList.toggle("warm", mode === "winter");
+  document.getElementById("btn-summer").classList.toggle("is-on", mode === "summer");
+  const isSum = mode === "summer";
+  document.getElementById("act3-temp").textContent = isSum ? "Jul · 29 °C" : "Jan · 1 °C";
+  document.getElementById("act3-mode-sub").textContent = isSum ? "9.3 kW shifted in 2 ms → pools & spas" : "Residential basements absorb 100% locally";
+  document.getElementById("act3-desc").textContent = isSum
+    ? "Summer zero-waste mode: fiber laser arcs instantly shift load from warm homes into St. Jakob Pool, Davos Spa & St. Gallen Hospital."
+    : "Winter peak: Basel, Zurich, Bern & Geneva residences absorb 100% of local server heat directly.";
+  SWISS_NODES.forEach(n => {
+    const o = nodeById[n.id];
+    if (isSum) {
+      o.beaconMat.color.setHex(n.sink ? 0x10b981 : 0x38bdf8);
+      o.beacon.scale.y = n.sink ? 1.55 : 0.6;
+      o.pinEl.className = "pin3d " + (n.sink ? "is-sink" : "");
+    } else {
+      o.beaconMat.color.setHex(n.sink ? 0x10b981 : 0xf97316);
+      o.beacon.scale.y = n.sink ? 1.0 : 1.3;
+      o.pinEl.className = "pin3d " + (n.sink ? "is-sink" : "is-warm");
+    }
+  });
+  fiberArcs.forEach(f => {
+    f.tubeMat.color.setHex(isSum ? 0x10b981 : 0xf97316);
+    f.tubeMat.opacity = isSum ? 0.88 : 0.35;
+    f.pktMat.color.setHex(isSum ? 0x6ee7b7 : 0xfde047);
+  });
+}
+document.getElementById("btn-winter").onclick = () => setSwissSeason("winter");
+document.getElementById("btn-summer").onclick = () => setSwissSeason("summer");
+
+// ============================================================================
+// ACT 4 (x = 84): LIVE INTERACTIVE 3D PLATFORM WALKTHROUGH INSIDE THE SLIDE!
+// ============================================================================
+const act4 = new THREE.Group();
+act4.position.set(84, -2.5, 0);
+scene.add(act4);
+
+const platBase = new THREE.Mesh(
+  new THREE.CylinderGeometry(5.6, 6.0, 0.32, 48),
+  new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.72, roughness: 0.3 })
+);
+platBase.position.y = 0.16;
+act4.add(platBase);
+const platRing = new THREE.Mesh(
+  new THREE.TorusGeometry(5.65, 0.05, 12, 64),
+  new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+);
+platRing.rotation.x = Math.PI / 2;
+platRing.position.y = 0.34;
+act4.add(platRing);
+
+// Shared liquid-cooled AI server bay on left of Act 4 platform
+const act4Racks = [];
+const act4LedMats = [];
+const rk4Geo = new THREE.BoxGeometry(0.95, 2.5, 1.35);
+for (let i = 0; i < 4; i++) {
+  const rGroup = new THREE.Group();
+  const chassis = new THREE.Mesh(rk4Geo, darkMetal);
+  addEdgeFrame(chassis, rk4Geo);
+  chassis.position.y = 1.55;
+  rGroup.add(chassis);
+  const lm = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+  act4LedMats.push(lm);
+  for (let s = 0; s < 5; s++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.09, 0.06), lm);
+    bar.position.set(0, 0.8 + s * 0.38, 0.69);
+    rGroup.add(bar);
+  }
+  rGroup.position.set(-3.1 + i * 1.15, 0, -0.5);
+  act4.add(rGroup);
+  act4Racks.push(rGroup);
+}
+
+// 3 Morphable 3D Thermal Sink Props on right half of Act 4 platform!
+// (a) Basel Home Radiator + Buffer Tank
+const propHome = new THREE.Group();
+const homeTank = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2.3, 24), new THREE.MeshStandardMaterial({ color: 0xea580c, emissive: 0x7c2d12, emissiveIntensity: 0.5, roughness: 0.3 }));
+homeTank.position.set(2.1, 1.48, -0.6);
+propHome.add(homeTank);
+for (let f = 0; f < 8; f++) {
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.4, 0.45), new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0xf97316, emissiveIntensity: 0.35 }));
+  fin.position.set(1.6 + f * 0.24, 1.05, 1.1);
+  propHome.add(fin);
+}
+propHome.visible = false;
+act4.add(propHome);
+
+// (b) St. Jakob Outdoor Swimming Pool Basin (glowing shimmering turquoise!)
+const propPool = new THREE.Group();
+const poolDeck = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.45, 3.4), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5 }));
+poolDeck.position.set(2.3, 0.55, 0.1);
+propPool.add(poolDeck);
+const poolWater = new THREE.Mesh(
+  new THREE.BoxGeometry(3.8, 0.18, 2.8),
+  new THREE.MeshPhysicalMaterial({ color: 0x06b6d4, emissive: 0x0284c7, emissiveIntensity: 0.65, roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.88 })
+);
+poolWater.position.set(2.3, 0.76, 0.1);
+propPool.add(poolWater);
+// Lane dividers
+for (let l = -1; l <= 1; l++) {
+  const lane = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.7, 8), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+  lane.rotation.z = Math.PI / 2;
+  lane.position.set(2.3, 0.87, 0.1 + l * 0.72);
+  propPool.add(lane);
+}
+act4.add(propPool);
+
+// (c) St. Gallen Hospital Twin Sterilisation / DHW Vessels
+const propHosp = new THREE.Group();
+for (let v = 0; v < 2; v++) {
+  const vessel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.85, 0.85, 2.95, 28),
+    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.75, roughness: 0.2 })
+  );
+  vessel.position.set(1.6 + v * 2.0, 1.8, -0.2);
+  propHosp.add(vessel);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.87, 0.07, 12, 32), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.set(1.6 + v * 2.0, 2.5, -0.2);
+  propHosp.add(ring);
+}
+// Glowing Swiss cross emblem
+const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.28, 0.1), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.95, 0.1), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+crossH.position.set(2.6, 2.2, 1.25); crossV.position.set(2.6, 2.2, 1.25);
+propHosp.add(crossH, crossV);
+propHosp.visible = false;
+act4.add(propHosp);
+
+// Connecting animated heat bridge between racks and active sink
+const bridgeCurve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.2, 2.2, -0.3), new THREE.Vector3(0.9, 3.0, -0.1), new THREE.Vector3(2.1, 1.6, 0.0));
+const bridgePipe = new THREE.Mesh(new THREE.TubeGeometry(bridgeCurve, 28, 0.08, 10, false), new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.75 }));
+act4.add(bridgePipe);
+const act4Droplets = [];
+for (let i = 0; i < 6; i++) {
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
+  act4.add(d);
+  act4Droplets.push({ mesh: d, offset: i / 6 });
+}
+
+const ARCH_DATA = {
+  home:     { save: "+CHF 2,685",  sub: "Basel Family Home · 4× HydroNode 1 kW", kw: "3.2 kW",  racks: 4 },
+  pool:     { save: "+CHF 11,176", sub: "St. Jakob Pool · 2× B200 Liquid AI Racks", kw: "16.6 kW", racks: 2 },
+  hospital: { save: "+CHF 19,907", sub: "St. Gallen Hospital · 2× B200 Thermal Wing", kw: "16.6 kW", racks: 2 },
+};
+const TIER_DATA = {
+  spot:     { rate: "CHF 1.25/h", sub: "H100 Spot · −60% vs AWS · 0-Waste", color: 0x10b981, speed: 0.45 },
+  ondemand: { rate: "CHF 2.27/h", sub: "H100 On-Demand · 0 ms Instant · −59%", color: 0x38bdf8, speed: 0.72 },
+  shift:    { rate: "2 ms Shift", sub: "SIGSTOP / Fiber Reroute · 0.0 kWh Dump", color: 0xf59e0b, speed: 0.06 },
+};
+let curArch = "pool", curTier = "spot";
+
+function updateAct4() {
+  const a = ARCH_DATA[curArch], t = TIER_DATA[curTier];
+  document.getElementById("act4-host-save").textContent = a.save;
+  document.getElementById("act4-host-sub").textContent = a.sub;
+  document.getElementById("act4-kw").textContent = curTier === "shift" ? "0.0 kW (Shifted)" : a.kw;
+  document.getElementById("act4-gpu-rate").textContent = t.rate;
+  document.getElementById("act4-gpu-sub").textContent = t.sub;
+  propHome.visible = curArch === "home";
+  propPool.visible = curArch === "pool";
+  propHosp.visible = curArch === "hospital";
+  act4Racks.forEach((rk, i) => {
+    rk.visible = i < a.racks;
+    rk.scale.set(a.racks === 2 ? 1.35 : 1.0, a.racks === 2 ? 1.15 : 1.0, 1.0);
+  });
+  act4LedMats.forEach(m => m.color.setHex(t.color));
+  platRing.material.color.setHex(t.color);
+}
+document.querySelectorAll("#arch-btns button").forEach(btn => {
+  btn.onclick = () => {
+    curArch = btn.dataset.arch;
+    document.querySelectorAll("#arch-btns button").forEach(b => b.classList.toggle("is-on", b === btn));
+    updateAct4();
+  };
+});
+document.querySelectorAll("#tier-btns button").forEach(btn => {
+  btn.onclick = () => {
+    curTier = btn.dataset.tier;
+    document.querySelectorAll("#tier-btns button").forEach(b => b.classList.toggle("is-on", b === btn));
+    updateAct4();
+  };
+});
+updateAct4();
+
+// ============================================================================
+// ACT 5 (x = 112): 3D MONEY ENGINE — PRICING PILLARS + SCALABLE PROFIT MONOLITH
+// ============================================================================
+const act5 = new THREE.Group();
+act5.position.set(112, -2.5, 0);
+scene.add(act5);
+
+const PILLARS = [
+  { x: -1.8, h: 5.51, color: 0x475569, emissive: 0x1e293b, label: "AWS H100 · CHF 5.51", cls: "" },
+  { x:  0.4, h: 3.60, color: 0x64748b, emissive: 0x1e293b, label: "Specialist · CHF 3.60", cls: "" },
+  { x:  2.6, h: 2.27, color: 0x0284c7, emissive: 0x0369a1, label: "CalorGrid OD · CHF 2.27", cls: "is-warm" },
+  { x:  4.8, h: 1.25, color: 0x10b981, emissive: 0x047857, label: "CalorGrid Spot · CHF 1.25 (−60%)", cls: "is-sink" },
+];
+PILLARS.forEach(p => {
+  const bGeo = new THREE.BoxGeometry(1.45, p.h, 1.45);
+  const mesh = new THREE.Mesh(
+    bGeo,
+    new THREE.MeshStandardMaterial({ color: p.color, emissive: p.emissive, emissiveIntensity: 0.48, metalness: 0.4, roughness: 0.25 })
+  );
+  addEdgeFrame(mesh, bGeo);
+  mesh.position.set(p.x, p.h / 2, -0.5);
+  act5.add(mesh);
+  const el = document.createElement("div");
+  el.className = "pin3d " + p.cls;
+  el.textContent = p.label;
+  labelsLayer.appendChild(el);
+  projectedPins.push({ act: 4, worldPos: () => new THREE.Vector3(112 + p.x, -2.5 + p.h + 0.52, -0.5), el });
+});
+
+// Right-side Scalable Golden Net Profit Monolith!
+const profitMat = new THREE.MeshStandardMaterial({
+  color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.58, metalness: 0.65, roughness: 0.18
+});
+const profitTower = new THREE.Mesh(new THREE.BoxGeometry(1.85, 1.0, 1.85), profitMat);
+profitTower.position.set(7.4, 1.3, -0.5);
+act5.add(profitTower);
+
+const profitPin = document.createElement("div");
+profitPin.className = "pin3d is-gold";
+profitPin.textContent = "Net Profit: CHF 1.25M/yr";
+labelsLayer.appendChild(profitPin);
+let targetProfitH = 2.4;
+projectedPins.push({ act: 4, worldPos: () => new THREE.Vector3(112 + 7.4, -2.5 + profitTower.scale.y + 0.58, -0.5), el: profitPin });
+
+const SCALE_TIERS = [
+  { srv: "65 Servers",  profit: "CHF 1.25M/yr", lbl: "65 servers · 520 H100 GPUs (6 Alpine hosts)", gas: "CHF 227.5k", rev: "CHF 6.23M", h: 2.5 },
+  { srv: "500 Servers", profit: "CHF 9.62M/yr", lbl: "500 servers · 4,000 H100 GPUs (Swiss Grid)",   gas: "CHF 1.75M",  rev: "CHF 47.9M", h: 4.6 },
+  { srv: "2,000 Servers", profit: "CHF 38.5M/yr", lbl: "2,000 servers · 16,000 H100s (Pan-Alpine)", gas: "CHF 7.00M",  rev: "CHF 192M",  h: 6.8 },
+];
+const fleetSlider = document.getElementById("fleet-slider");
+function updateFleetScale() {
+  const st = SCALE_TIERS[Number(fleetSlider.value)];
+  document.getElementById("act5-profit").textContent = st.profit;
+  document.getElementById("act5-fleet-lbl").textContent = st.lbl;
+  document.getElementById("act5-gas").textContent = st.gas;
+  document.getElementById("act5-rev").textContent = st.rev;
+  document.getElementById("act5-srv-badge").textContent = st.srv;
+  profitPin.textContent = "Net Profit: " + st.profit;
+  targetProfitH = st.h;
+}
+fleetSlider.addEventListener("input", updateFleetScale);
+updateFleetScale();
+
+// ============================================================================
+// ACT 6 (x = 140): ORBITAL ANTI-PHASE GLOBE (SWITZERLAND <-> NEW ZEALAND)
+// ============================================================================
+const act6 = new THREE.Group();
+act6.position.set(140, 0.8, 0);
+scene.add(act6);
+
+const globeGroup = new THREE.Group();
+act6.add(globeGroup);
+
+const earthCore = new THREE.Mesh(
+  new THREE.SphereGeometry(3.25, 42, 32),
+  new THREE.MeshStandardMaterial({ color: 0x0d2140, emissive: 0x071428, emissiveIntensity: 0.6, metalness: 0.35, roughness: 0.48 })
+);
+globeGroup.add(earthCore);
+const earthWire = new THREE.Mesh(
+  new THREE.SphereGeometry(3.28, 30, 22),
+  new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.34 })
+);
+globeGroup.add(earthWire);
+const eqRing = new THREE.Mesh(
+  new THREE.TorusGeometry(3.55, 0.025, 10, 80),
+  new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.42 })
+);
+eqRing.rotation.x = Math.PI / 2;
+globeGroup.add(eqRing);
+
+// Position CH (North-West front) & NZ (South-East front) so the glowing anti-phase arc faces the audience!
+const pCH = new THREE.Vector3(-1.35, 2.35, 1.85).normalize().multiplyScalar(3.32);
+const pNZ = new THREE.Vector3(1.95, -2.05, 1.65).normalize().multiplyScalar(3.32);
+const chDot = new THREE.Mesh(new THREE.SphereGeometry(0.20, 18, 18), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+chDot.position.copy(pCH); globeGroup.add(chDot);
+const nzDot = new THREE.Mesh(new THREE.SphereGeometry(0.20, 18, 18), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+nzDot.position.copy(pNZ); globeGroup.add(nzDot);
+
+const chPinEl = document.createElement("div");
+chPinEl.className = "pin3d is-warm";
+chPinEl.textContent = "Switzerland · Northern Winter";
+labelsLayer.appendChild(chPinEl);
+const nzPinEl = document.createElement("div");
+nzPinEl.className = "pin3d is-sink";
+nzPinEl.textContent = "New Zealand · Southern Winter (100% Recovery)";
+labelsLayer.appendChild(nzPinEl);
+
+projectedPins.push({ act: 5, worldPos: () => chDot.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.45, 0)), el: chPinEl });
+projectedPins.push({ act: 5, worldPos: () => nzDot.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, -0.55, 0)), el: nzPinEl });
+
+// Glowing orbital fiber bridge curving cleanly across the front hemisphere
+const orbCurve = new THREE.QuadraticBezierCurve3(pCH, new THREE.Vector3(1.1, 0.4, 5.4), pNZ);
+globeGroup.add(new THREE.Mesh(new THREE.TubeGeometry(orbCurve, 64, 0.065, 10, false), new THREE.MeshBasicMaterial({ color: 0x34d399 })));
+const orbPkts = [];
+for (let k = 0; k < 3; k++) {
+  const pkt = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 14), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
+  globeGroup.add(pkt);
+  orbPkts.push({ mesh: pkt, off: k / 3 });
+}
+
+// ============================================================================
+// CINEMA CAMERA RIG, SMOOTH ACT TRANSITIONS & MOUSE/TOUCH ORBIT
+// ============================================================================
+const ACTS = [
+  { pos: new THREE.Vector3(-2.5, 4.2, 13.5),  look: new THREE.Vector3(0.5, 1.2, -0.5),  bg: 0x070812, accent: 0xef4444, ax: 2 },
+  { pos: new THREE.Vector3(27.5, 2.6, 11.4),  look: new THREE.Vector3(29.2, 0.4, -0.2), bg: 0x050b18, accent: 0xf97316, ax: 30 },
+  { pos: new THREE.Vector3(56.0, 9.6, 11.2),  look: new THREE.Vector3(56.0, -1.6, 0.5), bg: 0x040b14, accent: 0x10b981, ax: 56 },
+  { pos: new THREE.Vector3(84.4, 3.4, 11.6),  look: new THREE.Vector3(84.4, -0.4, 0.0), bg: 0x060c1a, accent: 0x38bdf8, ax: 84 },
+  { pos: new THREE.Vector3(111.4, 4.1, 15.8), look: new THREE.Vector3(113.0, 0.7, -0.5), bg: 0x070912, accent: 0xfacc15, ax: 116 },
+  { pos: new THREE.Vector3(138.6, 1.8, 12.2), look: new THREE.Vector3(139.2, 0.7, 0.0), bg: 0x040a14, accent: 0x10b981, ax: 140 },
+];
+
+let curAct = 0;
+const curPos = ACTS[0].pos.clone();
+const curLook = ACTS[0].look.clone();
+const curBg = new THREE.Color(ACTS[0].bg);
+const curAccent = new THREE.Color(ACTS[0].accent);
+let orbitYaw = 0, orbitPitch = 0, targetYaw = 0, targetPitch = 0;
+
+const panels = [...document.querySelectorAll(".act-panel")];
+const chapBtns = [...document.querySelectorAll(".chap-btn")];
+
+function goAct(idx) {
+  curAct = Math.max(0, Math.min(ACTS.length - 1, idx));
+  targetYaw = 0; targetPitch = 0;
+  panels.forEach((p, i) => p.classList.toggle("active", i === curAct));
+  chapBtns.forEach((b, i) => b.classList.toggle("active", i === curAct));
+  history.replaceState(null, "", `#${curAct + 1}`);
+}
+
+chapBtns.forEach(b => b.addEventListener("click", () => goAct(Number(b.dataset.go))));
+document.getElementById("prev-btn").onclick = () => goAct(curAct - 1);
+document.getElementById("next-btn").onclick = () => goAct(curAct + 1);
+
+window.addEventListener("keydown", e => {
+  if (["ArrowRight", " ", "PageDown", "ArrowDown"].includes(e.key)) { e.preventDefault(); goAct(curAct + 1); }
+  else if (["ArrowLeft", "PageUp", "ArrowUp", "Backspace"].includes(e.key)) { e.preventDefault(); goAct(curAct - 1); }
+  else if (e.key === "f" || e.key === "F") {
+    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+  }
+});
+
+let wheelLock = 0;
+window.addEventListener("wheel", e => {
+  if (Date.now() - wheelLock < 650 || Math.abs(e.deltaY) < 22) return;
+  wheelLock = Date.now();
+  goAct(curAct + (e.deltaY > 0 ? 1 : -1));
+}, { passive: true });
+
+// Drag to orbit 3D scene smoothly
+let dragging = false, lx = 0, ly = 0;
+canvas.addEventListener("pointerdown", e => { dragging = true; lx = e.clientX; ly = e.clientY; });
+window.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  targetYaw = Math.max(-0.55, Math.min(0.55, targetYaw - (e.clientX - lx) * 0.0038));
+  targetPitch = Math.max(-0.28, Math.min(0.35, targetPitch + (e.clientY - ly) * 0.0032));
+  lx = e.clientX; ly = e.clientY;
+});
+window.addEventListener("pointerup", () => { dragging = false; });
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Check URL hash on load
+const h0 = parseInt((location.hash || "#1").slice(1), 10);
+if (!isNaN(h0) && h0 >= 1 && h0 <= ACTS.length) {
+  goAct(h0 - 1);
+  curPos.copy(ACTS[curAct].pos);
+  curLook.copy(ACTS[curAct].look);
+}
+
+// ============================================================================
+// RENDER LOOP (60 FPS Damped Transitions + Live 3D Particle Physics)
+// ============================================================================
+const clock = new THREE.Clock();
+const tmpV = new THREE.Vector3();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  const spec = ACTS[curAct];
+
+  // Smoothly interpolate camera, lighting, and atmosphere
+  const k = 1 - Math.exp(-3.4 * dt);
+  orbitYaw += (targetYaw - orbitYaw) * k;
+  orbitPitch += (targetPitch - orbitPitch) * k;
+
+  // Compute orbited target camera position + subtle living cinema breath
+  const offset = spec.pos.clone().sub(spec.look);
+  const breath = Math.sin(t * 0.55) * 0.035;
+  offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitYaw + breath);
+  offset.y += orbitPitch * 6.0;
+  const desiredPos = spec.look.clone().add(offset);
+
+  curPos.lerp(desiredPos, k);
+  curLook.lerp(spec.look, k);
+  camera.position.copy(curPos);
+  camera.lookAt(curLook);
+
+  curBg.lerp(new THREE.Color(spec.bg), k);
+  scene.background.copy(curBg);
+  scene.fog.color.copy(curBg);
+  curAccent.lerp(new THREE.Color(spec.accent), k);
+  accentLight.color.copy(curAccent);
+  accentLight.position.x += (spec.ax - accentLight.position.x) * k;
+  keyLight.position.x = curLook.x + 8;
+  keyTarget.position.copy(curLook);
+  rimLight.position.x = curLook.x - 9;
+
+  // Act 1: rising waste-heat plume
+  const pp = plumeGeo.attributes.position.array;
+  for (let i = 0; i < plumeN; i++) {
+    pp[i * 3 + 1] += plumeVel[i] * dt * 1.4;
+    pp[i * 3] += Math.sin(t * 1.4 + i) * dt * 0.18;
+    if (pp[i * 3 + 1] > 11.4) {
+      pp[i * 3 + 1] = 4.9;
+      pp[i * 3] = 0.6 + Math.random() * 4.4;
+    }
+  }
+  plumeGeo.attributes.position.needsUpdate = true;
+
+  // Act 2: dual-loop coolant droplets flowing through racks -> CDU -> radiant coils
+  act2Droplets.forEach(d => {
+    const u = (t * 0.22 + d.offset) % 1;
+    d.mesh.position.copy(d.curve.getPointAt(u));
+  });
+
+  // Act 3: 3D Swiss optical fiber packets
+  const arcSpd = swissSeason === "summer" ? 0.42 : 0.20;
+  fiberArcs.forEach(f => {
+    const u = (t * arcSpd + f.offset) % 1;
+    f.pkt.position.copy(f.curve.getPointAt(u));
+  });
+
+  // Act 4: live platform coolant droplets & subtle pool shimmer
+  const a4Spd = TIER_DATA[curTier].speed;
+  act4Droplets.forEach(d => {
+    const u = (t * a4Spd + d.offset) % 1;
+    d.mesh.position.copy(bridgeCurve.getPointAt(u));
+  });
+  poolWater.position.y = 0.76 + Math.sin(t * 2.2) * 0.02;
+
+  // Act 5: elastic growth of golden net profit tower
+  profitTower.scale.y += (targetProfitH - profitTower.scale.y) * (1 - Math.exp(-6.0 * dt));
+  profitTower.position.y = profitTower.scale.y / 2;
+
+  // Act 6: gentle front-facing globe sway + 3 anti-phase CH <-> NZ light packets
+  globeGroup.rotation.y = Math.sin(t * 0.32) * 0.28;
+  orbPkts.forEach(p => p.mesh.position.copy(orbCurve.getPointAt((t * 0.26 + p.off) % 1)));
+
+  // Project 3D floating pins cleanly
+  projectedPins.forEach(p => {
+    if (p.act !== curAct) { p.el.style.opacity = "0"; return; }
+    tmpV.copy(p.worldPos()).project(camera);
+    if (tmpV.z > 1) { p.el.style.opacity = "0"; return; }
+    p.el.style.left = `${(tmpV.x * 0.5 + 0.5) * window.innerWidth}px`;
+    p.el.style.top = `${(-tmpV.y * 0.5 + 0.5) * window.innerHeight}px`;
+    p.el.style.opacity = "1";
+  });
+
+  renderer.render(scene, camera);
+}
+
+window.__GO_ACT__ = goAct;
+window.__READY_3D__ = true;
+animate();
+</script>
+</body>
+</html>
